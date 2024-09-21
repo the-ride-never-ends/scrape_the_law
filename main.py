@@ -1,0 +1,119 @@
+import asyncio
+import sys
+
+
+
+from input import InputProcessor
+from search import SearchEngine
+from utils.search.google_search import PlaywrightGoogleLinkSearch
+from query import SearchQueryGenerator
+from archive import SaveToInternetArchive
+from scrape import GetFromInternetArchive
+
+from database import MySqlDatabase
+from config import DATAPOINT, RAND_SEED, SEARCH_ENGINE
+from logger import Logger
+logger = Logger(logger_name=__name__)
+
+HEADLESS = True
+SLOW_MO = 100
+
+async def main():
+
+    logger.info("Step 1. Get the input data from the database based on our datapoint.")
+    processor = InputProcessor(datapoint=DATAPOINT, rand_seed=RAND_SEED)
+    locations_df = await processor.get_initial_dataframe()
+
+    # Output should look like below
+    # NOTE Some of the domains here dont't work, or are for malware sites. Motherfucker...
+    # main locations_df:
+    #     id     gnis               place_name state_code                     domain_name
+    # 0  18441  2405150          Town of Andrews         SC   http://www.townofandrews.org/
+    # 1  20994  2410786       City of Honeyville         UT  http://www.honeyvillecity.com/
+    # 2  19760  2410225    City of Copperas Cove         TX  http://www.copperascovetx.gov/
+    # 3  18321  1215391  Borough of Harveys Lake         PA        http://harveyslakepa.us/
+    # 4   3036  2412161            City of Vista         CA    https://www.cityofvista.com/
+    logger.debug(f"main locations_df:\n{locations_df.head()}")
+    logger.info("Step 1 Complete.")
+
+    result = input("Continue to Step 2? y/n: ")
+    if result != "y":
+        raise KeyboardInterrupt("scrape_the_law program stopped at Step 1.")
+
+
+    # # Randomly select 30 rows from locations_df
+    # sample_locations_df = locations_df.sample(n=30, random_state=RAND_SEED)
+    # logger.debug(f"Randomly sampled 30 locations:\n{sample_locations_df}")
+
+    logger.info("Step 2: Make queries based on the input cities.")
+    # Since we haven't made the query maker class, we'll just use an example.
+    common_terms = [
+            "law", "code", "ordinance", "regulation", "statute",
+            "municipal code", "city code", "county code", "local law"
+        ]
+
+    generator = SearchQueryGenerator(DATAPOINT, common_terms=common_terms, search_engine=SEARCH_ENGINE)
+    queries_df = await generator.make_queries(locations_df)
+    logger.debug(f"main queries_df:\n{queries_df.head()}")
+    logger.info("Step 2 Complete.")
+    # Output should look like below
+    queries = [
+        'site:https://library.municode.com/ca/ Camarillo tax', "City of Honeyville UT"
+    ]
+
+    result = input("Continue to Step 3? y/n: ")
+    if result != "y":
+        raise KeyboardInterrupt("scrape_the_law program stopped at Step 2.")
+
+
+    # Step 3. Search these up on Google and get the links.
+    # NOTE. We might have to use the Google Search API here. Google will probably get wise to this eventually.
+    # This will also be pretty slow.
+    search: SearchEngine = SearchEngine().start_engine(SEARCH_ENGINE,header=HEADLESS,slow_mo=SLOW_MO)
+    async with await MySqlDatabase as db:
+        results_df = await search.results(queries_df, db)
+
+    logger.debug(f"main results_df:\n{results_df.head()}")
+
+
+
+
+
+
+    logger.info("Step 3 Complete.")
+
+    result = input("Continue to Step 4? y/n")
+    if result != "y":
+        raise KeyboardInterrupt("scrape_the_law program stopped at Step 3.")
+
+
+    # Step 4. Check if these links are in the Wayback Machine. If they aren't save them.
+    async with await MySqlDatabase as db:
+        ia_saver = SaveToInternetArchive(db)
+        ia_links_df = await ia_saver.save(results_df)
+        logger.info("Step 4 Complete.")
+
+    result = input("Continue to Step 4? y/n")
+    if result != "y":
+        raise KeyboardInterrupt("scrape_the_law program stopped at Step 3.")
+
+
+    # Step 5. Scrape the results from the Wayback Machine using the Waybackup program.
+        ia_getter = GetFromInternetArchive
+        text_df = ia_getter.get(ia_links_df)
+
+
+    # Step 6. Clean the text and save it to the database
+    import clean
+
+
+    # Step 7. Get metadata from the text: 
+
+
+    sys.exit(0)
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("scrape_the_law program stopped.")

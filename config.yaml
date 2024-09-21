@@ -1,0 +1,49 @@
+SYSTEM:
+  CONCURRENCY_LIMIT: 2
+  FILENAME_PREFIX: "internet_archive_results"
+  OUTPUT_FOLDER: "/mnt/e/AI_TEMP/wayback_machine_downloader_output/"
+  WAIT_TIME: 5
+  ROUTE: "insert_into_mysql"
+  DATAPOINT: "Sales Tax"
+  DEFAULT_LOG_LEVEL: 10 # CRITICAL = 50, FATAL = CRITICAL, ERROR = 40, WARNING = 30, WARN = WARNING, INFO = 20, DEBUG = 10, NOTSET = 0
+  FORCE_DEFAULT_LOG_LEVEL_FOR_WHOLE_PROGRAM: False # Whether we want to force the whole program to use a the default log level, or whether or not to do it on a file-by-file basis.
+FILENAMES:
+  INPUT_FILENAME: "input.csv"
+ARCHIVE:
+  WAYBACKUP:
+    REQUIRED:
+      URL: ""
+      CURRENT: True
+      FULL: False
+      SAVE: False
+    OPTIONAL:
+      LIST: True
+      EXPLICIT: "--explicit"
+      OUTPUT: "--output"
+      RANGE: "--range"
+      START: 2024010112000
+      END: 2024123112000
+      FILETYPE: ".html"
+    BEHAVIOR_MANIPULATION:
+      CSV: True
+      SKIP: False
+      NO_REDIRECT: False
+      VERBOSITY: "trace"
+      LOG: True
+      RETRY: 1
+      WORKERS: 1
+      DELAY: 1
+      LIMIT: "--limit"
+    CDX:
+      CDX_BACKUP: "--cdxbackup"
+      CDX_INJECT: "--cdxinject"
+      AUTO: False
+SEARCH:
+  SEARCH_ENGINE: "google"
+  GOOGLE_CONCURRENCY_LIMIT: 2
+  NUM_RESULTS: 10
+  SITE_URLS:
+    MUNICODE_URL: "https://library.municode.com/"
+    AMERICAN_LEGAL_URL: "https://codelibrary.amlegal.com/codes/"
+    GENERAL_CODE_URL: "https://ecode360.com/"
+    CODE_PUBLISHING_CO_URL: "https://www.codepublishing.com/"

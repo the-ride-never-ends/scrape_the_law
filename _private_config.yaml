@@ -1,0 +1,31 @@
+CLEAN_DOCS:
+  JINJA:
+    JINJA_URL: "https://r.jina.ai/"
+    JINJA_API_KEY: ""
+INTERNET_ARCHIVE:
+  INTERNET_ARCHIVE_URL: "https://web.archive.org/"
+  INTERNET_ARCHIVE_SAVE_URL: "https://web.archive.org/save/"
+  S3_ACCESS_KEY: ""
+  S3_SECRET_KEY: ""
+MYSQL:
+  HOST: ""
+  USER: ""
+  PORT: 0000
+  PASSWORD: ""
+  DATABASE_NAME: ""
+  MYSQL_SCRIPT_FILE_PATH: ""
+  INSERT_BATCH_SIZE: 1000
+  RAND_SEED: 420
+
+
+
+
+
+
+
+
+
+
+
+
+

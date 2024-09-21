@@ -1,0 +1,6 @@
+private_config.yaml
+debug_logs/
+venv/
+__pycache__/
+*.Identifier
+
