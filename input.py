@@ -49,7 +49,7 @@ class InputProcessor:
         """
 
         async with MySqlDatabase(database="socialtoolkit") as db:
-            locations_df = await db.query_to_dataframe(query, 
+            locations_df = await db.async_query_to_dataframe(query, 
                                                             safe_format_vars=safe_format_vars, 
                                                             unbuffered=self.unbuffered)
             logger.debug(f"locations_df: {locations_df.head()}")

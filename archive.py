@@ -51,7 +51,7 @@ class SaveToInternetArchive:
         }
 
         # Get domains with time_stamps that are older than a year ago today.
-        df = await self.db.query_to_dataframe(
+        df = await self.db.async_query_to_dataframe(
             "SELECT domain FROM ia_url_metadata WHERE time_stamp < {one_year_ago}",
             safe_format_vars=safe_format_vars
         )
@@ -109,14 +109,14 @@ async def insert_into_mysql(input_method: str="mysql"):
                 "one_year_ago": (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d %H:%M:%S")
             }
             # Get domains with time_stamps that are older than a year ago today.
-            db_domains = await db.execute_sql_command(
+            db_domains = await db.async_execute_sql_command(
                 "SELECT domain FROM ia_url_metadata WHERE time_stamp < {one_year_ago}",
                 args=args
             )
             
         else:
             # Get a list of domains that we've already processed.
-            db_domains = await db.execute_sql_command(
+            db_domains = await db.async_execute_sql_command(
                 "SELECT DISTINCT domain FROM ia_url_metadata"
             )
             if len(db_domains) > 0:
@@ -143,7 +143,7 @@ async def insert_into_mysql(input_method: str="mysql"):
                     }
 
                     try:
-                        await db.execute_sql_command(
+                        await db.async_execute_sql_command(
                             "INSERT INTO ia_url_metadata ({sql_column_names}) VALUES (%s, %s, %s, %s, %s, %s, %s);",
                             params=mysql_input, 
                             safe_format_vars=args

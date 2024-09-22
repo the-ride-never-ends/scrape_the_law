@@ -1,66 +1,42 @@
 import asyncio
 import re
-import string
-import sys
 import traceback
-from typing import AsyncGenerator, Any, List, Dict, LiteralString, Tuple
+from typing import Any, AsyncGenerator, LiteralString, Generator
+import queue
 
-try:
-    import pandas as pd
-    import aiomysql
-    import mysql.connector
-except ModuleNotFoundError as e:
-    module_name = e.name
-    raise ModuleNotFoundError(f"Could not find or load critical module '{module_name}'. Check the repo, as it may be defunct or not work with Python {sys.version_info}.")
+import pandas as pd
+import aiomysql
 
-try:
-    from config import HOST, USER, PORT, PASSWORD, MYSQL_SCRIPT_FILE_PATH, DATABASE_NAME, MYSQL_SCRIPT_FILE_PATH
-    from logger import Logger
-except ImportError as e:
-    missing_module = str(e).split("'")[1]
-    if missing_module == 'config':
-        raise ImportError("Failed to import from config. Make sure the config.py file exists and contains the necessary constants: HOST, USER, PORT, PASSWORD, MYSQL_SCRIPT_FILE_PATH, DATABASE_NAME") from e
-    elif missing_module == 'logger':
-        raise ImportError("Failed to import Logger. Make sure the logger.py file exists and contains the Logger class") from e
-    else:
-        raise ImportError(f"Failed to import {missing_module}. Check if it's correctly defined in the respective module") from e
+# These are primarily imported for type-hinting purposes.
+from mysql.connector.connection import MySQLConnection
+from mysql.connector.pooling import MySQLConnectionPool, PooledMySQLConnection, CONNECTION_POOL_LOCK
+from mysql.connector.errors import Error as MySqlError
+from mysql.connector.errors import PoolError as MySqlPoolError
 
+from aiomysql.pool import Pool as AioMySQLConnectionPool
+from aiomysql.connection import Connection as AioMySqlConnection
+
+from config import HOST, USER, PORT, PASSWORD, MYSQL_SCRIPT_FILE_PATH, DATABASE_NAME
+from logger import Logger
 log_level = 10
 logger = Logger(logger_name=__name__, log_level=log_level)
 
+from utils.database.safe_format import safe_format
+
+# NOTE For reference only.
 SOCIALTOOLKIT_TABLE_NAMES = [
-    "locations", # Table of every incorporated village, town, city, and county in the US, along with geolocation data and domains.
+    "locations", # Table of every incorporated village, town, city, and county in the US, along with geolocation data and domains. NOTE This is the seed dataset that will be fed to the web crawler.
     "doc_content", # Table of cleaned documents to be fed to an LLM
     "doc_metadata", # Table of metadata about the documents in doc_content
-    "domains", # Table of domains for specific locations (e.g. www.cityofnewyork.gov) and associated metadata. NOTE This is the seed dataset that will be fed to the web crawler.
     "urls", # Table of crawled urls and their associated data. Domains are included, as they may have information to extract. NOTE This is where web crawler output goes.
-    "output" # Output of the LLM pipeline.
-    "ia_url_metadata", # Metadata of urls saved to the Internet Archive.
-    "municode_links" # List of municode library links for every city and county in the Municode Library.
+    "ia_url_metadata", # Internet Archive (IA) copies of the URLs in 'url', as well as their IA metadata.
+    "searches" # Searches we've conducted so far, as well as metadata on them.
 ]
-
-class SafeFormatter(string.Formatter):
-    def get_value(self, key, args, kwargs):
-        if isinstance(key, str):
-            return kwargs.get(key, "{" + key + "}")
-        else:
-            return super().get_value(key, args, kwargs)
-
-    def parse(self, format_string):
-        try:
-            return super().parse(format_string)
-        except ValueError:
-            return [(format_string, None, None, None)]
-
-def safe_format(format_string, *args, **kwargs):
-    formatter = SafeFormatter()
-    return formatter.format(format_string, *args, **kwargs)
-
 
 class MySqlDatabase:
     """
     Interact directly with a MySQL server via SQL commands and files.\n
-    Supports asynchronous query (e.g. SELECT) and alteration commands (e.g. UPDATE, DELETE, INSERT, ALTER, etc).\n
+    Supports synchronous and asynchronous queries (e.g. SELECT) and alteration commands (e.g. UPDATE, DELETE, INSERT, ALTER, etc).\n
     Can also run SQL commands directly and load them in from .sql files.
 
     ### Parameters
@@ -82,37 +58,38 @@ class MySqlDatabase:
     ### Methods
     #### Internal (Async)
     - _create_pool(): Creates a pool of connections to the MySQL server.
-    - _get_connection_from_pool(): Get a connection from the pool.
+    - _async_get_connection_from_pool(): Get a connection from the pool.
     - _return_connection_to_pool(): Return a connection to the pool.
-    - _execute_sql_command(): Execute a SQL command.
+    - _async_execute_sql_command(): Execute a SQL command.
 
     #### External (Async)
-    - connect_to_server(): Startup the connections pool to the server.
-    - execute_sql_command(): Execute a SQL command via _execute_sql_command.
-    - execute_sql_file(): Directly execute a SQL file via _execute_sql_command.
+    - async_connect_to_server(): Startup the connections pool to the server.
+    - async_execute_sql_command(): Execute a SQL command via _async_execute_sql_command.
+    - execute_sql_file(): Directly execute a SQL file via _async_execute_sql_command.
     - query_database(): Execute a simple SELECT query from the MySQL database.
     - alter_database(): Alter the MySQL database.
-    - close_connection_to_server(): Close the connections pool.
+    - async_close_connection_to_server(): Close the connections pool.
 
     ### Example Usage
     >>> async with await MySqlDatabase(database="socialtoolkit") as db\n
     >>>     if query:
-    >>>         return await db.execute_sql_command("SELECT * FROM links")\n
+    >>>         return await db.async_execute_sql_command("SELECT * FROM links")\n
     >>>     else:
-    >>>         await db.execute_sql_command("UPDATE links SET url = NULL WHERE ping_status = '404'")\n
+    >>>         await db.async_execute_sql_command("UPDATE links SET url = NULL WHERE ping_status = '404'")\n
     """
 
     def __init__(self, 
                  database: str="socialtoolkit", 
                  pool_name: str="connection_pool", 
                  pool_size: int=5,
+                 pool_minsize: int=1,
+                 pool_maxsize: int=64,
                  host: str=HOST,
                  user: str=USER,
                  port: int=PORT,
                  password: str=PASSWORD,
-                 num: int=1
                 ):
-        self.db_config = {
+        self.db_config: dict = {
             'host': host,
             'user': user,
             'port':  port,
@@ -125,80 +102,148 @@ class MySqlDatabase:
                 logger.error(f"Invalid value for database config '{config}'.\n Value: {value}")
                 raise ValueError("Invalid value for database config.")
 
-        self.mysql_scripts_file_path = MYSQL_SCRIPT_FILE_PATH
-        self.pool_name = pool_name
-        self.pool_size = pool_size
-        self.pool_minsize = pool_size
-        self.pool_maxsize = pool_size
-        self.pool = None
+        self.sql_scripts_path: str = MYSQL_SCRIPT_FILE_PATH # Currently note used.
+        self.pool_name: str = pool_name
+        self.pool_size: int = pool_size
+        self.pool_minsize: int = pool_minsize
+        self.pool_maxsize: int = pool_maxsize
+        self.pool: AioMySQLConnectionPool|MySQLConnectionPool = None
+        self.sync: bool = None
+
+    @property
+    def sql_scripts_path(self):
+        return self.sql_scripts_path
+
+    @property
+    def pool_name(self):
+        return self.pool_name
+    
+    @property
+    def pool_size(self):
+        return self.pool_size
+    
+    @property
+    def pool_minsize(self):
+        return self.pool_minsize
+    
+    @property
+    def pool_maxsize(self):
+        return self.pool_maxsize
+
+    @property
+    def is_sync(self):
+        return self.sync
+
+    def __enter__(self) -> 'MySqlDatabase':
+        """
+        Context manager entry method.
+        Equivalent to db = MySqlDatabase().connect_to_server()
+        """
+        self.sync = True
+        self._create_pool()
+        return self
+
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        """
+        Context manager exit method.
+        Equivalent to db.close_connection_to_server()
+        """
+        self.close_connection_to_server()
 
 
     async def __aenter__(self) -> 'MySqlDatabase':
         """
         Asynchronous context manager entry method.
-        This method is called when entering the `async with` block.
-        Equivalent to db = MySqlDatabase().connect_to_server()
+        Equivalent to db = MySqlDatabase().async_connect_to_server()
         """
-        await self._create_pool()  # Create the connection pool asynchronously
-        return self  # Return the instance to be used within the `async with` block
+        self.sync = False
+        await self._async_create_pool()
+        return self
 
 
-    async def __aexit__(self, exc_type, exc_value, traceback) -> None: 
-                            # exc_type == Type of Exception, 
-                            # exc_value == Value of Exception
+    async def __aexit__(self, exc_type, exc_value, traceback)  -> None: 
         """
         Asynchronous context manager exit method.
-        This method is called when exiting the `async with` block.
-        Equivalent to db.close_connection_to_server()
+        Equivalent to db.async_close_connection_to_server()
         """
-        await self.close_connection_to_server()
+        await self.async_close_connection_to_server()
 
 
     @classmethod
-    async def connect_to_server(cls) -> 'MySqlDatabase':
+    def connect_to_server(cls) -> 'MySqlDatabase':
         """
         Factory method to startup the connection to the server.
-        This function is called/assigned on its own and cannot be used to create an `async with` block.
+        This method cannot be used to create a `with` block.
         """
         instance = cls()
-        # Perform async initialization
-        await instance._create_pool()
+        instance._create_pool()
+        instance.sync = True
         return instance
 
 
-    async def _create_pool(self) -> None:
+    @classmethod
+    async def async_connect_to_server(cls) -> 'MySqlDatabase':
+        """
+        Async factory method to startup the connection to the server.
+        This method cannot be used to create an `async with` block.
+        """
+        instance = cls()
+        await instance._async_create_pool()
+        instance.sync = False
+        return instance
+
+
+    def _create_pool(self) -> MySQLConnectionPool:
         """
         Create a pool of connections to the MySQL server.
-        This reduces server overhead and helps prevent deadlocks caused by async code.
+        This reduces server overhead from constantly making connections and disconnections.
 
         ### Exceptions
         - ConnectionError: If there's any sort of error creating the pool.
         """
         try:
             logger.debug("Attempting to create MySQL server connection pool...")
-            # self.pool = mysql.connector.aio.pooling.MySQLConnectionPool(
-            #                 pool_name=self._pool_name,
-            #                 pool_size=self._pool_size,
-            #                 **self.db_config
-            #             )
-            self.pool = await aiomysql.create_pool(
-                minsize =self.pool_maxsize,
-                maxsize =self.pool_maxsize,
-                loop = asyncio.get_event_loop(),
-                host = self.db_config['host'],
-                user = self.db_config['user'],
-                port = self.db_config['port'],
-                password = self.db_config['password'],
-                db = self.db_config['database']
-            )
+            self.pool = MySQLConnectionPool(
+                            pool_name=self.pool_name,
+                            pool_size=self.pool_size,
+                            **self.db_config
+                        )
             logger.debug("MySQL server connection pool was successfully created.")
-            # logger.debug(f"self.pool type: {type(self.pool)}")
-        except Exception as e:
+        except MySqlError as e:
             logger.error(f"Error creating MySQL server connection pool: {e}")
             traceback.print_exc()
             raise ConnectionError("Failed to create MySQL server connection pool.") from e
 
-    async def _get_connection_from_pool(self) -> aiomysql.connection.Connection:
+
+    async def _async_create_pool(self) -> AioMySQLConnectionPool:
+        """
+        Create an async pool of connections to the MySQL server.
+        This reduces server overhead and helps prevent deadlocks caused by async code.
+
+        ### Exceptions
+        - ConnectionError: If there's any sort of error creating the pool.
+        """
+        try:
+            logger.debug("Attempting to create async MySQL server connection pool...")
+            self.pool = await aiomysql.create_pool(
+                minsize=self.pool_maxsize,
+                maxsize=self.pool_maxsize,
+                loop=asyncio.get_event_loop(),
+                host=self.db_config['host'],
+                user=self.db_config['user'],
+                port=self.db_config['port'],
+                password=self.db_config['password'],
+                db=self.db_config['database']
+            )
+            logger.debug("async MySQL server connection pool was successfully created.")
+        except aiomysql.Error as e:
+            logger.error(f"Error creating async MySQL server connection pool: {e}")
+            traceback.print_exc()
+            raise ConnectionError("Failed to create async MySQL server connection pool.") from e
+
+
+    def _get_connection_from_pool(self) -> PooledMySQLConnection:
         """
         Get a connection from the connection pool.
 
@@ -206,16 +251,30 @@ class MySqlDatabase:
         - ConnectionError: If there's any sort of error getting a connection from the pool.
         """
         try:
-            # return await self.pool.get_connection()
+            return self.pool.get_connection()
+        except aiomysql.Error as e:
+            logger.exception(f"Failed to retrieve connection from the pool: {e}")
+            traceback.print_exc()
+            raise ConnectionError(f"No available connections in the pool: {e}") from e
+
+
+    async def _async_get_connection_from_pool(self) -> aiomysql.connection.Connection:
+        """
+        Get a connection from the async connection pool.
+
+        ### Exceptions
+        - ConnectionError: If there's any sort of error getting a connection from the pool.
+        """
+        try:
             return await self.pool.acquire()
-        except mysql.connector.pooling.PoolError as e:
+        except MySqlPoolError as e:
             logger.exception(f"Failed to retrieve connection from the pool: {e}")
             traceback.print_exc()
             raise ConnectionError(f"No available connections in the pool: {e}") from e
 
 
     def _return_connection_to_pool(self, 
-                                   connection: aiomysql.connection.Connection
+                                   connection: aiomysql.connection.Connection | PooledMySQLConnection
                                   ) -> None:
         """
         Return a connection to the connection pool.
@@ -223,88 +282,89 @@ class MySqlDatabase:
         ### Exceptions
         - ConnectionError: If there's any sort of error returning the connection.
         """
-        if not connection.closed:
+        if self.sync:
             logger.debug("Returning connection to pool...")
-            self.pool.release(connection)
-            logger.debug("Connection returned to pool.")
+            self.pool.close()
+            logger.debug("connection returned to pool.")
             return
         else:
-            logger.info("Connection already closed. Releasing anyways as test...")
-            try:
+            if not connection.closed:
+                logger.debug("Returning async connection to pool...")
                 self.pool.release(connection)
+                logger.debug("Async connection returned to pool.")
                 return
-            except Exception as e:
-                logger.exception(f"Failed to release connection: {e}")
-                raise ConnectionError(f"Failed to release connection: {e}") from e
+            else:
+                logger.info("Async connection already closed. Releasing anyways as test...")
+                try:
+                    self.pool.release(connection)
+                    return
+                except Exception as e:
+                    logger.exception(f"Failed to release async connection: {e}")
+                    traceback.print_exc()
+                    raise ConnectionError(f"Failed to release async connection: {e}") from e
 
-    async def close_connection_to_server(self) -> None:
+
+    def close_connection_to_server(self) -> None:
         """
-        Close the connection pool.
+        Close the connection pool.\n
+        NOTE Since MySQL-python doesn't have an explicit function to close the pool,\n
+        we have to access the internals of the MySQLConnectionPool and close it manually.\n
+        This might break in the future should Oracle change _cnx_queue the class.
+
+        ### Exceptions
+        - ConnectionError: If there's any sort of error closing the pool.
+        """
+        logger.debug(f"Attempting to close connection pool...")
+        with CONNECTION_POOL_LOCK:
+            pool_queue = self.pool._cnx_queue
+            idx = 1 # Since we can't run enumerate in a while statement, we have to use a counter instead.
+            while pool_queue.qsize():
+                try:
+                    logger.debug(f"Attempting to close connection {idx}...")
+                    connection = pool_queue.get(block=False)
+                    connection.disconnect()
+                    logger.debug(f"Connection {idx} closed successfully.")
+                    idx += 1
+                except queue.Empty:
+                    logger.info("Connection pool fully closed successfully.")
+                    return
+                except MySqlPoolError as e:
+                    logger.exception(f"Failed to close the connection pool: {e}")
+                    traceback.print_exc()
+                    raise ConnectionError(f"Failed to close the connection pool: {e}") from e
+            return
+
+
+    async def async_close_connection_to_server(self) -> None:
+        """
+        Close the async connection pool.
 
         ### Exceptions
         - ConnectionError: If there's any sort of error closing the pool.
         """
         try:
-            logger.debug(f"Attempting to close connection pool...")
+            logger.debug(f"Attempting to close async connection pool...")
             self.pool.close()
-            logger.debug(f"Connection pool closed. Waiting for full closure...")
+            logger.debug(f"Async connection pool closed. Waiting for full closure...")
             await self.pool.wait_closed()
-            logger.info("Connection pool fully closed successfully.")
+            logger.info("Async connection pool fully closed successfully.")
             return
-
         except Exception as e:
-            logger.exception(f"Failed to close the connection pool: {e}")
+            logger.exception(f"Failed to close the async connection pool: {e}")
             traceback.print_exc()
-            raise ConnectionError(f"Failed to close the connection pool: {e}") from e
+            raise ConnectionError(f"Failed to close the async connection pool: {e}") from e
 
 
-    async def _execute_sql_command(self, 
-                                   command: LiteralString, 
-                                   params: ( Tuple[Any,...] | List[Tuple[Any,...]] )=None,
-                                   connection: aiomysql.Connection=None,
-                                   is_query: bool=False,
-                                   safe_format_vars: dict=None,
-                                   unbuffered: bool=False,
-                                   return_dict: bool=False,
-                                   size: int=None
-                                  ) -> List[Tuple[Any,...]] | List[Dict[str,Any]] | aiomysql.Cursor | None:
+    def _type_check_execute_sql_command(self, 
+                                        connection, 
+                                        command: LiteralString, 
+                                        params: tuple|list[tuple]=None, 
+                                        safe_format_vars: dict[Any]=None
+                                        ):
         """
-        Execute a SQL command, supporting both queries and database alterations.
-
-        This method handles various types of SQL operations, including SELECT queries and
-        Data Manipulation Language (DML) commands. It supports parameterized queries,
-        safe string formatting, and different cursor types for flexible result handling.
-    
-        ### Parameters
-        - command: The SQL command to execute.
-        - params: Parameters for the SQL command. A tuple for single execution, or a list of tuples for batch execution.
-        - connection: The database connection to use.
-        - is_query: Whether the command is a query (True) or a database alteration (False).
-        - safe_format_vars: Variables for safe string formatting of the SQL command.
-        - unbuffered: Whether to use an unbuffered cursor.
-        - return_dict: Whether to return results as dictionaries instead of tuples.
-        - size: The number of rows to fetch for buffered queries. If default or None, fetches all rows.
-
-        ### Returns
-        - List[Tuple[Any,...]]: For buffered queries, a list of tuples containing the query results.
-        - Dict[Tuple[Any,...]]: For buffered queries with return_dict=True, a list of dictionaries containing the query results.
-        - aiomysql.Cursor: For unbuffered queries, returns the cursor for further processing.
-        - None: For database alteration commands (non-queries).
-
-        ### Raises
-        - ValueError: If no SQL statement or database connection is provided.
-        - TypeError: If the params argument is of incorrect type.
-        - aiomysql.Error: If there's an error executing the MySQL command.
-        - Exception: For any other unexpected errors during execution.
-
-        ### Notes
-        - For queries, the method supports both parameterized and non-parameterized execution.
-        - For database alterations, the method uses transactions and supports rollback in case of errors.
-        - The method automatically adjusts the cursor type based on the unbuffered and return_dict parameters.
-        - Error handling includes logging, connection cleanup, and re-raising of exceptions.
+        Type check the _execute_sql_command and _async_execute_sql_command functions.
+        TODO Fix type-checking for command as a LiteralString. Right now, "command" is being interpreted as just a string.
         """
-
-        # Value and Type checks.
         if not connection:
             logger.error("Database connection was not provided.")
             raise ValueError("Database connection was not provided.")
@@ -313,11 +373,6 @@ class MySqlDatabase:
             logger.error("No SQL statement provided.")
             self._return_connection_to_pool(connection)
             raise ValueError("No SQL statement provided.")
-
-        # TODO Fix type-checking for LiteralString. Right now, "command" is being interpreted as just a string.
-        # if typing.get_origin(command) is not LiteralString:
-        #     logger.error(f"'command' must be type LiteralString. It is currently type '{type(command)}'")
-        #     raise TypeError(f"'command' must be type LiteralString. It is currently type '{type(command)}'")
 
         if params:
             if isinstance(params, tuple):
@@ -336,6 +391,130 @@ class MySqlDatabase:
                 else:
                     safe_format_vars[key] = connection.escape(value)
             command = safe_format(command, **safe_format_vars)
+
+        if params and safe_format_vars:
+            return is_tuple, command
+        else:
+            if params:
+                return is_tuple, None
+            else:
+                return None, command
+
+
+    def _execute_sql_command(self, 
+                            command: LiteralString, 
+                            params: ( tuple[Any,...] | list[tuple[Any,...]] )=None,
+                            connection: MySQLConnection=None,
+                            is_query: bool=False,
+                            safe_format_vars: dict=None,
+                            unbuffered: bool=False,
+                            return_dict: bool=False,
+                            size: int=None
+                            ) -> list[tuple[Any,...]] | list[dict[str,Any]] | aiomysql.Cursor | None:
+    
+        # Type check everything.
+        is_tuple, command = self._type_check_execute_sql_command(connection, command, params=params, safe_format_vars=safe_format_vars)
+
+        # Execute the SQL statement.
+        try:
+            with connection.cursor(buffered=unbuffered, dictionary=return_dict) as cursor:
+                if is_query: # Query Database Route
+                    logger.info(f"Querying database with '{command}'...")
+                    if params: # Parameterized query
+                        logger.debug(f"Params: '{command}'...")
+                        if is_tuple and len(params) == 1:
+                            cursor.execute(command, params)
+                        else:
+                            cursor.executemany(command, params) # Perform batching if params is a list of tuples or a tuple of tuples.
+                    else: # Regular/Static query
+                        cursor.execute(command)
+
+                    logger.info(f"Query succesful. Returning results...")
+                    if unbuffered: # For SSCursors, we return the cursor as the logic is handled in _execute_unbuffered_query.
+                        return cursor
+                    else: 
+                        # Route fetch based on size parameter
+                        # NOTE Since Cursor classes all have the same method names, these 3 commands are actually more like 12.
+                        if size:
+                            if size > 1:
+                                results = cursor.fetchmany(size)
+                            else: # NOTE if size == 1, size == 0, or size is negative, assume they wanted size 1.
+                                results = cursor.fetchone()
+                        else:
+                            results = cursor.fetchall()
+                        return results # Hopefully mysql isn't bugged like aiomysql
+
+                else: # Alter Database Route
+                    logger.info(f"Altering database with '{command}'...")
+                    logger.debug("Creating server transaction...")
+                    if params:
+                        logger.debug(f"Params: '{command}'...")
+                        if is_tuple and len(params) == 1:
+                            cursor.execute(command, params)
+                        else:
+                            cursor.executemany(command, params) # Perform batching if params is a list of tuples or a tuple of tuples.
+                    else:
+                        cursor.execute(command)
+
+                    logger.debug("Database alteration command executed. Committing server transaction...")
+                    connection.commit() # Commit the transaction.
+                    logger.info("Database alteration committed successfully.")
+                    return
+
+        except (MySqlError, Exception) as e:
+            logger.error(f"Error executing SQL command '{command}': {e}")
+            if not is_query:
+                connection.rollback() # Rollback the database if there's an error altering it.
+            cursor.close() # Shutdown the connection immediately if there's an error.
+            self._return_connection_to_pool(connection)
+            traceback.print_exc()
+            raise e
+
+
+    async def _async_execute_sql_command(self, 
+                                   command: LiteralString, 
+                                   params: ( tuple[Any,...] | list[tuple[Any,...]] )=None,
+                                   connection: aiomysql.Connection=None,
+                                   is_query: bool=False,
+                                   safe_format_vars: dict=None,
+                                   unbuffered: bool=False,
+                                   return_dict: bool=False,
+                                   size: int=None
+                                  ) -> list[tuple[Any,...]] | list[dict[str,Any]] | aiomysql.Cursor | None:
+        """
+        Execute a SQL command, supporting both queries and database alterations.
+
+        This method handles various types of SQL operations, including SELECT queries and
+        Data Manipulation Language (DML) commands. It supports parameterized queries,
+        safe string formatting, and different cursor types for flexible result handling.
+    
+        ### Parameters
+        - command: The SQL command to execute.
+        - params: Parameters for the SQL command. A tuple for single execution, or a list of tuples for batch execution.
+        - connection: The database connection to use.
+        - is_query: Whether the command is a query (True) or a database alteration (False).
+        - safe_format_vars: Variables for safe string formatting of the SQL command.
+        - unbuffered: Whether to use an unbuffered cursor.
+        - return_dict: Whether to return results as dictionaries instead of tuples.
+        - size: The number of rows to fetch for buffered queries. If default or None, fetches all rows.
+
+        ### Returns
+        - list[tuple[Any,...]]: For buffered queries, a list of tuples containing the query results.
+        - dict[tuple[Any,...]]: For buffered queries with return_dict=True, a list of dictionaries containing the query results.
+        - aiomysql.Cursor: For unbuffered queries, returns the cursor for further processing.
+        - None: For database alteration commands (non-queries).
+
+        ### Raises
+        - ValueError: If no SQL statement or database connection is provided.
+        - TypeError: If the params argument is of incorrect type.
+        - aiomysql.Error: If there's an error executing the MySQL command.
+        - Exception: For any other unexpected errors during execution.
+
+        ### Notes
+        - For queries, the method supports both parameterized and non-parameterized execution.
+        - For database alterations, the method uses transactions and supports rollback in case of errors.
+        """
+        is_tuple, command = self._type_check_execute_sql_command(connection, command, params=params, safe_format_vars=safe_format_vars)
 
         # Define the cursor class based on the unbuffered and return_dict parameters.
         if unbuffered:
@@ -408,10 +587,38 @@ class MySqlDatabase:
             traceback.print_exc()
             raise e
 
-
-    async def _execute_unbuffered_query(self,
+    def _execute_unbuffered_query(self,
                                     command: LiteralString,
-                                    params: (Tuple[Any,...] | List[Tuple[Any,...]]) = None,
+                                    params: (tuple[Any,...] | list[tuple[Any,...]]) = None,
+                                    connection: MySQLConnection=None,
+                                    is_query:bool=True,
+                                    safe_format_vars: dict=None,
+                                    unbuffered: bool=True,
+                                    return_dict: dict=False,
+                                    size: int=None
+                                    ) -> Generator | None:
+        """
+        Execute an unbuffered SQL query and yield results as a generator.
+
+        Allows processing large result sets without loading all into memory at once.
+        """
+        logger.debug("Executing unbuffered query...")
+        try:
+            cursor = self._async_execute_sql_command(
+                command, params=params, connection=connection, is_query=is_query,
+                safe_format_vars=safe_format_vars, unbuffered=unbuffered, return_dict=return_dict, size=size
+            )
+            for row in cursor:
+                print(row)
+                yield row
+        finally:
+            cursor.close()
+            self._return_connection_to_pool(connection)
+
+
+    async def _async_execute_unbuffered_query(self,
+                                    command: LiteralString,
+                                    params: (tuple[Any,...] | list[tuple[Any,...]]) = None,
                                     connection: aiomysql.Connection=None,
                                     is_query:bool=True,
                                     safe_format_vars: dict=None,
@@ -420,62 +627,50 @@ class MySqlDatabase:
                                     size: int=None
                                     ) -> AsyncGenerator | None:
         """
-        Execute an unbuffered SQL query and yield results asynchronously.
+        Asynchronously cxecute an unbuffered SQL query and yield results asynchronously.
 
-        This method allows for processing large result sets without loading the entire result into memory at once.
+        Allows processing large result sets without loading all into memory at once.
 
         ### Parameters
         - command (LiteralString): The SQL query to execute.
-        - params (Tuple[Any,...] | List[Tuple[Any,...]], optional): Parameters to be used with the SQL query.
+        - params (tuple[Any,...] | list[tuple[Any,...]], optional): Parameters to be used with the SQL query.
         - connection (aiomysql.Connection, optional): The database connection to use.
         - is_query (bool, default=True): Indicates if the command is a query (should always be True for this method).
         - safe_format_vars (dict, optional): Variables for safe string formatting of the SQL command.
         - unbuffered (bool, default=True): Indicates if the query should be unbuffered (should always be True for this method).
         - return_dict (bool, default=False): If True, returns each row as a dictionary instead of a tuple.
-        - size (int, optional): Not used in this method, but kept for consistency with _execute_sql_command.
+        - size (int, optional): Not used in this method, but kept for consistency with _async_execute_sql_command.
 
         ### Yields
         - row: Each row of the query result. The type depends on the return_dict parameter:
-            - If return_dict is True: Dict[str, Any]
-            - If return_dict is False: Tuple[Any, ...]
-
-        ### Raises
-        - Any exceptions raised by _execute_sql_command or cursor operations.
-
-        ### Note
-        This method is a generator that yields results one at a time. It automatically closes the cursor
-        and returns the connection to the pool when finished or if an error occurs.
+            - If return_dict is True: dict[str, Any]
+            - If return_dict is False: tuple[Any, ...]
         """
-        logger.debug("Executing unbuffered query...")
+        logger.debug("Executing async unbuffered query...")
         try:
-            cursor = await self._execute_sql_command(
-                command,
-                params=params,
-                connection=connection,
-                is_query=is_query,
-                safe_format_vars=safe_format_vars,
-                unbuffered=unbuffered,
-                return_dict=return_dict,
-                size=size
+            cursor = await self._async_execute_sql_command(
+                command, params=params, connection=connection, is_query=is_query, 
+                safe_format_vars=safe_format_vars, unbuffered=unbuffered, return_dict=return_dict, size=size
             )
             async for row in cursor:
-                yield row
                 print(row)
+                yield row
         finally:
             await cursor.close()
             self._return_connection_to_pool(connection)
 
-
-    async def execute_sql_command(self,
-                                  command: LiteralString,
-                                  params: ( Tuple[Any,...] | List[Tuple[Any,...]] ) = None,
-                                  safe_format_vars: dict=None,
-                                  unbuffered:bool=False,
-                                  return_dict:bool=False,
-                                  size: int=None,
-                                 ) -> List[Tuple[Any,...]] | List[Dict[str,Any]] | AsyncGenerator | None:
+    def execute_sql_command(self,
+                            command: LiteralString,
+                            params: ( tuple[Any,...] | list[tuple[Any,...]] ) = None,
+                            safe_format_vars: dict=None,
+                            unbuffered:bool=False,
+                            return_dict:bool=False,
+                            size: int=None,
+                            ) -> list[tuple[Any,...]] | list[dict[str,Any]] | Generator | None:
         """
         Directly execute a SQL command to query or alter the database.
+        This method automatically detects whether the command is a query or an alteration command based on its first word.
+        It handles both buffered and unbuffered queries.
 
         ### Parameters
         - command: SQL command to execute.
@@ -486,77 +681,123 @@ class MySqlDatabase:
         - size: Number of rows to fetch at a time. If None, fetches all rows.
 
         ### Returns
-        - List[Tuple[Any,...]]: For buffered queries, returns a list of tuples containing the query results.
-        - List[Dict[Any]]: For buffered queries with return_dict=True, returns a list of dictionaries containing the query results.
-        - AsyncGenerator[List[Tuple[Any,...]] | List[Dict[Any]]]: For unbuffered queries, returns an async generator that yields results one at a time.
-        - None: For database alteration commands (non-queries), returns None.
-
-        ### Raises
-        - Any exceptions raised by the underlying database operations.
-
-        ### Note
-        This method automatically detects whether the command is a query or an alteration command based on its first word.
-        It handles both buffered and unbuffered queries, as well as database alterations.
+        - For buffered queries, returns a list of tuples containing the query results.
+        - For buffered queries with return_dict=True, returns a list of dictionaries containing the query results.
+        - For unbuffered queries, returns an async generator that yields results one at a time.
+        - For database alteration commands (non-queries), returns None.
         """
-
-        connection = await self._get_connection_from_pool()
-
+        connection: MySQLConnection = self.pool.get_connection()
         pattern = re.compile(r"^(SELECT|SHOW|WITH|EXPLAIN)\b", re.IGNORECASE) # If the command starts with SELECT, SHOW, WITH, or EXPLAIN, it's a query.
         is_query = bool(pattern.match(command.strip()))
-
 
         # Execute the SQL command.
         if is_query: # Query route
             if unbuffered: # Unbuffered query
                 logger.debug(f"Chose unbuffered query route.")
-                return await self._execute_unbuffered_query(command, params=params,
-                                                        connection=connection,
-                                                        is_query=is_query,
-                                                        safe_format_vars=safe_format_vars,
-                                                        return_dict=return_dict,
-                                                        unbuffered=unbuffered,
-                                                        size=size)
+                return self._async_execute_unbuffered_query(command, params=params, connection=connection, is_query=is_query,
+                                                            safe_format_vars=safe_format_vars, return_dict=return_dict, unbuffered=unbuffered, size=size)
             else: # Buffered query
                 logger.debug(f"Chose buffered query route.")
-                results = await self._execute_sql_command(command, params=params,
-                                                        connection=connection,
-                                                        is_query=is_query,
-                                                        safe_format_vars=safe_format_vars,
-                                                        return_dict=return_dict,
-                                                        size=size)
+                results = self._execute_sql_command(command, params=params, connection=connection, is_query=is_query, 
+                                                    safe_format_vars=safe_format_vars, return_dict=return_dict, size=size)
                 self._return_connection_to_pool(connection)
                 return results
 
         else: # Alteration route
-            await self._execute_sql_command(command,
-                                            params=params,
-                                            connection=connection,
-                                            safe_format_vars=safe_format_vars)
+            self._execute_sql_command(command, params=params,connection=connection,safe_format_vars=safe_format_vars)
+            self._return_connection_to_pool(connection)
+            return
+
+    async def async_execute_sql_command(self,
+                                  command: LiteralString,
+                                  params: ( tuple[Any,...] | list[tuple[Any,...]] ) = None,
+                                  safe_format_vars: dict=None,
+                                  unbuffered:bool=False,
+                                  return_dict:bool=False,
+                                  size: int=None,
+                                 ) -> list[tuple[Any,...]] | list[dict[str,Any]] | AsyncGenerator | None:
+        """
+        Directly execute an asynchronous SQL command to query or alter the database.
+        This method automatically detects whether the command is a query or an alteration command based on its first word.
+        It handles both buffered and unbuffered queries.
+
+        ### Parameters
+        - command: SQL command to execute.
+        - params: Parameters/values to feed into the SQL command. Optional
+        - safe_format_vars: Variable names and values that are inserted into the command string using the safe_format function. Optional
+        - unbuffered: If True, executes an unbuffered query, allowing for processing large result sets without loading the entire result into memory at once.
+        - return_dict: If True, returns each row as a dictionary instead of a tuple.
+        - size: Number of rows to fetch at a time. If None, fetches all rows.
+
+        ### Returns
+        - For buffered queries, returns a list of tuples containing the query results.
+        - For buffered queries with return_dict=True, returns a list of dictionaries containing the query results.
+        - For unbuffered queries, returns an async generator that yields results one at a time.
+        - For database alteration commands (non-queries), returns None.
+        """
+
+        connection: AioMySqlConnection = await self._async_get_connection_from_pool()
+
+        pattern = re.compile(r"^(SELECT|SHOW|WITH|EXPLAIN)\b", re.IGNORECASE) # If the command starts with SELECT, SHOW, WITH, or EXPLAIN, it's a query.
+        is_query = bool(pattern.match(command.strip()))
+
+        # Execute the SQL command.
+        if is_query: # Query route
+            if unbuffered: # Unbuffered query
+                logger.debug(f"Chose unbuffered query route.")
+                return await self._async_execute_unbuffered_query(command, params=params, connection=connection, is_query=is_query, 
+                                                                safe_format_vars=safe_format_vars, return_dict=return_dict, unbuffered=unbuffered, size=size)
+            else: # Buffered query
+                logger.debug(f"Chose buffered query route.")
+                results = await self._async_execute_sql_command(command, params=params, connection=connection, is_query=is_query, 
+                                                                safe_format_vars=safe_format_vars, return_dict=return_dict, size=size)
+                self._return_connection_to_pool(connection)
+                return results
+
+        else: # Alteration route
+            await self._async_execute_sql_command(command, params=params, connection=connection, safe_format_vars=safe_format_vars)
             self._return_connection_to_pool(connection)
             return
 
 
-    async def query_to_dataframe(self, 
-                                 query: str, 
-                                 params: tuple = None, 
-                                 safe_format_vars: dict = None, 
-                                 unbuffered=False
-                                 ) -> pd.DataFrame:
+    async def async_query_to_dataframe(self,
+                                    query: str,
+                                    params: tuple = None,
+                                    safe_format_vars: dict = None,
+                                    unbuffered=False
+                                    ) -> pd.DataFrame:
         """
-        Execute a MySQL query and return the results as a Pandas DataFrame.
+        Execute an async MySQL query and return results as a Pandas DataFrame.
 
         ### Parameters
-        - query (str): The SQL query to execute.
-        - params (tuple, optional): Parameters for the SQL query.
-        - unbuffered: If True, executes an unbuffered query, allowing for processing large result sets without loading the entire result into memory at once.
-
+        - query: SQL query to execute.
+        - params: Query parameters.
+        - safe_format_vars: Variables for safe string formatting.
+        - unbuffered: If True, uses unbuffered query.
         ### Returns
-        - A Pandas DataFrame of the query results.
+        - Query results as a Pandas DataFrame.
         """
-        results = await self.execute_sql_command(query, 
-                                                 params=params, 
-                                                 unbuffered=unbuffered,
-                                                 safe_format_vars=safe_format_vars,
-                                                 return_dict=True)
+        results = await self.async_execute_sql_command(query, params=params, unbuffered=unbuffered, safe_format_vars=safe_format_vars, return_dict=True)
+        return pd.DataFrame.from_dict(results)
+
+
+    def query_to_dataframe(self,
+                            query: str,
+                            params: tuple = None,
+                            safe_format_vars: dict = None,
+                            unbuffered: bool = False
+                            ) -> pd.DataFrame:
+        """
+        Execute a MySQL query and return results as a Pandas DataFrame.
+
+        ### Parameters
+        - query: SQL query to execute.
+        - params: Query parameters.
+        - safe_format_vars: Variables for safe string formatting.
+        - unbuffered: If True, uses unbuffered query.
+        ### Returns
+        - Query results as a Pandas DataFrame.
+        """
+        results = self.execute_sql_command(query, params=params, unbuffered=unbuffered, safe_format_vars=safe_format_vars, return_dict=True)
         return pd.DataFrame.from_dict(results)
 

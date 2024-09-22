@@ -2,13 +2,13 @@ import asyncio
 import sys
 
 
-
 from input import InputProcessor
 from search import SearchEngine
 from utils.search.google_search import PlaywrightGoogleLinkSearch
 from query import SearchQueryGenerator
 from archive import SaveToInternetArchive
 from scrape import GetFromInternetArchive
+
 
 from database import MySqlDatabase
 from config import DATAPOINT, RAND_SEED, SEARCH_ENGINE
@@ -99,7 +99,8 @@ async def main():
 
 
     # Step 5. Scrape the results from the Wayback Machine using the Waybackup program.
-        ia_getter = GetFromInternetArchive
+    async with await MySqlDatabase as db:
+        ia_getter = GetFromInternetArchive(db)
         text_df = ia_getter.get(ia_links_df)
 
 

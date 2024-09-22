@@ -180,7 +180,7 @@ class SearchQueryGenerator:
             >>> import pandas as pd
             >>> async with MySqlDatabase(database="socialtoolkit") as db:
                 >>> # Get a list of places from the sql database where we got domain URLs
-                >>> places = await db.execute_sql_command(
+                >>> places = await db.async_execute_sql_command(
                     "
                     SELECT gnis, place_name, state_code, class_code, domain_name FROM locations 
                     WHERE domain_name IS NOT NULL;
