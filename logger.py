@@ -5,6 +5,8 @@ import uuid
 
 import yaml
 
+from utils.logger.delete_empty_log_files import delete_empty_log_files
+
 def make_id():
     return str(uuid.uuid4())
 
@@ -17,6 +19,7 @@ debug_log_folder = os.path.join(base_path, "debug_logs")
 script_dir = os.path.dirname(os.path.realpath(__file__))
 config_path = os.path.join(script_dir, './config.yaml')
 try:
+    delete_empty_log_files(debug_log_folder)
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
     DEFAULT_LOG_LEVEL = config['SYSTEM']['DEFAULT_LOG_LEVEL']

@@ -25,7 +25,6 @@ TAX_TERMS: dict[str, list[str]] = {
     "capitation": ["tax", "poll tax", "head tax", "per capita tax"],
 }
 
-
 # Get YAML config variables
 try:
     # SYSTEM

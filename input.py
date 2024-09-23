@@ -32,7 +32,7 @@ class InputProcessor:
         if not self.validate_datapoint():
             raise ValueError(f"Invalid datapoint: {self.datapoint}")
 
-        safe_format_vars = {
+        args = {
             "datapoint": self.datapoint,
             "limit": f" LIMIT {self.limit};" if self.limit else ";",
             "rand_seed": self.rand_seed or ""
@@ -50,7 +50,7 @@ class InputProcessor:
 
         async with MySqlDatabase(database="socialtoolkit") as db:
             locations_df = await db.async_query_to_dataframe(query, 
-                                                            safe_format_vars=safe_format_vars, 
+                                                            args=args, 
                                                             unbuffered=self.unbuffered)
             logger.debug(f"locations_df: {locations_df.head()}")
         return locations_df

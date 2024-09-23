@@ -46,14 +46,14 @@ class SaveToInternetArchive:
 
 
     async def _get_domains(self) -> pd.DataFrame:
-        safe_format_vars = {
+        args = {
             "one_year_ago": (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d %H:%M:%S")
         }
 
         # Get domains with time_stamps that are older than a year ago today.
         df = await self.db.async_query_to_dataframe(
             "SELECT domain FROM ia_url_metadata WHERE time_stamp < {one_year_ago}",
-            safe_format_vars=safe_format_vars
+            args=args
         )
         return df
 
@@ -146,7 +146,7 @@ async def insert_into_mysql(input_method: str="mysql"):
                         await db.async_execute_sql_command(
                             "INSERT INTO ia_url_metadata ({sql_column_names}) VALUES (%s, %s, %s, %s, %s, %s, %s);",
                             params=mysql_input, 
-                            safe_format_vars=args
+                            args=args
                         )
                         logger.info(f"Contents of {file} inserted into MySQL database '{DATABASE_NAME}' successfully.")
                         counter += 1

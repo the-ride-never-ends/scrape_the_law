@@ -179,27 +179,27 @@ class SearchQueryGenerator:
             >>> from database import MySqlDatabase
             >>> import pandas as pd
             >>> async with MySqlDatabase(database="socialtoolkit") as db:
-                >>> # Get a list of places from the sql database where we got domain URLs
-                >>> places = await db.async_execute_sql_command(
-                    "
-                    SELECT gnis, place_name, state_code, class_code, domain_name FROM locations 
-                    WHERE domain_name IS NOT NULL;
-                    "
-                )
-                >>> var_types = {
-                    'gnis': 'int32',
-                    'place_name': 'string',
-                    'state_code': 'string',
-                    'class_code': 'string',
-                    'domain_name': 'string'
-                } 
-                >>> places_df = pd.DataFrame(
-                            places, 
-                            columns=["gnis", "place_name", "state_code", "class_code", "domain_name"]
-                            ).astype(var_types)
-                >>> # Generate queries based on the location.
-                >>> queries_df = make_queries(places_df, DATAPOINT)
-                return queries_df
+            >>>     # Get a list of places from the sql database where we got domain URLs
+            >>>     places = await db.async_execute_sql_command(
+            >>>     /"/"/"
+            >>>     SELECT gnis, place_name, state_code, class_code, domain_name FROM locations 
+            >>>     WHERE domain_name IS NOT NULL;
+            >>>     /"/"/"
+            >>>     )
+            >>>     var_types = {
+            >>>         'gnis': 'int32',
+            >>>         'place_name': 'string',
+            >>>         'state_code': 'string',
+            >>>         'class_code': 'string',
+            >>>         'domain_name': 'string'
+            >>>     } 
+            >>>     places_df = pd.DataFrame(
+            >>>            places, 
+            >>>            columns=["gnis", "place_name", "state_code", "class_code", "domain_name"]
+            >>>            ).astype(var_types)
+            >>>     # Generate queries based on the location.
+            >>>     queries_df = make_queries(places_df, DATAPOINT)
+            >>> return queries_df
         """
 
         # Load in a set of already-created query tuples, if applicable.
@@ -262,7 +262,7 @@ class SearchQueryGenerator:
         assert len_query == 5 or 1, f"query in query_tuple is length '{len_query}', not 5 or 1"
         logger.info(f"construct_queries function created {len(data)} unique queries. Returning data list as DataFrame...")
 
-        return pd.DataFrame(data, columns=["gnis", "queries", "source"])
+        return pd.DataFrame(data, columns=["gnis", "query", "source"])
 
 
 

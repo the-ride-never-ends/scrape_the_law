@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """ELM Web Scraping - Google search."""
 import asyncio
+import traceback
 
 from playwright.async_api import (
     async_playwright,
@@ -79,6 +80,7 @@ class PlaywrightGoogleLinkSearch:
             return await self._search(query, num_results=num_results)
         except PlaywrightTimeoutError as e:
             logger.exception(e)
+            traceback.print_exc()
             return []
 
     async def _get_links(self, queries, num_results):
@@ -140,6 +142,7 @@ class PlaywrightGoogleLinkSearch:
             entry is another list containing the top `num_results`
             links.
         """
+        logger.debug(f"queries_type: {type(queries)}")
         queries = map(clean_search_query, queries)
         if limit:
             return await self._get_links_with_limit(queries, num_results)

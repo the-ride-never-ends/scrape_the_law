@@ -7,21 +7,26 @@ import queue
 import pandas as pd
 import aiomysql
 
-# These are primarily imported for type-hinting purposes.
+# These are primarily imported for errors and type-hinting purposes.
 from mysql.connector.connection import MySQLConnection
+from mysql.connector.cursor import MySQLCursor
 from mysql.connector.pooling import MySQLConnectionPool, PooledMySQLConnection, CONNECTION_POOL_LOCK
 from mysql.connector.errors import Error as MySqlError
 from mysql.connector.errors import PoolError as MySqlPoolError
 
 from aiomysql.pool import Pool as AioMySQLConnectionPool
 from aiomysql.connection import Connection as AioMySqlConnection
+from aiomysql.cursors import Cursor as AioMySQLCursor
 
-from config import HOST, USER, PORT, PASSWORD, MYSQL_SCRIPT_FILE_PATH, DATABASE_NAME
+from config import HOST, USER, PORT, PASSWORD, MYSQL_SCRIPT_FILE_PATH, DATABASE_NAME, INSERT_BATCH_SIZE
 from logger import Logger
 log_level = 10
 logger = Logger(logger_name=__name__, log_level=log_level)
 
 from utils.database.safe_format import safe_format
+from utils.database.get_num_placeholders import get_num_placeholders
+from utils.database.get_column_names import get_column_names
+from utils.database.format_sql_file import format_sql_file
 
 # NOTE For reference only.
 SOCIALTOOLKIT_TABLE_NAMES = [
@@ -32,6 +37,9 @@ SOCIALTOOLKIT_TABLE_NAMES = [
     "ia_url_metadata", # Internet Archive (IA) copies of the URLs in 'url', as well as their IA metadata.
     "searches" # Searches we've conducted so far, as well as metadata on them.
 ]
+
+# If the command starts with SELECT, SHOW, WITH, or EXPLAIN, it's a query.
+QUERY_PATTERN = re.compile(r"^(SELECT|SHOW|WITH|EXPLAIN)\b", re.IGNORECASE) 
 
 class MySqlDatabase:
     """
@@ -88,6 +96,7 @@ class MySqlDatabase:
                  user: str=USER,
                  port: int=PORT,
                  password: str=PASSWORD,
+                 sql_scripts_path: str=MYSQL_SCRIPT_FILE_PATH # Currently not used.
                 ):
         self.db_config: dict = {
             'host': host,
@@ -102,37 +111,13 @@ class MySqlDatabase:
                 logger.error(f"Invalid value for database config '{config}'.\n Value: {value}")
                 raise ValueError("Invalid value for database config.")
 
-        self.sql_scripts_path: str = MYSQL_SCRIPT_FILE_PATH # Currently note used.
-        self.pool_name: str = pool_name
-        self.pool_size: int = pool_size
-        self.pool_minsize: int = pool_minsize
-        self.pool_maxsize: int = pool_maxsize
+        self.sql_scripts_path = sql_scripts_path
+        self.pool_name = pool_name
+        self.pool_size = pool_size
+        self.pool_minsize = pool_minsize
+        self.pool_maxsize = pool_maxsize
         self.pool: AioMySQLConnectionPool|MySQLConnectionPool = None
         self.sync: bool = None
-
-    @property
-    def sql_scripts_path(self):
-        return self.sql_scripts_path
-
-    @property
-    def pool_name(self):
-        return self.pool_name
-    
-    @property
-    def pool_size(self):
-        return self.pool_size
-    
-    @property
-    def pool_minsize(self):
-        return self.pool_minsize
-    
-    @property
-    def pool_maxsize(self):
-        return self.pool_maxsize
-
-    @property
-    def is_sync(self):
-        return self.sync
 
     def __enter__(self) -> 'MySqlDatabase':
         """
@@ -359,7 +344,7 @@ class MySqlDatabase:
                                         connection, 
                                         command: LiteralString, 
                                         params: tuple|list[tuple]=None, 
-                                        safe_format_vars: dict[Any]=None
+                                        args: dict[Any]=None
                                         ):
         """
         Type check the _execute_sql_command and _async_execute_sql_command functions.
@@ -379,20 +364,30 @@ class MySqlDatabase:
                 is_tuple = True
             elif isinstance(params, list) and all(isinstance(item, tuple) for item in params):
                 is_tuple = False
+            # Force convert to tuples if it's a dictionary
+            elif isinstance(params, dict):
+                params = tuple(value for value in params.values())
+                is_tuple = True
+            elif isinstance(params, list) and all(isinstance(item, dict) for item in params):
+                to_params = [
+                    tuple(value for value in item.values()) for item in params
+                ]
+                params = to_params
+                is_tuple = False
             else:
                 self._return_connection_to_pool(connection)
                 logger.error("Argument 'params' must be type tuple or list[tuple]")
                 raise TypeError("Argument 'params' must be type tuple or list[tuple]")
 
-        if safe_format_vars:
-            for key, value in safe_format_vars.items():
+        if args:
+            for key, value in args.items():
                 if isinstance(value, str):
-                    safe_format_vars[key] = connection.escape_string(value)
+                    args[key] = connection.escape_string(value)
                 else:
-                    safe_format_vars[key] = connection.escape(value)
-            command = safe_format(command, **safe_format_vars)
+                    args[key] = connection.escape(value)
+            command = safe_format(command, **args)
 
-        if params and safe_format_vars:
+        if params and args:
             return is_tuple, command
         else:
             if params:
@@ -406,14 +401,14 @@ class MySqlDatabase:
                             params: ( tuple[Any,...] | list[tuple[Any,...]] )=None,
                             connection: MySQLConnection=None,
                             is_query: bool=False,
-                            safe_format_vars: dict=None,
+                            args: dict=None,
                             unbuffered: bool=False,
                             return_dict: bool=False,
                             size: int=None
                             ) -> list[tuple[Any,...]] | list[dict[str,Any]] | aiomysql.Cursor | None:
     
         # Type check everything.
-        is_tuple, command = self._type_check_execute_sql_command(connection, command, params=params, safe_format_vars=safe_format_vars)
+        is_tuple, command = self._type_check_execute_sql_command(connection, command, params=params, args=args)
 
         # Execute the SQL statement.
         try:
@@ -476,7 +471,7 @@ class MySqlDatabase:
                                    params: ( tuple[Any,...] | list[tuple[Any,...]] )=None,
                                    connection: aiomysql.Connection=None,
                                    is_query: bool=False,
-                                   safe_format_vars: dict=None,
+                                   args: dict=None,
                                    unbuffered: bool=False,
                                    return_dict: bool=False,
                                    size: int=None
@@ -493,7 +488,7 @@ class MySqlDatabase:
         - params: Parameters for the SQL command. A tuple for single execution, or a list of tuples for batch execution.
         - connection: The database connection to use.
         - is_query: Whether the command is a query (True) or a database alteration (False).
-        - safe_format_vars: Variables for safe string formatting of the SQL command.
+        - args: Variables for safe string formatting of the SQL command.
         - unbuffered: Whether to use an unbuffered cursor.
         - return_dict: Whether to return results as dictionaries instead of tuples.
         - size: The number of rows to fetch for buffered queries. If default or None, fetches all rows.
@@ -514,7 +509,7 @@ class MySqlDatabase:
         - For queries, the method supports both parameterized and non-parameterized execution.
         - For database alterations, the method uses transactions and supports rollback in case of errors.
         """
-        is_tuple, command = self._type_check_execute_sql_command(connection, command, params=params, safe_format_vars=safe_format_vars)
+        is_tuple, command = self._type_check_execute_sql_command(connection, command, params=params, args=args)
 
         # Define the cursor class based on the unbuffered and return_dict parameters.
         if unbuffered:
@@ -587,12 +582,13 @@ class MySqlDatabase:
             traceback.print_exc()
             raise e
 
+
     def _execute_unbuffered_query(self,
                                     command: LiteralString,
                                     params: (tuple[Any,...] | list[tuple[Any,...]]) = None,
                                     connection: MySQLConnection=None,
                                     is_query:bool=True,
-                                    safe_format_vars: dict=None,
+                                    args: dict=None,
                                     unbuffered: bool=True,
                                     return_dict: dict=False,
                                     size: int=None
@@ -606,7 +602,7 @@ class MySqlDatabase:
         try:
             cursor = self._async_execute_sql_command(
                 command, params=params, connection=connection, is_query=is_query,
-                safe_format_vars=safe_format_vars, unbuffered=unbuffered, return_dict=return_dict, size=size
+                args=args, unbuffered=unbuffered, return_dict=return_dict, size=size
             )
             for row in cursor:
                 print(row)
@@ -621,7 +617,7 @@ class MySqlDatabase:
                                     params: (tuple[Any,...] | list[tuple[Any,...]]) = None,
                                     connection: aiomysql.Connection=None,
                                     is_query:bool=True,
-                                    safe_format_vars: dict=None,
+                                    args: dict=None,
                                     unbuffered: bool=True,
                                     return_dict: dict=False,
                                     size: int=None
@@ -636,7 +632,7 @@ class MySqlDatabase:
         - params (tuple[Any,...] | list[tuple[Any,...]], optional): Parameters to be used with the SQL query.
         - connection (aiomysql.Connection, optional): The database connection to use.
         - is_query (bool, default=True): Indicates if the command is a query (should always be True for this method).
-        - safe_format_vars (dict, optional): Variables for safe string formatting of the SQL command.
+        - args (dict, optional): Variables for safe string formatting of the SQL command.
         - unbuffered (bool, default=True): Indicates if the query should be unbuffered (should always be True for this method).
         - return_dict (bool, default=False): If True, returns each row as a dictionary instead of a tuple.
         - size (int, optional): Not used in this method, but kept for consistency with _async_execute_sql_command.
@@ -650,7 +646,7 @@ class MySqlDatabase:
         try:
             cursor = await self._async_execute_sql_command(
                 command, params=params, connection=connection, is_query=is_query, 
-                safe_format_vars=safe_format_vars, unbuffered=unbuffered, return_dict=return_dict, size=size
+                args=args, unbuffered=unbuffered, return_dict=return_dict, size=size
             )
             async for row in cursor:
                 print(row)
@@ -659,59 +655,121 @@ class MySqlDatabase:
             await cursor.close()
             self._return_connection_to_pool(connection)
 
-    def execute_sql_command(self,
-                            command: LiteralString,
-                            params: ( tuple[Any,...] | list[tuple[Any,...]] ) = None,
-                            safe_format_vars: dict=None,
-                            unbuffered:bool=False,
-                            return_dict:bool=False,
-                            size: int=None,
-                            ) -> list[tuple[Any,...]] | list[dict[str,Any]] | Generator | None:
+
+    # def _route_commands(self, command: str, is_query: bool=None, unbuffered: bool=False, **kwargs):
+    #     connection: MySQLConnection = self.pool.get_connection()
+    #     is_query = is_query or bool(QUERY_PATTERN.match(command.strip()))
+
+    #     # Execute the SQL command.
+    #     if is_query: # Query route
+    #         if unbuffered: # Unbuffered query
+    #             logger.debug(f"Chose unbuffered query route.")
+    #             return self._async_execute_unbuffered_query(command, connection=connection, unbuffered=unbuffered, is_query=is_query, **kwargs)
+    #         else: # Buffered query
+    #             logger.debug(f"Chose buffered query route.")
+    #             results = self._execute_sql_command(command,  connection=connection, is_query=is_query, **kwargs)
+    #             self._return_connection_to_pool(connection)
+    #             return results
+
+    #     else: # Alteration route
+    #         self._execute_sql_command(command, connection=connection, **kwargs)
+    #         self._return_connection_to_pool(connection)
+    #         return
+
+
+    # def execute_sql_command(self,
+    #                         command: LiteralString,
+    #                         params: ( tuple[Any,...] | dict[str,Any] | list[tuple[Any,...]] | list[dict[str,Any]] ) = None,
+    #                         args: dict=None,
+    #                         unbuffered:bool=False,
+    #                         return_dict:bool=False,
+    #                         size: int=None,
+    #                         ) -> list[tuple[Any,...]] | list[dict[str,Any]] | Generator | None:
+    #     """
+    #     Directly execute a SQL command to query or alter the database.
+    #     This method automatically detects whether the command is a query or an alteration command based on its first word.
+    #     It handles both buffered and unbuffered queries.
+
+    #     ### Parameters
+    #     - command: SQL command to execute.
+    #     - params: Parameters/values to feed into the SQL command. Optional
+    #     - args: Variable names and values that are inserted into the command string using the safe_format function. Optional
+    #     - unbuffered: If True, executes an unbuffered query, allowing for processing large result sets without loading the entire result into memory at once.
+    #     - return_dict: If True, returns each row as a dictionary instead of a tuple.
+    #     - size: Number of rows to fetch at a time. If None, fetches all rows.
+
+    #     ### Returns
+    #     - For buffered queries, returns a list of tuples containing the query results.
+    #     - For buffered queries with return_dict=True, returns a list of dictionaries containing the query results.
+    #     - For unbuffered queries, returns an async generator that yields results one at a time.
+    #     - For database alteration commands (non-queries), returns None.
+    #     """
+        
+
+    #     if command.endswith((".sql", ".txt")):
+    #         command = format_sql_file(command)
+    #         if isinstance(command, str):
+    #             is_query = bool(QUERY_PATTERN.match(command.strip()))
+    #             if is_query:
+    #                 return self._route_commands(command, is_query, unbuffered=unbuffered, params=params, args=args,  return_dict=return_dict)
+    #             else:
+    #                 return self._route_commands(command, is_query, unbuffered=unbuffered, params=params, args=args,  return_dict=return_dict)
+    #         else:
+    #             command_set = {bool(pattern.match(com.strip())) for com in command}
+    #             if True and False in command_set:
+    #                 raise ValueError("File has both query and alteration commands.")
+    #             else:
+    #                 for com in command:
+    #                     is_query = bool(QUERY_PATTERN.match(command.strip()))
+    #     else:
+    #         is_query = bool(QUERY_PATTERN.match(command.strip()))
+    #         if is_query:
+    #             return self._route_commands(command, is_query)
+    #         else:
+
+    async def async_insert_by_batch(self,
+                                    results: list[dict] | list[tuple],
+                                    batch_size: int=INSERT_BATCH_SIZE,
+                                    args: dict=None,
+                                    columns:list[str]=None,
+                                    statement:str=None,
+                                    table: str=None):
         """
-        Directly execute a SQL command to query or alter the database.
-        This method automatically detects whether the command is a query or an alteration command based on its first word.
-        It handles both buffered and unbuffered queries.
+        Asynchronously insert data into the database in batches.
 
-        ### Parameters
-        - command: SQL command to execute.
-        - params: Parameters/values to feed into the SQL command. Optional
-        - safe_format_vars: Variable names and values that are inserted into the command string using the safe_format function. Optional
-        - unbuffered: If True, executes an unbuffered query, allowing for processing large result sets without loading the entire result into memory at once.
-        - return_dict: If True, returns each row as a dictionary instead of a tuple.
-        - size: Number of rows to fetch at a time. If None, fetches all rows.
+        ### Args
+        - results: Data to be inserted.
+        - batch_size: Number of records per batch.
+        - args: Additional arguments for the SQL statement.
+        - columns: Column names if results is a list of tuples.
+        - statement: Custom INSERT statement.
+        - table: Name of the table to insert into.
 
-        ### Returns
-        - For buffered queries, returns a list of tuples containing the query results.
-        - For buffered queries with return_dict=True, returns a list of dictionaries containing the query results.
-        - For unbuffered queries, returns an async generator that yields results one at a time.
-        - For database alteration commands (non-queries), returns None.
+        Raises
+        - AssertionError: If input types are incorrect.
         """
-        connection: MySQLConnection = self.pool.get_connection()
-        pattern = re.compile(r"^(SELECT|SHOW|WITH|EXPLAIN)\b", re.IGNORECASE) # If the command starts with SELECT, SHOW, WITH, or EXPLAIN, it's a query.
-        is_query = bool(pattern.match(command.strip()))
+        if not columns:
+            assert isinstance(results[0], dict)
+        else:
+            assert isinstance(columns, list)
+            assert isinstance(columns[0], str)
 
-        # Execute the SQL command.
-        if is_query: # Query route
-            if unbuffered: # Unbuffered query
-                logger.debug(f"Chose unbuffered query route.")
-                return self._async_execute_unbuffered_query(command, params=params, connection=connection, is_query=is_query,
-                                                            safe_format_vars=safe_format_vars, return_dict=return_dict, unbuffered=unbuffered, size=size)
-            else: # Buffered query
-                logger.debug(f"Chose buffered query route.")
-                results = self._execute_sql_command(command, params=params, connection=connection, is_query=is_query, 
-                                                    safe_format_vars=safe_format_vars, return_dict=return_dict, size=size)
-                self._return_connection_to_pool(connection)
-                return results
+        args = args or {
+            "table": table or None,
+            "placeholders": get_num_placeholders(results[0]),
+            "columns": columns or get_column_names(results[0])
+        }
+        insert = statement or "INSERT INTO {table} ({columns}) VALUES ({placeholders});"
 
-        else: # Alteration route
-            self._execute_sql_command(command, params=params,connection=connection,safe_format_vars=safe_format_vars)
-            self._return_connection_to_pool(connection)
-            return
+        async for i in range(0, len(results), batch_size):
+            params = results[i:i+batch_size]
+            await self.async_execute_sql_command(insert, params=params, args=args)
+            logger.info(f"Inserted {len(params)} records into the database")
 
     async def async_execute_sql_command(self,
                                   command: LiteralString,
-                                  params: ( tuple[Any,...] | list[tuple[Any,...]] ) = None,
-                                  safe_format_vars: dict=None,
+                                  params: ( tuple[Any,...] | dict[str,Any] | list[tuple[Any,...]] | list[dict[str,Any]] ) = None,
+                                  args: dict=None,
                                   unbuffered:bool=False,
                                   return_dict:bool=False,
                                   size: int=None,
@@ -724,7 +782,7 @@ class MySqlDatabase:
         ### Parameters
         - command: SQL command to execute.
         - params: Parameters/values to feed into the SQL command. Optional
-        - safe_format_vars: Variable names and values that are inserted into the command string using the safe_format function. Optional
+        - args: Variable names and values that are inserted into the command string using the safe_format function. Optional
         - unbuffered: If True, executes an unbuffered query, allowing for processing large result sets without loading the entire result into memory at once.
         - return_dict: If True, returns each row as a dictionary instead of a tuple.
         - size: Number of rows to fetch at a time. If None, fetches all rows.
@@ -746,16 +804,16 @@ class MySqlDatabase:
             if unbuffered: # Unbuffered query
                 logger.debug(f"Chose unbuffered query route.")
                 return await self._async_execute_unbuffered_query(command, params=params, connection=connection, is_query=is_query, 
-                                                                safe_format_vars=safe_format_vars, return_dict=return_dict, unbuffered=unbuffered, size=size)
+                                                                args=args, return_dict=return_dict, unbuffered=unbuffered, size=size)
             else: # Buffered query
                 logger.debug(f"Chose buffered query route.")
                 results = await self._async_execute_sql_command(command, params=params, connection=connection, is_query=is_query, 
-                                                                safe_format_vars=safe_format_vars, return_dict=return_dict, size=size)
+                                                                args=args, return_dict=return_dict, size=size)
                 self._return_connection_to_pool(connection)
                 return results
 
         else: # Alteration route
-            await self._async_execute_sql_command(command, params=params, connection=connection, safe_format_vars=safe_format_vars)
+            await self._async_execute_sql_command(command, params=params, connection=connection, args=args)
             self._return_connection_to_pool(connection)
             return
 
@@ -763,7 +821,7 @@ class MySqlDatabase:
     async def async_query_to_dataframe(self,
                                     query: str,
                                     params: tuple = None,
-                                    safe_format_vars: dict = None,
+                                    args: dict = None,
                                     unbuffered=False
                                     ) -> pd.DataFrame:
         """
@@ -772,19 +830,19 @@ class MySqlDatabase:
         ### Parameters
         - query: SQL query to execute.
         - params: Query parameters.
-        - safe_format_vars: Variables for safe string formatting.
+        - args: Variables for safe string formatting.
         - unbuffered: If True, uses unbuffered query.
         ### Returns
         - Query results as a Pandas DataFrame.
         """
-        results = await self.async_execute_sql_command(query, params=params, unbuffered=unbuffered, safe_format_vars=safe_format_vars, return_dict=True)
+        results = await self.async_execute_sql_command(query, params=params, unbuffered=unbuffered, args=args, return_dict=True)
         return pd.DataFrame.from_dict(results)
 
 
     def query_to_dataframe(self,
                             query: str,
                             params: tuple = None,
-                            safe_format_vars: dict = None,
+                            args: dict = None,
                             unbuffered: bool = False
                             ) -> pd.DataFrame:
         """
@@ -793,11 +851,11 @@ class MySqlDatabase:
         ### Parameters
         - query: SQL query to execute.
         - params: Query parameters.
-        - safe_format_vars: Variables for safe string formatting.
+        - args: Variables for safe string formatting.
         - unbuffered: If True, uses unbuffered query.
         ### Returns
         - Query results as a Pandas DataFrame.
         """
-        results = self.execute_sql_command(query, params=params, unbuffered=unbuffered, safe_format_vars=safe_format_vars, return_dict=True)
+        results = self.execute_sql_command(query, params=params, unbuffered=unbuffered, args=args, return_dict=True)
         return pd.DataFrame.from_dict(results)
 

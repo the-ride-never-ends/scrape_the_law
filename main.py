@@ -4,7 +4,6 @@ import sys
 
 from input import InputProcessor
 from search import SearchEngine
-from utils.search.google_search import PlaywrightGoogleLinkSearch
 from query import SearchQueryGenerator
 from archive import SaveToInternetArchive
 from scrape import GetFromInternetArchive
@@ -45,6 +44,7 @@ async def main():
     # sample_locations_df = locations_df.sample(n=30, random_state=RAND_SEED)
     # logger.debug(f"Randomly sampled 30 locations:\n{sample_locations_df}")
 
+
     logger.info("Step 2: Make queries based on the input cities.")
     # Since we haven't made the query maker class, we'll just use an example.
     common_terms = [
@@ -52,14 +52,21 @@ async def main():
             "municipal code", "city code", "county code", "local law"
         ]
 
+
     generator = SearchQueryGenerator(DATAPOINT, common_terms=common_terms, search_engine=SEARCH_ENGINE)
     queries_df = await generator.make_queries(locations_df)
     logger.debug(f"main queries_df:\n{queries_df.head()}")
     logger.info("Step 2 Complete.")
     # Output should look like below
-    queries = [
-        'site:https://library.municode.com/ca/ Camarillo tax', "City of Honeyville UT"
-    ]
+    # 2024-09-21 22:43:34,897 - __main___logger - DEBUG - main.py: 56 - main queries_df:
+    #       gnis                                            queries          source
+    # 0  2409449  site:https://library.municode.com/tx/childress...        municode
+    # 1  2390602  site:https://ecode360.com/ City of Hurricane W...    general_code
+    # 2  2412174  site:https://codelibrary.amlegal.com/codes/wal...  american_legal
+    # 3   885195           site:https://demarestnj.org/ "sales tax"    place_domain
+    # 4  2411145  site:https://library.municode.com/ca/monterey/...        municode
+
+
 
     result = input("Continue to Step 3? y/n: ")
     if result != "y":
