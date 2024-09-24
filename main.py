@@ -8,6 +8,7 @@ from query import SearchQueryGenerator
 from archive import SaveToInternetArchive
 from scrape import GetFromInternetArchive
 
+from utils.shared.next_step import next_step
 
 from database import MySqlDatabase
 from config import DATAPOINT, RAND_SEED, SEARCH_ENGINE
@@ -16,7 +17,7 @@ from logger import Logger
 logger = Logger(logger_name=__name__)
 
 SKIP = True
-HEADLESS = True
+HEADLESS = False
 SLOW_MO = 100
 
 async def main():
@@ -37,17 +38,12 @@ async def main():
     logger.debug(f"main locations_df:\n{locations_df.head()}")
     logger.info("Step 1 Complete.")
 
-    if SKIP is False:
-        result = input("Continue to Step 2? y/n: ")
-        if result != "y":
-            raise KeyboardInterrupt("scrape_the_law program stopped at Step 1.")
-
 
     # # Randomly select 30 rows from locations_df
     # sample_locations_df = locations_df.sample(n=30, random_state=RAND_SEED)
     # logger.debug(f"Randomly sampled 30 locations:\n{sample_locations_df}")
 
-
+    next_step(step=2)
     logger.info("Step 2: Make queries based on the input cities.")
     # Since we haven't made the query maker class, we'll just use an example.
     common_terms = [
@@ -70,47 +66,38 @@ async def main():
     # 4  2411145  site:https://library.municode.com/ca/monterey/...        municode
 
 
-    result = input("Continue to Step 3? y/n: ")
-    if result != "y":
-        raise KeyboardInterrupt("scrape_the_law program stopped at Step 2.")
-
-
+    next_step(step=3)
     # Step 3. Search these up on Google and get the links.
     # NOTE. We might have to use the Google Search API here. Google will probably get wise to this eventually.
     # This will also be pretty slow.
-    search: SearchEngine = SearchEngine().start_engine(SEARCH_ENGINE,header=HEADLESS,slow_mo=SLOW_MO)
-    async with await MySqlDatabase as db:
-        urls_df = await search.results(queries_df, db)
+    search: SearchEngine = SearchEngine().start_engine(SEARCH_ENGINE, headless=HEADLESS, slow_mo=SLOW_MO)
+    urls_df = await search.results(queries_df)
     logger.debug(f"main urls_df:\n{urls_df.head()}")
     logger.info("Step 3 Complete.")
 
 
-    result = input("Continue to Step 4? y/n")
-    if result != "y":
-        raise KeyboardInterrupt("scrape_the_law program stopped at Step 3.")
-
-
+    next_step(step=4, stop=True)
     # Step 4. Check if these links are in the Wayback Machine. If they aren't save them.
     async with await MySqlDatabase as db:
         ia_saver = SaveToInternetArchive(db)
-        ia_links_df = await ia_saver.save(results_df)
+        ia_links_df = await ia_saver.save(urls_df)
         logger.info("Step 4 Complete.")
 
-    result = input("Continue to Step 4? y/n")
-    if result != "y":
-        raise KeyboardInterrupt("scrape_the_law program stopped at Step 3.")
 
 
+    next_step(step=5)
     # Step 5. Scrape the results from the Wayback Machine using the Waybackup program.
     async with await MySqlDatabase as db:
         ia_getter = GetFromInternetArchive(db)
         text_df = ia_getter.get(ia_links_df)
 
 
+    next_step(step=6)
     # Step 6. Clean the text and save it to the database
     import clean
 
 
+    next_step(step=7)
     # Step 7. Get metadata from the text: 
 
 

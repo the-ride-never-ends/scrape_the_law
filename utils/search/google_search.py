@@ -1,19 +1,27 @@
 # -*- coding: utf-8 -*-
 """ELM Web Scraping - Google search."""
 import asyncio
+import os
 import traceback
 
+from playwright
 from playwright.async_api import (
     async_playwright,
     TimeoutError as PlaywrightTimeoutError,
 )
 
-from config import GOOGLE_CONCURRENCY_LIMIT
+from config import GOOGLE_CONCURRENCY_LIMIT, DEBUG_FILEPATH
 from utils.query.clean_search_query import clean_search_query
 from logger import Logger
 
 log_level=10
 logger = Logger(logger_name=__name__,log_level=log_level)
+
+_pw_debug_path = "/mnt/e/AI_TEMP/scrape_the_law_debug/"
+pw_debug_path = os.path.join(_pw_debug_path, "playwright")
+
+if not os.path.exists(pw_debug_path):
+    os.mkdir(pw_debug_path)
 
 # Set up rate-limit-conscious functions
 semaphore = asyncio.Semaphore(GOOGLE_CONCURRENCY_LIMIT)
@@ -27,11 +35,10 @@ async def run_task_with_limit(task):
             stop_signal = True
         return result
 
+
 # NOTE This is the js tag for Google results.
 # It will probably change eventually.
 _SEARCH_RESULT_TAG = '[jsname="UWckNb"]'
-
-
 
 
 class PlaywrightGoogleLinkSearch:
@@ -63,15 +70,30 @@ class PlaywrightGoogleLinkSearch:
         await self._browser.close()
         self._browser = None
 
+
     async def _search(self, query, num_results=10):
         """Search google for links related to a query."""
         logger.debug(f"Searching Google: {query}")
         num_results = min(num_results, self.EXPECTED_RESULTS_PER_PAGE)
 
-        page = await self._browser.new_page()
-        await _navigate_to_google(page)
-        await _perform_google_search(page, query)
-        return await _extract_links(page, num_results)
+        if log_level == 10: # Trace debugging chunk
+            context = await self._browser.new_context()
+            await context.tracing.start(screenshots=True, snapshots=True, sources=True)
+
+            await context.tracing.start_chunk()
+            page = await self._browser.new_page()
+            await context.tracing.stop_chunk(path=os.path.join(DEBUG_FILEPATH, "_search_new_page.zip"))
+
+            await _navigate_to_google(page, context=context)
+            await _perform_google_search(page, query, context=context)
+            results = await _extract_links(page, num_results, context=context)
+            return results
+        else:
+            page = await self._browser.new_page()
+            await _navigate_to_google(page)
+            await _perform_google_search(page, query)
+            return await _extract_links(page, num_results)
+
 
     async def _skip_exc_search(self, query, num_results=10):
         """Perform search while ignoring timeout errors"""
@@ -81,6 +103,7 @@ class PlaywrightGoogleLinkSearch:
             logger.exception(e)
             traceback.print_exc()
             return []
+
 
     async def _get_links(self, queries, num_results):
         """Get links for multiple queries"""
@@ -142,27 +165,45 @@ class PlaywrightGoogleLinkSearch:
             links.
         """
         logger.debug(f"queries_type: {type(queries)}")
-        queries = map(clean_search_query, queries)
+        queries = map(clean_search_query, *queries)
         if limit:
             return await self._get_links_with_limit(queries, num_results)
         else:
             return await self._get_links(queries, num_results)
 
 
-async def _navigate_to_google(page):
+async def _navigate_to_google(page, context=None):
     """Navigate to Google domain."""
-    await page.goto("https://www.google.com")
-    await page.wait_for_load_state("networkidle")
+    if context:
+        await context.tracing.start_chunk()
+
+        await page.goto("https://www.google.com")
+        await page.wait_for_load_state("networkidle")
+
+        await context.tracing.stop_chunk(path=os.path.join(DEBUG_FILEPATH, "_navigate_to_google.zip"))
+    else:
+        await page.goto("https://www.google.com")
+        await page.wait_for_load_state("networkidle")
 
 
-async def _perform_google_search(page, search_query):
+async def _perform_google_search(page, search_query, context=None):
     """Fill in search bar with user query and click search button"""
-    await page.get_by_label("Search", exact=True).fill(search_query)
-    await _close_autofill_suggestions(page)
-    await page.get_by_role("button", name="Google Search").click()
+    if context:
+        await context.tracing.start_chunk()
+
+        await page.get_by_label("Search", exact=True).fill(search_query)
+        await _close_autofill_suggestions(page, context=None)
+
+        await page.get_by_role("button", name="Google Search").click()
+        await context.tracing.stop_chunk(path=os.path.join(DEBUG_FILEPATH, "_perform_google_search.zip"))
+
+    else:
+        await page.get_by_label("Search", exact=True).fill(search_query)
+        await _close_autofill_suggestions(page, context=None)
+        await page.get_by_role("button", name="Google Search").click()
 
 
-async def _close_autofill_suggestions(page):
+async def _close_autofill_suggestions(page, context=None):
     """Google autofill suggestions often get in way of search button.
 
     We get around this by closing the suggestion dropdown before
@@ -176,9 +217,10 @@ async def _close_autofill_suggestions(page):
     await page.locator("#gb").click()
 
 
-async def _extract_links(page, num_results):
+async def _extract_links(page, num_results, context=None):
     """Extract links for top `num_results` on page"""
     links = await asyncio.to_thread(page.locator, _SEARCH_RESULT_TAG)
     return [
         await links.nth(i).get_attribute("href") for i in range(num_results)
     ]
+

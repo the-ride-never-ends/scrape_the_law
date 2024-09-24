@@ -1,5 +1,6 @@
 import asyncio
 import re
+import time
 import traceback
 from typing import Any, AsyncGenerator, LiteralString, Generator
 import queue
@@ -27,6 +28,7 @@ from utils.database.safe_format import safe_format
 from utils.database.get_num_placeholders import get_num_placeholders
 from utils.database.get_column_names import get_column_names
 from utils.database.format_sql_file import format_sql_file
+from utils.shared.make_id import make_id
 
 # NOTE For reference only.
 SOCIALTOOLKIT_TABLE_NAMES = [
@@ -551,7 +553,10 @@ class MySqlDatabase:
                         if isinstance(results, list):
                             return results
                         else:
-                            return results if isinstance(results[0], dict) else list(results)
+                            if isinstance(results, dict):
+                                return results
+                            else:
+                                return list(results)
 
                 else: # Alter Database Route
                     logger.info(f"Altering database with '{command}'...")
@@ -750,7 +755,10 @@ class MySqlDatabase:
         - AssertionError: If input types are incorrect.
         """
         if not columns:
-            assert isinstance(results[0], dict)
+            logger.debug(f"type results: {type(results)}")
+            logger.debug(f"results: {results}")
+            time.sleep(10)
+            #assert isinstance(results[0], dict), f"type results: {type(results)}\nresults: {results}"
         else:
             assert isinstance(columns, list)
             assert isinstance(columns[0], str)
@@ -772,7 +780,11 @@ class MySqlDatabase:
             except Exception as e:
                 logger.error(f"Error inserting batch: {e}")
                 # Save batched results in CSV in case something goes wrong
-                csv_filename = f"failed_insert_batch_{i}.csv"
+                csv_filename = f"failed_insert_batch_{i}_{make_id()}.csv"
+                try: # Try one more time...
+                    await self.async_execute_sql_command(insert, params=params, args=args)
+                except:
+                    pass
                 try:
                     results = pd.DataFrame(params).to_csv(csv_filename, index=False)
                     logger.info(f"Saved failed batch to {csv_filename}")

@@ -26,12 +26,10 @@ log_level = 10
 logger = Logger(logger_name=__name__,log_level=log_level)
 
 
-
 # Set up rate-limit-conscious functions
 CONCURRENCY_LIMIT = 2
 semaphore = asyncio.Semaphore(CONCURRENCY_LIMIT)
 stop_signal = False
-
 
 
 async def run_task_with_limit(task: Coroutine):
@@ -48,8 +46,6 @@ async def run_task_with_limit(task: Coroutine):
     # ]
 
 
-
-
 class SearchEngine:
     """
     A class representing a search engine interface for various search providers.
@@ -62,19 +58,19 @@ class SearchEngine:
 
     """
 
-    def __init__(self):
+    def __init__(self, search=None):
         """
         Initialize the SearchEngine instance.
 
         Args:
             search: An instance of a specific search engine class (e.g., PlaywrightGoogleLinkSearch).
         """
-        self.search = None
+        self.search = search
         self.queries_list = []
         self.urls_list = []
         self.url_hash_set = set()
         self.query_hash_set = set()
-        self.db: MySqlDatabase  = None
+        self.db = None
         self.sql_queries: dict = {
             "url_hash": "SELECT DISTINCT url_hash FROM urls WHERE gnis = {gnis};",
             "query_hash": "SELECT DISTINCT query_hash FROM searches WHERE gnis = {gnis};",
@@ -82,7 +78,7 @@ class SearchEngine:
         }
 
     @classmethod
-    def start_engine(cls, search_engine:str, launch_kwargs: dict[str,Any]) -> 'SearchEngine':
+    def start_engine(cls, search_engine:str, **launch_kwargs) -> 'SearchEngine':
         """
         Create and return a SearchEngine instance for the specified search engine.
 
@@ -159,7 +155,7 @@ class SearchEngine:
         source_site = group_df['source'].iloc[0]
 
         try:
-            search_results: list[list[str]] = await self.search.results(*queries)
+            search_results: list[list[str]] = await self.search.results(queries)
             logger.debug(f"search_results:\n{search_results}")
             logger.info(f"Got search results. Processing...")
             results = await self.search.results(queries)
@@ -185,15 +181,15 @@ class SearchEngine:
         return pd.DataFrame.from_dict(urls)
 
 
-    async def _get_hash_by_gnis(self, query: str, gnis: int):
+    async def _get_hash_by_gnis(self, query: str, gnis: int) -> set:
         """
-        Get hashes based on gnis and add them to a set.
+        Get hashes based on gnis and return them as a set.
         """
         hashes = await self.db.async_execute_sql_command(query, args={"gnis": gnis})
         return  {row[0] for row in hashes}
 
 
-    async def results(self, df: pd.DataFrame, db: MySqlDatabase, batch_size: int=INSERT_BATCH_SIZE, skip_seach=False)-> pd.DataFrame:
+    async def results(self, df: pd.DataFrame, batch_size: int=INSERT_BATCH_SIZE, skip_seach=False)-> pd.DataFrame:
         """
         Perform an internet search for queries in the input DataFrame.
 
@@ -220,50 +216,51 @@ class SearchEngine:
 
         # Initialize for-loop variables.
         total_queries = len(df)
-        self.db = db
 
         logger.info(f"Executing {total_queries} queries. This might take a while...")
         # Group the DataFrame by geographic ID 'gnis'
-        async for gnis, groups_df in df.groupby('gnis'): 
-            # Get the list of queries and URL's we've already performed/got for this gnis.
-            logger.info(f"Gettings url hashes for gnis '{gnis}'...")
-            self.url_hash_set = await self._get_hash_by_gnis(self.sql_queries["url_hash"], gnis)
-            self.query_hash_sert = await self._get_hash_by_gnis(self.sql_queries["query_hash"], gnis)
+        async with MySqlDatabase(database="socialtoolkit") as db:
+            self.db = db
+            for gnis, groups_df in df.groupby('gnis'): 
+                # Get the list of queries and URL's we've already performed/got for this gnis.
+                logger.info(f"Gettings url hashes for gnis '{gnis}'...")
+                self.url_hash_set = await self._get_hash_by_gnis(self.sql_queries["url_hash"], gnis)
+                self.query_hash_set = await self._get_hash_by_gnis(self.sql_queries["query_hash"], gnis)
 
-            # Filter out the queries we've already performed
-            groups_df[~groups_df['query_hash'].isin(list(self.query_hash_set))]
-            logger.info(f"Filtered out {len(groups_df)} redundant queries")
-            logger.debug(f"search groups_df with gnis '{gnis}':\n{groups_df.head()}")
+                # Filter out the queries we've already performed
+                if len(self.query_hash_set) > 0:
+                    groups_df[~groups_df['query_hash'].isin(list(self.query_hash_set))]
+                    logger.info(f"Filtered out {len(groups_df)} redundant queries")
 
-            # Perform the search and insert them into the database.
-            logger.info(f"Filtered out {len(df) - len(groups_df)} redundant queries")
+                logger.debug(f"search groups_df with gnis '{gnis}':\n{groups_df.head()}")
 
-            # Stop the process if in debug to see the results.
-            logger.debug(f"self.url_hash_set:\n{self.url_hash_set[10:]}")
-            if log_level == 10:
-                time.sleep(30)
+                # Stop the process if in debug to see the results.
+                logger.debug(f"self.url_hash_set:\n{self.url_hash_set}")
+                if log_level == 10:
+                    logger.debug("LET'S FUCKING GOOOOOOO!!!!")
+                    time.sleep(2)
 
-            # Perform the search
-            # NOTE We don't paginate results as the search classes will never go beyond the first page of results.
-            await self._batched_search_results(gnis, groups_df) 
+                # Perform the search
+                # NOTE We don't paginate results as the search classes will never go beyond the first page of results.
+                await self._batched_search_results(gnis, groups_df) 
 
-            # Insert urls and queries if they go over the batch size.
-            if len(self.urls_list) >= batch_size:
-                await self.db.async_insert_by_batch(self.urls_list, table="urls", batch_size=batch_size)
-            if len(self.queries_list) >= batch_size:
-                await self.db.async_insert_by_batch(self.queries_list, table="searches", batch_size=batch_size)
+                # Insert urls and queries if they go over the batch size.
+                if len(self.urls_list) >= batch_size:
+                    await self.db.async_insert_by_batch(self.urls_list, table="urls", batch_size=batch_size)
+                if len(self.queries_list) >= batch_size:
+                    await self.db.async_insert_by_batch(self.queries_list, table="searches", batch_size=batch_size)
 
-            # Insert any remaining items and reset url_hash_set and queries_list.
-            await self.db.async_insert_by_batch(self.urls_list, batch_size=batch_size)
-            await self.db.async_insert_by_batch(self.queries_list, batch_size=batch_size)
-            self.url_hash_set = set()
-            self.queries_list = []
+                # Insert any remaining items and reset url_hash_set and queries_list.
+                await self.db.async_insert_by_batch(self.urls_list, batch_size=batch_size)
+                await self.db.async_insert_by_batch(self.queries_list, batch_size=batch_size)
+                self.url_hash_set = set()
+                self.queries_list = []
 
-        # Insert any remaining items
-        if self.urls_list:
-            await self.db.async_insert_by_batch(self.urls_list, batch_size=batch_size)
-        if self.queries_list:
-            await self.db.async_insert_by_batch(self.queries_list, batch_size=batch_size)
+            # Insert any remaining items
+            if self.urls_list:
+                await self.db.async_insert_by_batch(self.urls_list, batch_size=batch_size)
+            if self.queries_list:
+                await self.db.async_insert_by_batch(self.queries_list, batch_size=batch_size)
 
         logger.info(f"'{SEARCH_ENGINE}' search complete")
         # Since searches will likely occur over time, we get URLs for the next step from the database instead.
