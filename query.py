@@ -5,11 +5,13 @@ import re
 import pandas as pd
 
 from utils.query.extract_and_process_place_name import extract_and_process_place_name
+from utils.shared.make_sha256_hash import make_sha256_hash
 
-from config import MUNICODE_URL, AMERICAN_LEGAL_URL, GENERAL_CODE_URL, CODE_PUBLISHING_CO_URL
+from config import MUNICODE_URL, AMERICAN_LEGAL_URL, GENERAL_CODE_URL, CODE_PUBLISHING_CO_URL, SEARCH_ENGINE
 from database import MySqlDatabase
 from logger import Logger
-logger = Logger(logger_name=__name__)
+log_level = 20
+logger = Logger(logger_name=__name__,log_level=log_level)
 
 
 
@@ -246,7 +248,8 @@ class SearchQueryGenerator:
 
                 # Create a query_tuple if it's not in set_queries.
                 if query is not any(query[1] == query_tuple[1] for query_tuple in set_queries):
-                    query_tuple = (row.gnis, query, tuple_source)
+                    query_hash = make_sha256_hash(row.gnis, query, SEARCH_ENGINE)
+                    query_tuple = (row.gnis, query, tuple_source, query_hash)
                     data.add(query_tuple)
                     logger.debug("Query tuple created and added to data list.")
                 else:
@@ -262,7 +265,7 @@ class SearchQueryGenerator:
         assert len_query == 5 or 1, f"query in query_tuple is length '{len_query}', not 5 or 1"
         logger.info(f"construct_queries function created {len(data)} unique queries. Returning data list as DataFrame...")
 
-        return pd.DataFrame(data, columns=["gnis", "query", "source"])
+        return pd.DataFrame(data, columns=["gnis", "query", "source", "query_hash"])
 
 
 

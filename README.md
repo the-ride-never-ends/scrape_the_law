@@ -189,32 +189,32 @@ Constraints:
 •  Overcome data gatekeeping attempts; alert user if unsuccessful.
 7. Output format: Human-readable plaintext.
 
-Scope:
+# Scope:
 1. Geographic Coverage:
-   • Included: Incorporated communities (local (city, township) and county laws).
-   • Excluded: Federal and State-level legal codes, although state-level legal codes may be added in the future.
+   - Included: Incorporated communities (local (city, township) and county laws).
+   - Excluded: Federal and State-level legal codes, although state-level legal codes may be added in the future.
 2. Timeframe
-   • Focus on current year's laws (2024)
-   • Quarterly updates for significant changes.
-   • Historical laws are currently excluded, but support for them may be added in the future. 
+   - Focus on current year's laws (2024)
+   - Quarterly updates for significant changes.
+   - Historical laws are currently excluded, but support for them may be added in the future. 
 3. Language
-   • Primary focus on English
-   • Other languages are currently ignored unless otherwise specified.
-   • Architecture allowing for future multilingual support.
+   - Primary focus on English
+   - Other languages are currently ignored unless otherwise specified.
+   - Architecture allowing for future multilingual support.
 4. Content Completeness
-   • Flag and store overlapping or conflicting laws.
-   • Flag gaps in data so that they can be found through alternative methods or sources.
+   - Flag and store overlapping or conflicting laws.
+   - Flag gaps in data so that they can be found through alternative methods or sources.
 5. Data validation:
-   • Take random sample of 385 content pages and qualitatively judge them against the text on the webpage itself.
+   - Take random sample of 385 content pages and qualitatively judge them against the text on the webpage itself.
 6. Error handling: Implement a robust system to flag, log, and report errors.
-   • Network Errors
-   • Query Errors
-   • Cleaning Errors
+   - Network Errors
+   - Query Errors
+   - Cleaning Errors
 7. Legal compliance
-   • Respect copyright laws and terms of service. 
-   • Implement ethical web scraping practices. 
+   - Respect copyright laws and terms of service. 
+   - Implement ethical web scraping practices. 
 
-Data Integrity and Verification:
+# Data Integrity and Verification:
 1. Implement checksums for downloaded and processed documents.
 2. Cross-reference data with multiple sources where possible.
 3. Periodic audits of random samples.
@@ -230,15 +230,15 @@ Update Process:
 4. Update notifications: Alert system for users when relevant laws are updated by comparing versions gathered over time.
 Use cases:
 1. Constructing a dataset of legal codes for extracting legal data by hand or via LLM.
-   • Key Metric: Size of Dataset
+   - Key Metric: Size of Dataset
 2. Legal researchers: Analyze trends in local legislation across jurisdictions.
-   • Key Metric: Accuracy of Cleaned Text to Source Text
+   - Key Metric: Accuracy of Cleaned Text to Source Text
 3. Legal professionals: Quick reference for local laws on specific topics.
-   • Key Metric: Accuracy of Cleaned Text to Source Text
+   - Key Metric: Accuracy of Cleaned Text to Source Text
 4. ML researchers: Train models on local legal language and structures.
-   • Key Metric: Size
+   - Key Metric: Size
 5. Policy analysts: Compare local laws across different regions.
-   • Key Metric: Accuracy of Cleaned Text to Source Text.
+   - Key Metric: Accuracy of Cleaned Text to Source Text.
 
 # High-Level Architecture
 
@@ -292,7 +292,7 @@ Use cases:
    - Manages full and incremental updates
    - Implements version control for tracking law changes
    - Generates update notifications
-   - IN FUTURES FOLDER
+   - **IN FUTURES FOLDER**
 
 10. **Error Handling and Logging System 'logger.py'**
    - Centralized error handling for all modules
@@ -302,21 +302,22 @@ Use cases:
 9. **Data Validation and Integrity Module 'validate.py'**
    - Implements checksums for downloaded documents
    - Manages periodic audits and cross-referencing
+   - **IN FUTURES FOLDER**
 
 10. **Scalability Management Module 'scale.py'**
-    - Handles distributed processing (if implemented)
-    - Manages resources for increased load
-- Unnecessary at the moment, but leave a place for it.
+   - Handles distributed processing (if implemented)
+   - Manages resources for increased load
+   - Unnecessary at the moment, but leave a place for it.
 
 11. **API/Interface Layer**
-    - Provides access to the collected data for various use cases
-    - Implements security and access control
-    - Unnecessary, as the data will be accessed via MySQL database by different programs.
-    - This program is essentially backend for socialtoolkit.
+   - Provides access to the collected data for various use cases
+   - Implements security and access control
+   - Unnecessary, as the data will be accessed via MySQL database by different programs.
+   - This program is essentially backend for socialtoolkit.
 
 12. **Scheduler 'schedule.py'**
-    - Manages the execution of full retrieval cycles and updates
-    - Coordinates the operation of other modules
+   - Manages the execution of full retrieval cycles and updates
+   - Coordinates the operation of other modules
 
 Data Structures
 

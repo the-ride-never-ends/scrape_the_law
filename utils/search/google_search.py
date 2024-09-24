@@ -15,7 +15,6 @@ from logger import Logger
 log_level=10
 logger = Logger(logger_name=__name__,log_level=log_level)
 
-
 # Set up rate-limit-conscious functions
 semaphore = asyncio.Semaphore(GOOGLE_CONCURRENCY_LIMIT)
 stop_signal = False
@@ -120,7 +119,7 @@ class PlaywrightGoogleLinkSearch:
         return results
 
 
-    async def results(self, *queries, num_results=10, limit=False):
+    async def results(self, *queries, num_results=10, limit=True):
         """Retrieve links for the first `num_results` of each query.
 
         This function executes a google search for each input query and

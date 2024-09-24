@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-"""ELM Web Scraping - Google search."""
+""" Web Scraping """
 import asyncio
+import time
+from typing import Any, Coroutine
 
-from typing import Any
 
 import pandas as pd
 from playwright.async_api import (
@@ -21,7 +22,7 @@ from utils.database.get_insert_into_values import get_insert_into_values
 
 from database import MySqlDatabase
 from logger import Logger
-log_level=10
+log_level = 10
 logger = Logger(logger_name=__name__,log_level=log_level)
 
 
@@ -33,7 +34,7 @@ stop_signal = False
 
 
 
-async def run_task_with_limit(task):
+async def run_task_with_limit(task: Coroutine):
     async with semaphore:
         result = await task
         if result == "stop_condition":  # Replace with your specific stop condition
@@ -45,6 +46,8 @@ async def run_task_with_limit(task):
     # queries = [
     #     'site:https://library.municode.com/ca/ Camarillo tax', "City of Honeyville UT"
     # ]
+
+
 
 
 class SearchEngine:
@@ -59,18 +62,24 @@ class SearchEngine:
 
     """
 
-    def __init__(self, search: PlaywrightGoogleLinkSearch):
+    def __init__(self):
         """
         Initialize the SearchEngine instance.
 
         Args:
             search: An instance of a specific search engine class (e.g., PlaywrightGoogleLinkSearch).
         """
-        self.search = search
-        self.results_list = []
-        self.results_set = set()
+        self.search = None
+        self.queries_list = []
         self.urls_list = []
-        self.urls_set = []
+        self.url_hash_set = set()
+        self.query_hash_set = set()
+        self.db: MySqlDatabase  = None
+        self.sql_queries: dict = {
+            "url_hash": "SELECT DISTINCT url_hash FROM urls WHERE gnis = {gnis};",
+            "query_hash": "SELECT DISTINCT query_hash FROM searches WHERE gnis = {gnis};",
+            "url": "SELECT * FROM urls WHERE ia_url IS NULL;"
+        }
 
     @classmethod
     def start_engine(cls, search_engine:str, launch_kwargs: dict[str,Any]) -> 'SearchEngine':
@@ -103,137 +112,160 @@ class SearchEngine:
         return cls(search)
 
 
-    async def _batched_search_results(self, gnis: str, group: pd.DataFrame):
-        queries = group['query'].tolist()
-        type_query = query[0]
-        type_individual = query[0][0]
-        assert isinstance(type_query, list), f"query not a list, but {type(type_query)}"
-        assert isinstance(type_individual, str), f"individual query not a string, but {type(type_individual)}"
-        source = group['source'].iloc[0]
+    async def _process_search_result(self, gnis: int, query_text: str, result: list[str], source_site: str) -> None:
+        """
+        Build dictionaries of query metadata and returned URLs and add them to their respective lists.
+        """
+        # Make the table 'searches' insert dictionary.
+        formatted_datetime = get_formatted_datetime()
+        query_hash = make_sha256_hash(gnis, query_text, SEARCH_ENGINE)
+        result_dict = {
+            "query_hash": query_hash,
+            "gnis": gnis,
+            "query_text": query_text,
+            "num_results": len(result),
+            "source_site": source_site,
+            "search_engine": SEARCH_ENGINE,
+            "time_stamp": formatted_datetime
+        }
+        if len(result) != 0:
+            for url in result:
+                url_hash = make_sha256_hash(gnis, url)
+
+                # Check the results_set to see if the url is in it.
+                # If it isn't, make the insert dictionary.
+                if url_hash not in self.url_hash_set:
+                    self.url_hash_set.add(url)
+                    urls_dict = {
+                        "url_hash": url_hash,
+                        "query_hash": query_hash,
+                        "gnis": gnis,
+                        "url": url
+                    }
+                    self.urls_list.append(urls_dict)
+                    logger.debug(f"URL '{url}' added to urls_list")
+        else:
+            logger.info(f"Query ''{query_text} returned no results")
+
+        self.queries_list.append(result_dict)
+        logger.debug(f"query '{query_text}' added to queries_list")
+
+
+    async def _batched_search_results(self, gnis: int, group_df: pd.DataFrame) -> None:
+        """
+        Run search queries through a pre-specified search engine class, get the results, then process them and add them to a list.
+        """
+        queries = group_df['query'].tolist()
+        source_site = group_df['source'].iloc[0]
 
         try:
+            search_results: list[list[str]] = await self.search.results(*queries)
+            logger.debug(f"search_results:\n{search_results}")
+            logger.info(f"Got search results. Processing...")
             results = await self.search.results(queries)
-            formatted_datetime = get_formatted_datetime()
-            for query, result in zip(queries, results):
-                query_hash = make_sha256_hash(gnis, query, formatted_datetime)
-                results_dict = {
-                    "query_hash": query_hash,
-                    "gnis": gnis,
-                    "query_text": query,
-                    "num_results": len(result),
-                    "source_site": source,
-                    "search_engine": SEARCH_ENGINE,
-                    "time_stamp": formatted_datetime
-                }
-                for url in result: 
-                    if not url in self.results_set:
-                        self.results_set.add(url)
-                        urls_dict = {
-                            "url_hash": make_sha256_hash(gnis, url),
-                            "query_hash": query_hash,
-                            "gnis": gnis,
-                            "url": url
-                        }
-                        self.urls_list.append(urls_dict)
-                        logger.debug(f"url '{url}' added to urls_list")
-                self.results_list.append(results_dict)
-                logger.debug(f"query '{query}' added to results_list")
+            await asyncio.gather(*[
+                self._process_search_result(
+                    gnis, 
+                    query_text, 
+                    result, 
+                    source_site
+                    )for query_text, result in zip(queries, results)
+            ])
+        except PlaywrightTimeoutError as e:
+            logger.error(f"Timeout occurred while searching for GNIS {gnis}: {e}")
         except Exception as e:
             logger.error(f"Error occurred while searching for GNIS {gnis}: {e}")
 
 
-    async def results(self, df: pd.DataFrame, db: MySqlDatabase, batch_size: int=INSERT_BATCH_SIZE)-> pd.DataFrame:
+    async def _get_urls_without_ia_url(self) -> pd.DataFrame:
+        """
+        Get all URLs where we don't have an internet archive URL from the database
+        """
+        urls = await self.db.async_execute_sql_command(self.sql_queries["url"], return_dict=True)
+        return pd.DataFrame.from_dict(urls)
+
+
+    async def _get_hash_by_gnis(self, query: str, gnis: int):
+        """
+        Get hashes based on gnis and add them to a set.
+        """
+        hashes = await self.db.async_execute_sql_command(query, args={"gnis": gnis})
+        return  {row[0] for row in hashes}
+
+
+    async def results(self, df: pd.DataFrame, db: MySqlDatabase, batch_size: int=INSERT_BATCH_SIZE, skip_seach=False)-> pd.DataFrame:
         """
         Perform an internet search for queries in the input DataFrame.
 
         ### Args
-        - df: DataFrame containing 'gnis' and 'query' columns.
+        - df: DataFrame containing 'gnis', 'query', and 'source' columns.
+        - batch_size:
 
         ### Returns
         - A DataFrame containing the URLS from the search results, as well as 'gnis', and their queries
 
-        # 2024-09-21 22:43:34,897 - __main___logger - DEBUG - main.py: 56 - main queries_df:
-        #       gnis                                            query            source
-        # 0  2409449  site:https://library.municode.com/tx/childress...        municode
-        # 1  2390602  site:https://ecode360.com/ City of Hurricane W...    general_code
-        # 2  2412174  site:https://codelibrary.amlegal.com/codes/wal...  american_legal
-        # 3   885195           site:https://demarestnj.org/ "sales tax"    place_domain
-        # 4  2411145  site:https://library.municode.com/ca/monterey/...        municode
+        ### Example Input
+        >>> 2024-09-21 22:43:34,897 - __main___logger - DEBUG - main.py: 56 - main queries_df:
+        >>>       gnis                                              query          source                                         query_hash
+        >>> 0  2409449  site:https://library.municode.com/tx/childress...        municode  511e95fbc8e3bd151ee2f0e7154127b9254d3c3baa7038...
+        >>> 1  2390602  site:https://ecode360.com/ City of Hurricane W...    general_code  d3d5ded19690fe0a4e2f60db0764698517f6c53f08df3b...
+        >>> 2  2412174  site:https://codelibrary.amlegal.com/codes/wal...  american_legal  4512ed10a5f5090fac09cda3fc83d82696dce9631cddb0...
+        >>> 3   885195           site:https://demarestnj.org/ "sales tax"    place_domain  d2f5127d50661f6fee35f61e8c645e02516f6713a13bc8...
+        >>> 4  2411145  site:https://library.municode.com/ca/monterey/...        municode  1ea0e4a28ae808645537068ce4ff009973e2d48cd95db5...
         """
+        # Type check the dataframe
+        required_columns = {'gnis', 'query', 'source', 'query_hash'}
+        if not required_columns.issubset(df.columns):
+            raise ValueError(f"DataFrame must contain columns: {required_columns}")
+
         # Initialize for-loop variables.
         total_queries = len(df)
+        self.db = db
+
         logger.info(f"Executing {total_queries} queries. This might take a while...")
+        # Group the DataFrame by geographic ID 'gnis'
+        async for gnis, groups_df in df.groupby('gnis'): 
+            # Get the list of queries and URL's we've already performed/got for this gnis.
+            logger.info(f"Gettings url hashes for gnis '{gnis}'...")
+            self.url_hash_set = await self._get_hash_by_gnis(self.sql_queries["url_hash"], gnis)
+            self.query_hash_sert = await self._get_hash_by_gnis(self.sql_queries["query_hash"], gnis)
 
-        # Group the DataFrame by 'gnis'
-        grouped = df.groupby('gnis')
+            # Filter out the queries we've already performed
+            groups_df[~groups_df['query_hash'].isin(list(self.query_hash_set))]
+            logger.info(f"Filtered out {len(groups_df)} redundant queries")
+            logger.debug(f"search groups_df with gnis '{gnis}':\n{groups_df.head()}")
 
-        for gnis, groups in grouped:
-            await self._batched_search_results(gnis, groups)
-            await db.async_insert_by_batch(self.results_list)
-            self.results_list = None # Clear the results list at the end of the loop
+            # Perform the search and insert them into the database.
+            logger.info(f"Filtered out {len(df) - len(groups_df)} redundant queries")
 
-        query_batch = []
-        reset = True
-        row_count = 0
-        idx = 1
-        df.groupby()
+            # Stop the process if in debug to see the results.
+            logger.debug(f"self.url_hash_set:\n{self.url_hash_set[10:]}")
+            if log_level == 10:
+                time.sleep(30)
 
+            # Perform the search
+            # NOTE We don't paginate results as the search classes will never go beyond the first page of results.
+            await self._batched_search_results(gnis, groups_df) 
 
-        async for row in async_tqdm(df.itertuples(), total=len(df), desc="Processing queries"): # Let's see what this does...
-            if first_run: # Define benchmark on first run.
-                reference_gnis = row.gnis
-                first_run = False
-                logger.debug(f"Start of batch {idx} reference_gnis: {reference_gnis}, first_run: {first_run}")
-                continue
-            else:
-                if row.gnis in query_batch[0][0]:
-                    query_batch.append(row.query)
-                else:
-                    reference_gnis = row.gnis # Set the reference to the next gnis group.
+            # Insert urls and queries if they go over the batch size.
+            if len(self.urls_list) >= batch_size:
+                await self.db.async_insert_by_batch(self.urls_list, table="urls", batch_size=batch_size)
+            if len(self.queries_list) >= batch_size:
+                await self.db.async_insert_by_batch(self.queries_list, table="searches", batch_size=batch_size)
 
-                if len(query_batch) >= 10:
-                    try:
-                        query_batch.append(query_batch)
-                        results: list[list[str]] = await self.search.results(query_batch)
-                        async for result in results:
-                            results_dict = {
-                                "query_hash": make_sha256_hash(row.gnis),
-                                "gnis": row.gnis,
-                                "queries": query,
-                                "results": results,
-                                "num_results": len_results,
-                                "source_site": row.source,
-                                "search_engine": SEARCH_ENGINE,
-                                "time_stamp": get_formatted_datetime()
-                            }
-                            len_results = len(results)
-                            logger.debug(f"Returned {len_results} results for row {idx} '{query}': {results}")
-                            results_dict = {
-                                "query_hash": make_sha256_hash(row.gnis),
-                                "gnis": row.gnis,
-                                "queries": query,
-                                "results": results,
-                                "num_results": len_results,
-                                "source_site": row.source,
-                                "search_engine": SEARCH_ENGINE,
-                                "time_stamp": get_formatted_datetime()
-                            }
-                        self.results_list.append(results_dict)
-                        row_count += len_results
-                        idx += 1
-                    except Exception as e:
-                        logger.error(f"Error occurred while searching for query '{query}': {e}")
-                    finally:
-                        query_batch = []
-                else:
-                    continue
+            # Insert any remaining items and reset url_hash_set and queries_list.
+            await self.db.async_insert_by_batch(self.urls_list, batch_size=batch_size)
+            await self.db.async_insert_by_batch(self.queries_list, batch_size=batch_size)
+            self.url_hash_set = set()
+            self.queries_list = []
 
-                if row_count >= 10 or INSERT_BATCH_SIZE:
+        # Insert any remaining items
+        if self.urls_list:
+            await self.db.async_insert_by_batch(self.urls_list, batch_size=batch_size)
+        if self.queries_list:
+            await self.db.async_insert_by_batch(self.queries_list, batch_size=batch_size)
 
-        return pd.DataFrame.from_dict(self.results_list)
-
-
-
-
-
+        logger.info(f"'{SEARCH_ENGINE}' search complete")
+        # Since searches will likely occur over time, we get URLs for the next step from the database instead.
+        return await self._get_urls_without_ia_url()
 

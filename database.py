@@ -727,13 +727,14 @@ class MySqlDatabase:
     #             return self._route_commands(command, is_query)
     #         else:
 
+
     async def async_insert_by_batch(self,
                                     results: list[dict] | list[tuple],
                                     batch_size: int=INSERT_BATCH_SIZE,
                                     args: dict=None,
                                     columns:list[str]=None,
                                     statement:str=None,
-                                    table: str=None):
+                                    table: str=None) -> None:
         """
         Asynchronously insert data into the database in batches.
 
@@ -761,10 +762,24 @@ class MySqlDatabase:
         }
         insert = statement or "INSERT INTO {table} ({columns}) VALUES ({placeholders});"
 
-        async for i in range(0, len(results), batch_size):
+        total_inserted = 0
+        for i in range(0, len(results), batch_size):
             params = results[i:i+batch_size]
-            await self.async_execute_sql_command(insert, params=params, args=args)
-            logger.info(f"Inserted {len(params)} records into the database")
+            try:
+                await self.async_execute_sql_command(insert, params=params, args=args)
+                total_inserted += len(params)
+                logger.info(f"Inserted {len(params)} records into the database. Total: {total_inserted}")
+            except Exception as e:
+                logger.error(f"Error inserting batch: {e}")
+                # Save batched results in CSV in case something goes wrong
+                csv_filename = f"failed_insert_batch_{i}.csv"
+                try:
+                    results = pd.DataFrame(params).to_csv(csv_filename, index=False)
+                    logger.info(f"Saved failed batch to {csv_filename}")
+                except Exception as csv_error:
+                    logger.error(f"Failed to save batch to CSV: {csv_error}")
+                raise  # Re-raise the original exception
+        logger.info(f"Insertion complete. Total records inserted: {total_inserted}")
 
     async def async_execute_sql_command(self,
                                   command: LiteralString,

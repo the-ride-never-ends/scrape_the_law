@@ -12,8 +12,10 @@ from scrape import GetFromInternetArchive
 from database import MySqlDatabase
 from config import DATAPOINT, RAND_SEED, SEARCH_ENGINE
 from logger import Logger
+
 logger = Logger(logger_name=__name__)
 
+SKIP = True
 HEADLESS = True
 SLOW_MO = 100
 
@@ -35,9 +37,10 @@ async def main():
     logger.debug(f"main locations_df:\n{locations_df.head()}")
     logger.info("Step 1 Complete.")
 
-    result = input("Continue to Step 2? y/n: ")
-    if result != "y":
-        raise KeyboardInterrupt("scrape_the_law program stopped at Step 1.")
+    if SKIP is False:
+        result = input("Continue to Step 2? y/n: ")
+        if result != "y":
+            raise KeyboardInterrupt("scrape_the_law program stopped at Step 1.")
 
 
     # # Randomly select 30 rows from locations_df
@@ -67,7 +70,6 @@ async def main():
     # 4  2411145  site:https://library.municode.com/ca/monterey/...        municode
 
 
-
     result = input("Continue to Step 3? y/n: ")
     if result != "y":
         raise KeyboardInterrupt("scrape_the_law program stopped at Step 2.")
@@ -78,16 +80,10 @@ async def main():
     # This will also be pretty slow.
     search: SearchEngine = SearchEngine().start_engine(SEARCH_ENGINE,header=HEADLESS,slow_mo=SLOW_MO)
     async with await MySqlDatabase as db:
-        results_df = await search.results(queries_df, db)
-
-    logger.debug(f"main results_df:\n{results_df.head()}")
-
-
-
-
-
-
+        urls_df = await search.results(queries_df, db)
+    logger.debug(f"main urls_df:\n{urls_df.head()}")
     logger.info("Step 3 Complete.")
+
 
     result = input("Continue to Step 4? y/n")
     if result != "y":
