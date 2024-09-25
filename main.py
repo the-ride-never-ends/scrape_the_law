@@ -17,8 +17,11 @@ from logger import Logger
 logger = Logger(logger_name=__name__)
 
 SKIP = True
-HEADLESS = False
+HEADLESS = True
 SLOW_MO = 100
+
+# Codestral API key: WskOYvWioCL7oFuV7UPJaEby1otAGLUk 
+# https://console.mistral.ai/codestral
 
 async def main():
 
@@ -94,8 +97,8 @@ async def main():
 
     next_step(step=6)
     # Step 6. Clean the text and save it to the database
-    import clean
-
+    from clean import Cleaner
+    clean = Cleaner
 
     next_step(step=7)
     # Step 7. Get metadata from the text: 

@@ -762,13 +762,20 @@ class MySqlDatabase:
         else:
             assert isinstance(columns, list)
             assert isinstance(columns[0], str)
+            _columns = ", ".join(columns)
+        
+        if len(results) == 0:
+            logger.error("async_insert_by_batch results list is empty. Ending funcion...")
+            return
 
+        one_tuple = results[0]
         args = args or {
             "table": table or None,
-            "placeholders": get_num_placeholders(results[0]),
-            "columns": columns or get_column_names(results[0])
+            "placeholders": get_num_placeholders(one_tuple),
+            "columns": columns or get_column_names(one_tuple)
         }
         insert = statement or "INSERT INTO {table} ({columns}) VALUES ({placeholders});"
+        logger.debug(f"args: {args}\none_tuple: {one_tuple}")
 
         total_inserted = 0
         for i in range(0, len(results), batch_size):

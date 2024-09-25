@@ -19,6 +19,7 @@ from utils.shared.get_formatted_datetime import get_formatted_datetime
 from utils.shared.make_sha256_hash import make_sha256_hash
 from utils.shared.convert_integer_to_datetime_str import convert_integer_to_datetime_str
 from utils.database.get_insert_into_values import get_insert_into_values
+from utils.archive.sanitize_filename import sanitize_filename
 
 from database import MySqlDatabase
 from logger import Logger
@@ -141,10 +142,10 @@ class SearchEngine:
                     self.urls_list.append(urls_dict)
                     logger.debug(f"URL '{url}' added to urls_list")
         else:
-            logger.info(f"Query ''{query_text} returned no results")
+            logger.info(f"Query '{query_text}' returned no results")
 
         self.queries_list.append(result_dict)
-        logger.debug(f"query '{query_text}' added to queries_list")
+        logger.debug(f"query '{query_text[-10]}' added to queries_list")
 
 
     async def _batched_search_results(self, gnis: int, group_df: pd.DataFrame) -> None:

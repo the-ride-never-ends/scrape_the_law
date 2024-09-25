@@ -107,7 +107,7 @@ class SearchQueryGenerator:
 
         # Construct the query string
         # Combine the base URL, place name, state code, and the lowercased self.datapoint in quotes
-        query = f'site:{GENERAL_CODE_URL} {row.place_name} {row.state_code} "{self.datapoint.lower()}"'
+        query = f'site:{GENERAL_CODE_URL} "{row.place_name}" {row.state_code} "{self.datapoint.lower()}"'
 
         # Return the query and source as a tuple
         return query, source
