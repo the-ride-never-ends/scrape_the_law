@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import asynccontextmanager
 import re
 import time
 import traceback
@@ -24,7 +25,7 @@ from logger import Logger
 log_level = 10
 logger = Logger(logger_name=__name__, log_level=log_level)
 
-from utils.database.safe_format import safe_format
+from utils.shared.safe_format import safe_format
 from utils.database.get_num_placeholders import get_num_placeholders
 from utils.database.get_column_names import get_column_names
 from utils.database.format_sql_file import format_sql_file
@@ -272,7 +273,7 @@ class MySqlDatabase:
         if self.sync:
             logger.debug("Returning connection to pool...")
             self.pool.close()
-            logger.debug("connection returned to pool.")
+            logger.debug("Connection returned to pool.")
             return
         else:
             if not connection.closed:
@@ -296,7 +297,7 @@ class MySqlDatabase:
         Close the connection pool.\n
         NOTE Since MySQL-python doesn't have an explicit function to close the pool,\n
         we have to access the internals of the MySQLConnectionPool and close it manually.\n
-        This might break in the future should Oracle change _cnx_queue the class.
+        This might break in the future should Oracle change _cnx_queue in the Pool class.
 
         ### Exceptions
         - ConnectionError: If there's any sort of error closing the pool.
@@ -304,7 +305,7 @@ class MySqlDatabase:
         logger.debug(f"Attempting to close connection pool...")
         with CONNECTION_POOL_LOCK:
             pool_queue = self.pool._cnx_queue
-            idx = 1 # Since we can't run enumerate in a while statement, we have to use a counter instead.
+            idx = 1 # Since we can't use enumerate in a while statement, we have to use a counter instead.
             while pool_queue.qsize():
                 try:
                     logger.debug(f"Attempting to close connection {idx}...")
@@ -343,9 +344,9 @@ class MySqlDatabase:
 
 
     def _type_check_execute_sql_command(self, 
-                                        connection, 
+                                        connection: AioMySqlConnection | PooledMySQLConnection, 
                                         command: LiteralString, 
-                                        params: tuple|list[tuple]=None, 
+                                        params: ( tuple | list[tuple] | dict | list[dict] )=None, 
                                         args: dict[Any]=None
                                         ):
         """
@@ -361,41 +362,35 @@ class MySqlDatabase:
             self._return_connection_to_pool(connection)
             raise ValueError("No SQL statement provided.")
 
-        if params:
-            if isinstance(params, tuple):
+        if params: # Determine what type 'params' is, record it, and modify it accordingly
+            params_type = type(params)
+            logger.debug(f"params_type: {params_type}")
+            if params_type is tuple:
                 is_tuple = True
-            elif isinstance(params, list) and all(isinstance(item, tuple) for item in params):
-                is_tuple = False
-            # Force convert to tuples if it's a dictionary
-            elif isinstance(params, dict):
-                params = tuple(value for value in params.values())
+            elif params_type is dict:
+                params = tuple(params.values())
                 is_tuple = True
-            elif isinstance(params, list) and all(isinstance(item, dict) for item in params):
-                to_params = [
-                    tuple(value for value in item.values()) for item in params
-                ]
-                params = to_params
+            elif params_type is list:
                 is_tuple = False
+                logger.debug(f"type(params[0]): {type(params[0])}") 
+                # Convert list of dicts to list of tuples if the first element in the list is a dict. 
+                params = params if isinstance(params[0], tuple) else [tuple(item.values()) if type(item) is dict else item for item in params]
+                assert type(params[0]) is tuple, f"params[0] is not a tuple, but a {type(params[0])}"
             else:
                 self._return_connection_to_pool(connection)
-                logger.error("Argument 'params' must be type tuple or list[tuple]")
-                raise TypeError("Argument 'params' must be type tuple or list[tuple]")
+                logger.error("Argument 'params' must be type tuple, dict, list[tuple], or list[dict]")
+                raise TypeError("Argument 'params' must be type tuple, dict, list[tuple], or list[dict]")
 
         if args:
-            for key, value in args.items():
-                if isinstance(value, str):
-                    args[key] = connection.escape_string(value)
-                else:
-                    args[key] = connection.escape(value)
+            args = { # Escape the values in the args dictionary to prevent SQL injection.
+                k: connection.escape_string(v) if isinstance(v, str) else connection.escape(v) for k, v in args.items()
+            }
             command = safe_format(command, **args)
 
-        if params and args:
-            return is_tuple, command
+        if params:
+            return is_tuple, params, command if args else None
         else:
-            if params:
-                return is_tuple, None
-            else:
-                return None, command
+            return None, None, command
 
 
     def _execute_sql_command(self, 
@@ -410,7 +405,7 @@ class MySqlDatabase:
                             ) -> list[tuple[Any,...]] | list[dict[str,Any]] | aiomysql.Cursor | None:
     
         # Type check everything.
-        is_tuple, command = self._type_check_execute_sql_command(connection, command, params=params, args=args)
+        is_tuple, params, command = self._type_check_execute_sql_command(connection, command, params=params, args=args)
 
         # Execute the SQL statement.
         try:
@@ -471,7 +466,7 @@ class MySqlDatabase:
     async def _async_execute_sql_command(self, 
                                    command: LiteralString, 
                                    params: ( tuple[Any,...] | list[tuple[Any,...]] )=None,
-                                   connection: aiomysql.Connection=None,
+                                   connection: AioMySqlConnection=None,
                                    is_query: bool=False,
                                    args: dict=None,
                                    unbuffered: bool=False,
@@ -511,7 +506,7 @@ class MySqlDatabase:
         - For queries, the method supports both parameterized and non-parameterized execution.
         - For database alterations, the method uses transactions and supports rollback in case of errors.
         """
-        is_tuple, command = self._type_check_execute_sql_command(connection, command, params=params, args=args)
+        is_tuple, params, command = self._type_check_execute_sql_command(connection, command, params=params, args=args)
 
         # Define the cursor class based on the unbuffered and return_dict parameters.
         if unbuffered:
@@ -522,14 +517,12 @@ class MySqlDatabase:
         # Execute the SQL statement.
         try:
             async with connection.cursor(cursor_class) as cursor:
+                single_tuple = True if is_tuple and len(params) == 1 else False
                 if is_query: # Query Database Route
                     logger.info(f"Querying database with '{command}'...")
                     if params: # Parameterized query
-                        logger.debug(f"Params: '{command}'...")
-                        if is_tuple and len(params) == 1:
-                            await cursor.execute(command, params)
-                        else:
-                            await cursor.executemany(command, params) # Perform batching if params is a list of tuples or a tuple of tuples.
+                        logger.debug(f"Params: '{params}'...") # Perform batching if params is a list of tuples or a tuple of tuples.
+                        await cursor.execute(command, params) if single_tuple else await cursor.executemany(command, params) 
                     else: # Regular/Static query
                         await cursor.execute(command)
 
@@ -537,37 +530,25 @@ class MySqlDatabase:
                     if unbuffered: # for SSCursors, we return the cursor as the logic is handled in _execute_unbuffered_query.
                         return cursor
                     else: 
-                        # Route fetch based on size parameter
+                        # Route fetch based on size argument
                         # NOTE Since Cursor classes all have the same method names, these 3 commands are actually more like 12.
-                        if size:
-                            if size > 1:
-                                results = await cursor.fetchmany(size)
-                            else: # NOTE if size == 1, size == 0, or size is negative, assume they wanted size 1.
-                                results = await cursor.fetchone()
+                        if size: # NOTE if size == 1, size == 0, or size is negative, assume they wanted size 1.
+                            await cursor.fetchone() if size <= 1 else await cursor.fetchmany(size) 
                         else:
                             results = await cursor.fetchall()
 
                         # Aiomysql is bugged, so that its fetch commands under class Cursor
                         # return a tuple of tuples instead of a list of tuples.
                         # So we gotta convert it here.
-                        if isinstance(results, list):
-                            return results
-                        else:
-                            if isinstance(results, dict):
-                                return results
-                            else:
-                                return list(results)
+                        return results if isinstance(results, (list, dict)) else list(results)
 
                 else: # Alter Database Route
                     logger.info(f"Altering database with '{command}'...")
                     logger.debug("Creating server transaction...")
                     await connection.begin() # Create a transaction. This prevents commands from being automatically executed.
                     if params:
-                        logger.debug(f"Params: '{command}'...")
-                        if is_tuple and len(params) == 1:
-                            await cursor.execute(command, params)
-                        else:
-                            await cursor.executemany(command, params) # Perform batching if params is a list of tuples or a tuple of tuples.
+                        logger.debug(f"Params: '{params}'")  # Perform batching if params is a list of tuples.
+                        await cursor.execute(command, params) if is_tuple and len(params) == 1 else await cursor.executemany(command, params)
                     else:
                         await cursor.execute(command)
 
@@ -577,7 +558,7 @@ class MySqlDatabase:
                     return
 
         except (aiomysql.Error, Exception) as e:
-            logger.error(f"Error executing SQL command '{command}': {e}")
+            logger.error(f"Error executing SQL command '{command}': {e}") if params else logger.error(f"Error executing SQL command '{command}' with params '{params}': {e}") 
             if not is_query:
                 await connection.rollback() # Rollback the database if there's an error altering it.
 
@@ -763,35 +744,33 @@ class MySqlDatabase:
             assert isinstance(columns, list)
             assert isinstance(columns[0], str)
             _columns = ", ".join(columns)
+            columns = _columns
         
         if len(results) == 0:
             logger.error("async_insert_by_batch results list is empty. Ending funcion...")
             return
 
+        # Assume INSERT as base operation.
+        command = statement or "INSERT INTO {table} ({columns}) VALUES ({placeholders});"
         one_tuple = results[0]
         args = args or {
             "table": table or None,
             "placeholders": get_num_placeholders(one_tuple),
             "columns": columns or get_column_names(one_tuple)
         }
-        insert = statement or "INSERT INTO {table} ({columns}) VALUES ({placeholders});"
         logger.debug(f"args: {args}\none_tuple: {one_tuple}")
 
         total_inserted = 0
         for i in range(0, len(results), batch_size):
             params = results[i:i+batch_size]
             try:
-                await self.async_execute_sql_command(insert, params=params, args=args)
+                await self.async_execute_sql_command(command, params=params, args=args)
                 total_inserted += len(params)
                 logger.info(f"Inserted {len(params)} records into the database. Total: {total_inserted}")
             except Exception as e:
                 logger.error(f"Error inserting batch: {e}")
                 # Save batched results in CSV in case something goes wrong
                 csv_filename = f"failed_insert_batch_{i}_{make_id()}.csv"
-                try: # Try one more time...
-                    await self.async_execute_sql_command(insert, params=params, args=args)
-                except:
-                    pass
                 try:
                     results = pd.DataFrame(params).to_csv(csv_filename, index=False)
                     logger.info(f"Saved failed batch to {csv_filename}")
@@ -799,6 +778,7 @@ class MySqlDatabase:
                     logger.error(f"Failed to save batch to CSV: {csv_error}")
                 raise  # Re-raise the original exception
         logger.info(f"Insertion complete. Total records inserted: {total_inserted}")
+
 
     async def async_execute_sql_command(self,
                                   command: LiteralString,

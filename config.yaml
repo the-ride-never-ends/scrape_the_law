@@ -1,6 +1,6 @@
 SYSTEM:
   CONCURRENCY_LIMIT: 2
-  FILENAME_PREFIX: "internet_archive_results"
+  FILENAME_PREFIX: "scrape_the_law"
   OUTPUT_FOLDER: "/mnt/e/AI_TEMP/wayback_machine_downloader_output/"
   WAIT_TIME: 5
   ROUTE: "insert_into_mysql"
@@ -38,8 +38,9 @@ ARCHIVE:
       CDX_BACKUP: "--cdxbackup"
       CDX_INJECT: "--cdxinject"
       AUTO: False
-SEARCH:
+SEARCH: # NOTE These links will likely change as the years wear on.
   SEARCH_ENGINE: "google"
+  GOOGLE_SEARCH_RESULT_TAG: '[jsname="UWckNb"]'
   GOOGLE_CONCURRENCY_LIMIT: 2
   NUM_RESULTS: 10
   SITE_URLS:

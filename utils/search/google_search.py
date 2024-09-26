@@ -11,12 +11,20 @@ from playwright.async_api import (
     TimeoutError as PlaywrightTimeoutError,
 )
 
-from config import GOOGLE_CONCURRENCY_LIMIT, DEBUG_FILEPATH
+from config import GOOGLE_CONCURRENCY_LIMIT, GOOGLE_SEARCH_RESULT_TAG, DEBUG_FILEPATH
 from utils.query.clean_search_query import clean_search_query
 from utils.shared.make_id import make_id
 from utils.archive.sanitize_filename import sanitize_filename
-from logger import Logger
+from utils.shared.safe_format import safe_format
 
+from utils.shared.limiter import Limiter
+limiter  = Limiter(GOOGLE_CONCURRENCY_LIMIT)
+
+from .google_search_utils.navigate_to_google import navigate_to_google
+from .google_search_utils.perform_google_search import perform_google_search
+from .google_search_utils.extract_links import extract_links
+
+from logger import Logger
 log_level=10
 logger = Logger(logger_name=__name__,log_level=log_level)
 
@@ -26,33 +34,27 @@ pw_debug_path = os.path.join(_pw_debug_path, "playwright")
 if not os.path.exists(pw_debug_path):
     os.mkdir(pw_debug_path)
 
-# Set up rate-limit-conscious functions
-semaphore = asyncio.Semaphore(GOOGLE_CONCURRENCY_LIMIT)
-stop_signal = False
-
-async def run_task_with_limit(task):
-    async with semaphore:
-        result = await task
-        if result == "stop_condition":  # Replace with your specific stop condition
-            global stop_signal
-            stop_signal = True
-        return result
-
-
-# NOTE This is the js tag for Google results.
-# It will probably change eventually.
-_SEARCH_RESULT_TAG = '[jsname="UWckNb"]'
-
 
 class PlaywrightGoogleLinkSearch:
-    """Search for top results on google and return their links"""
+    """
+    Search for top results on google and return their links.\n
+    NOTE This has been heavily modified from ELM's original code. We'll see if it's more effective in the long run.
+
+    Parameters
+    ----------
+    **launch_kwargs
+        Keyword arguments to be passed to
+        `playwright.chromium.launch`. For example, you can pass
+        ``headless=False, slow_mo=50`` for a visualization of the
+        search.
+    
+    """
 
     EXPECTED_RESULTS_PER_PAGE = 10
     """Number of results displayed per Google page. """
 
     def __init__(self, **launch_kwargs):
         """
-
         Parameters
         ----------
         **launch_kwargs
@@ -64,9 +66,11 @@ class PlaywrightGoogleLinkSearch:
         self.launch_kwargs = launch_kwargs
         self._browser = None
 
+
     async def _load_browser(self, pw_instance):
         """Launch a chromium instance and load a page"""
         self._browser = await pw_instance.chromium.launch(**self.launch_kwargs)
+
 
     async def _close_browser(self):
         """Close browser instance and reset internal attributes"""
@@ -82,20 +86,18 @@ class PlaywrightGoogleLinkSearch:
         if log_level == 10: # Trace debugging chunk
             context = await self._browser.new_context()
             await context.tracing.start(screenshots=True, snapshots=True, sources=True)
-
             await context.tracing.start_chunk()
             page: PlaywrightPage = await self._browser.new_page()
             await context.tracing.stop_chunk(path=os.path.join(DEBUG_FILEPATH, "_search_new_page.zip"))
+            await navigate_to_google(page, context=context)
+            await perform_google_search(page, query, context=context)
+            return await extract_links(page)
 
-            await _navigate_to_google(page, context=context)
-            await _perform_google_search(page, query, context=context)
-            results = await _extract_links(page, num_results, query)
-            return results
         else:
             page = await self._browser.new_page()
-            await _navigate_to_google(page)
-            await _perform_google_search(page, query)
-            return await _extract_links(page, num_results, query)
+            await navigate_to_google(page)
+            await perform_google_search(page, query)
+            return await extract_links(page)
 
 
     async def _skip_exc_search(self, query, num_results=10):
@@ -103,7 +105,8 @@ class PlaywrightGoogleLinkSearch:
         try:
             return await self._search(query, num_results=num_results)
         except PlaywrightTimeoutError as e:
-            logger.exception(e)
+            logger.info(f"Google timed-out for query '{query}'. Returning empty list...")
+            #logger.exception(e)
             #traceback.print_exc()
             return []
 
@@ -138,7 +141,7 @@ class PlaywrightGoogleLinkSearch:
                 for query in queries
             ]
             searches_with_limit = [
-                run_task_with_limit(search) for search in searches
+                limiter.run_task_with_limit(search) for search in searches
             ]
             results = await asyncio.gather(*searches_with_limit)
             await self._close_browser()
@@ -173,109 +176,5 @@ class PlaywrightGoogleLinkSearch:
             return await self._get_links_with_limit(queries, num_results)
         else:
             return await self._get_links(queries, num_results)
-
-
-async def _navigate_to_google(page, context=None):
-    """Navigate to Google domain."""
-    if context:
-        await context.tracing.start_chunk()
-
-        await page.goto("https://www.google.com")
-        await page.wait_for_load_state("networkidle")
-
-        await context.tracing.stop_chunk(path=os.path.join(DEBUG_FILEPATH, "_navigate_to_google.zip"))
-    else:
-        await page.goto("https://www.google.com")
-        await page.wait_for_load_state("networkidle")
-
-
-async def _perform_google_search(page, search_query, context=None):
-    """Fill in search bar with user query and click search button"""
-    if context:
-        await context.tracing.start_chunk()
-
-        await page.get_by_label("Search", exact=True).fill(search_query)
-        await _close_autofill_suggestions(page, context=None)
-
-        await page.get_by_role("button", name="Google Search").click()
-        await context.tracing.stop_chunk(path=os.path.join(DEBUG_FILEPATH, "_perform_google_search.zip"))
-
-    else:
-        await page.get_by_label("Search", exact=True).fill(search_query)
-        await _close_autofill_suggestions(page, context=None)
-        await page.get_by_role("button", name="Google Search").click()
-
-
-async def _close_autofill_suggestions(page, context=None):
-    """Google autofill suggestions often get in way of search button.
-
-    We get around this by closing the suggestion dropdown before
-    looking for the search button. Looking for the "Google Search"
-    button doesn't work because it is sometimes obscured by the dropdown
-    menu. Clicking the "Google" logo can also fail when they add
-    seasonal links/images (e.g. holiday logos). Current solutions is to
-    look for a specific div at the top of the page.
-    TODO This is VERY hacky. It probably should be changed.
-    """
-    await page.locator("#gb").click()
-
-
-def save_mhtml(path: str, text: str):
-    with open(path, mode='w', encoding='UTF-8', newline='\n') as file:
-        file.write(text)
-
-
-def save_page(url: str, path: str):
-    with async_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=False)
-        page = browser.new_page()
-        page.goto(url)
-
-        client = page.context.new_cdp_session(page)
-        mhtml = client.send("Page.captureSnapshot")['data']
-        save_mhtml(path, mhtml)
-        browser.close()
-
-
-async def _extract_links(page, num_results: int, query: str) -> list[str] | list[None]:
-    """
-    Extract links for top `num_results` on page
-    - page: Playwright object
-    """
-    no_results_regex = re.compile(r"Your search.*?did not match any documents", re.IGNORECASE | re.DOTALL)
-    no_results_message = await page.get_by_text(no_results_regex).count()
-    logger.debug(f"no_results_message: {no_results_message}")
-
-    if no_results_message > 0:
-        logger.info(f"Could not find search results for query '{query}'\n'Your search did not match any documents' was present on the page.\nReturning empty list...")
-        return []
-
-    else:
-        logger.debug(f"'Your search did not match any documents' was not present on the page for query '{query}'. Checking for search results...")
-        if log_level == 10: # Save the page's html and a screenshot of it if in debug
-            query_as_file_name = sanitize_filename(query)
-
-            page_content = await page.content()
-            #logger.debug(f"Page content: {page_content}")
-
-            result_count = await page.evaluate(f"document.querySelectorAll('{_SEARCH_RESULT_TAG}').length")
-            logger.debug(f"Number of results found via JS: {result_count}")
-
-            mhtml_path = os.path.join(DEBUG_FILEPATH,f"{query_as_file_name}.mhtml")
-            save_mhtml(mhtml_path, page_content)
-
-            await page.screenshot(path=os.path.join(DEBUG_FILEPATH, f"_extract_links_{query_as_file_name}.png"))
-        links = await asyncio.to_thread(page.locator, _SEARCH_RESULT_TAG)
-        results =  [
-            await links.nth(i).get_attribute("href") for i in range(num_results)
-        ]
-        if len(results) == 0:
-            logger.debug("No results found.")
-            return []
-        else:
-            return results
-
-
-
 
 

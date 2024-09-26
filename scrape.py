@@ -2,7 +2,7 @@
 
 
 
-class GetFromInternetArchive:
+class ScrapeInternetArchive:
     pass
 
 

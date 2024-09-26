@@ -6,7 +6,7 @@ from input import InputProcessor
 from search import SearchEngine
 from query import SearchQueryGenerator
 from archive import SaveToInternetArchive
-from scrape import GetFromInternetArchive
+from scrape import ScrapeInternetArchive
 
 from utils.shared.next_step import next_step
 
@@ -70,7 +70,7 @@ async def main():
 
 
     next_step(step=3)
-    # Step 3. Search these up on Google and get the links.
+    # Step 3. Search these up on Google and get the URLs.
     # NOTE. We might have to use the Google Search API here. Google will probably get wise to this eventually.
     # This will also be pretty slow.
     search: SearchEngine = SearchEngine().start_engine(SEARCH_ENGINE, headless=HEADLESS, slow_mo=SLOW_MO)
@@ -78,30 +78,35 @@ async def main():
     logger.debug(f"main urls_df:\n{urls_df.head()}")
     logger.info("Step 3 Complete.")
 
+    next_step(step=4)
+    # Step 4. Filter out URLs that
+
 
     next_step(step=4, stop=True)
-    # Step 4. Check if these links are in the Wayback Machine. If they aren't save them.
+    # Step 5. Check if these links are in the Wayback Machine. If they aren't save them.
     async with await MySqlDatabase as db:
         ia_saver = SaveToInternetArchive(db)
         ia_links_df = await ia_saver.save(urls_df)
         logger.info("Step 4 Complete.")
 
 
-
     next_step(step=5)
-    # Step 5. Scrape the results from the Wayback Machine using the Waybackup program.
+    # Step 6. Scrape the results from the Wayback Machine using the Waybackup program.
     async with await MySqlDatabase as db:
-        ia_getter = GetFromInternetArchive(db)
-        text_df = ia_getter.get(ia_links_df)
+        scraper = ScrapeInternetArchive(db)
+        text_df = scraper.scrape(ia_links_df)
 
 
     next_step(step=6)
-    # Step 6. Clean the text and save it to the database
+    # Step 7. Clean the text and save it to the database
     from clean import Cleaner
-    clean = Cleaner
+    async with await MySqlDatabase as db:
+        clean = Cleaner(db)
+        text_df = scraper.scrape(ia_links_df)
+
 
     next_step(step=7)
-    # Step 7. Get metadata from the text: 
+    # Step 8. Get metadata from the text: 
 
 
     sys.exit(0)

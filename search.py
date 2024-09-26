@@ -145,7 +145,7 @@ class SearchEngine:
             logger.info(f"Query '{query_text}' returned no results")
 
         self.queries_list.append(result_dict)
-        logger.debug(f"query '{query_text[-10]}' added to queries_list")
+        logger.debug(f"query '{query_text}' added to queries_list")
 
 
     async def _batched_search_results(self, gnis: int, group_df: pd.DataFrame) -> None:
@@ -153,7 +153,7 @@ class SearchEngine:
         Run search queries through a pre-specified search engine class, get the results, then process them and add them to a list.
         """
         queries = group_df['query'].tolist()
-        source_site = group_df['source'].iloc[0]
+        source_sites = group_df['source'].tolist()
 
         try:
             search_results: list[list[str]] = await self.search.results(queries)
@@ -166,7 +166,7 @@ class SearchEngine:
                     query_text, 
                     result, 
                     source_site
-                    )for query_text, result in zip(queries, results)
+                    ) for query_text, result, source_site in zip(queries, results, source_sites)
             ])
         except PlaywrightTimeoutError as e:
             logger.error(f"Timeout occurred while searching for GNIS {gnis}: {e}")
@@ -233,6 +233,11 @@ class SearchEngine:
                     groups_df[~groups_df['query_hash'].isin(list(self.query_hash_set))]
                     logger.info(f"Filtered out {len(groups_df)} redundant queries")
 
+                if log_level == 10:
+                    wait  = 60
+                    logger.debug(f"Waiting {wait} seconds...")
+                    time.sleep(wait)
+
                 logger.debug(f"search groups_df with gnis '{gnis}':\n{groups_df.head()}")
 
                 # Stop the process if in debug to see the results.
@@ -252,8 +257,8 @@ class SearchEngine:
                     await self.db.async_insert_by_batch(self.queries_list, table="searches", batch_size=batch_size)
 
                 # Insert any remaining items and reset url_hash_set and queries_list.
-                await self.db.async_insert_by_batch(self.urls_list, batch_size=batch_size)
-                await self.db.async_insert_by_batch(self.queries_list, batch_size=batch_size)
+                await self.db.async_insert_by_batch(self.urls_list, table="urls", batch_size=batch_size)
+                await self.db.async_insert_by_batch(self.queries_list, table="searches", batch_size=batch_size)
                 self.url_hash_set = set()
                 self.queries_list = []
 
@@ -266,4 +271,8 @@ class SearchEngine:
         logger.info(f"'{SEARCH_ENGINE}' search complete")
         # Since searches will likely occur over time, we get URLs for the next step from the database instead.
         return await self._get_urls_without_ia_url()
+
+
+
+
 

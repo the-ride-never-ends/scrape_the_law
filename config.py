@@ -25,13 +25,16 @@ TAX_TERMS: dict[str, list[str]] = {
     "capitation": ["tax", "poll tax", "head tax", "per capita tax"],
 }
 
+GOOGLE_DOMAIN_URL: str = "https://www.google.com"
+GOOGLE_AUTOFILL_SUGGESTIONS_HTML_TAG = "#gb"
+
 # Get YAML config variables
 try:
     # SYSTEM
     path = "SYSTEM"
     ROUTE: str = config(path, 'ROUTE') or "NA"
     CONCURRENCY_LIMIT: int = config(path, 'CONCURRENCY_LIMIT') or 2
-    FILENAME_PREFIX: str = config(path, 'FILENAME_PREFIX') or "scrape_all_law"
+    FILENAME_PREFIX: str = config(path, 'FILENAME_PREFIX') or "scrape_the_law"
     OUTPUT_FOLDER: str = config(path, 'OUTPUT_FOLDER') or script_dir
     WAIT_TIME: int = config(path, 'WAIT_TIME') or 0
     DATAPOINT: str = config(path, 'DATAPOINT') or "sales tax"
@@ -89,6 +92,7 @@ try:
     # SEARCH
     path = "SEARCH"
     SEARCH_ENGINE: str = config(path, 'SEARCH_ENGINE') or "google"
+    GOOGLE_SEARCH_RESULT_TAG: str = config(path, 'GOOGLE_SEARCH_RESULT_TAG') or '[jsname="UWckNb"]'
     GOOGLE_CONCURRENCY_LIMIT: int = config(path, 'GOOGLE_CONCURRENCY_LIMIT') or 2
     NUM_RESULTS: int = config(path, 'NUM_RESULTS') or 10
 
