@@ -26,12 +26,34 @@ TAX_TERMS: dict[str, list[str]] = {
 }
 
 GOOGLE_DOMAIN_URL: str = "https://www.google.com"
-GOOGLE_AUTOFILL_SUGGESTIONS_HTML_TAG = "#gb"
+
+LEGAL_WEBSITE_DICT = {
+    "american_legal": {
+        "base_url": "https://codelibrary.amlegal.com/regions/",
+        "target_class": "browse-link roboto",
+        "wait_in_seconds": 5,
+        "robots_txt": "https://codelibrary.amlegal.com/robots.txt"
+    },
+    "municode": {
+        "base_url": "https://library.municode.com/",
+        "target_class": "index-link",
+        "wait_in_seconds": 15,
+        "robots_txt": "https://municode.com/robots.txt"
+    },
+    "general_code" : {
+        "base_url": "https://www.generalcode.com/source-library/?state=",
+        "target_class": "codeLink",
+        "wait_in_seconds": 0,
+        "robots_txt": "https://www.generalcode.com/robots.txt"
+    },
+}
+
 
 # Get YAML config variables
 try:
     # SYSTEM
     path = "SYSTEM"
+    SKIP_STEPS: bool = config(path, 'SKIP_STEPS') or True
     ROUTE: str = config(path, 'ROUTE') or "NA"
     CONCURRENCY_LIMIT: int = config(path, 'CONCURRENCY_LIMIT') or 2
     FILENAME_PREFIX: str = config(path, 'FILENAME_PREFIX') or "scrape_the_law"
@@ -79,7 +101,7 @@ try:
 
     # CLEAN DOCS
     path = "CLEAN_DOCS.JINJA"
-    JINJA_URL: str = config(path, 'JINJA_URL') or ""
+    JINJA_URL: str = config(path, 'JINJA_URL') or "https://r.jina.ai/"
     JINJA_API_KEY: str = config(path, 'JINJA_API_KEY') or ""
 
     # INTERNET ARCHIVE
@@ -91,16 +113,23 @@ try:
 
     # SEARCH
     path = "SEARCH"
+    USE_API_FOR_SEARCH: bool = config(path, 'SEARCH_ENGINE') or False
     SEARCH_ENGINE: str = config(path, 'SEARCH_ENGINE') or "google"
+    GOOGLE_AUTOFILL_SUGGESTIONS_HTML_TAG: str = config(path, 'GOOGLE_SEARCH_RESULT_TAG') or "#gb"
     GOOGLE_SEARCH_RESULT_TAG: str = config(path, 'GOOGLE_SEARCH_RESULT_TAG') or '[jsname="UWckNb"]'
     GOOGLE_CONCURRENCY_LIMIT: int = config(path, 'GOOGLE_CONCURRENCY_LIMIT') or 2
     NUM_RESULTS: int = config(path, 'NUM_RESULTS') or 10
 
+    # SITE URLS
     path = "SEARCH.SITE_URLS"
     MUNICODE_URL: str = config(path, 'MUNICODE_URL') or "https://library.municode.com/"
     AMERICAN_LEGAL_URL: str = config(path, 'AMERICAN_LEGAL_URL') or "https://codelibrary.amlegal.com/codes/"
     GENERAL_CODE_URL: str = config(path, 'GENERAL_CODE_URL') or "https://ecode360.com/"
     CODE_PUBLISHING_CO_URL: str = config(path, 'CODE_PUBLISHING_CO_URL') or "https://www.codepublishing.com/"
+
+    # SEARCH APIS
+    path = "SEARCH.PRIVATE"
+    GOOGLE_SEARCH_API_KEY: str = config(path, 'GOOGLE_SEARCH_API_KEY') or ""
 
     # MYSQL OPTIONS
     path = "MYSQL"
@@ -112,6 +141,11 @@ try:
     MYSQL_SCRIPT_FILE_PATH: str = config(path, 'MYSQL_SCRIPT_FILE_PATH') or ""
     INSERT_BATCH_SIZE: int = config(path, 'INSERT_BATCH_SIZE') or 1000
     RAND_SEED: int = config(path, 'RAND_SEED') or 420
+
+    # PLAYWRIGHT
+    path = "PLAYWRIGHT"
+    HEADLESS: bool = config(path, 'HEADLESS') or True
+    SLOWMO: int = config(path, 'SLOWMOW') or 0 # NO BREAKS ON THIS TRAIN!
 
 except KeyError as e:
     logger.exception(f"Missing configuration item: {e}")

@@ -29,12 +29,10 @@ import re
 from urllib.parse import ParseResult
 from utils.manual.scrape_legal_websites.extract_urls_using_javascript import extract_urls_using_javascript
 
-LEGAL_WEBSITE_CONCURRENCY_LIMIT = 5
-GOOGLE_SEARCH_API_KEY = "AIzaSyDcxZKd-g6Dhu7dgdQARFbZ0BBslHPiMAM"
 
 from database import MySqlDatabase
 
-from config import *
+from config import LEGAL_WEBSITE_DICT, CONCURRENCY_LIMIT, HEADLESS
 
 from logger import Logger
 logger = Logger(logger_name=__name__)
@@ -52,26 +50,7 @@ sql_commands = {
                             """,
 }
 
-legal_website_dict = {
-    "american_legal": {
-        "base_url": "https://codelibrary.amlegal.com/regions/",
-        "target_class": "browse-link roboto",
-        "wait_in_seconds": 5,
-        "robots_txt": "https://codelibrary.amlegal.com/robots.txt"
-    },
-    "municode": {
-        "base_url": "https://library.municode.com/",
-        "target_class": "index-link",
-        "wait_in_seconds": 15,
-        "robots_txt": "https://municode.com/robots.txt"
-    },
-    "general_code" : {
-        "base_url": "https://www.generalcode.com/source-library/?state=",
-        "target_class": "codeLink",
-        "wait_in_seconds": 0,
-        "robots_txt": "https://www.generalcode.com/robots.txt"
-    },
-}
+
 
 import asyncio
 from urllib.parse import urlparse
@@ -81,7 +60,7 @@ import aiohttp
 class AsyncRobotsRespector:
     def __init__(self):
         self.robot_parsers = {}
-        self.semaphore = asyncio.Semaphore(LEGAL_WEBSITE_CONCURRENCY_LIMIT)  # Limit concurrent requests
+        self.semaphore = asyncio.Semaphore(CONCURRENCY_LIMIT)  # Limit concurrent requests
 
     async def fetch_robots_txt(self, url):
         parsed_url = urlparse(url)
@@ -160,11 +139,11 @@ class Scraper(RespectfulScraper):
             search.
         """
         self.launch_kwargs = launch_kwargs
-        self.legal_website_dict: dict = legal_website_dict
+        self.legal_website_dict: dict = LEGAL_WEBSITE_DICT
         self.sql_commands: dict = sql_commands
         self.pw_instance = pw_instance
         self.user_agent = user_agent
-        self.semaphore = asyncio.Semaphore(LEGAL_WEBSITE_CONCURRENCY_LIMIT)
+        self.semaphore = asyncio.Semaphore(CONCURRENCY_LIMIT)
         self.robot_txt_url = robot_txt_url
         self.browser: AsyncPlaywrightBrowser|PlaywrightBrowser = None
         self.robot_rules = {}
@@ -302,16 +281,37 @@ class Scraper(RespectfulScraper):
         """
         Open a specified webpage asynchronously and wait for any dynamic elements to load.
         """
-        if not self.can_fetch(scrape_url):
+        # See if we're allowed to get the URL, and the specified delay from robots.txt
+        fetch, delay = self.can_fetch(scrape_url)
+
+        if not fetch:
             logger.warning(f"Cannot scrape URL '{scrape_url}' as it's disallowed in robots.txt")
             return
-        await page.goto(scrape_url)
-        await page.wait_for_load_state("networkidle")
-        return page
+        else:
+            await asyncio.sleep(delay)
+            await page.goto(scrape_url)
+            await page.wait_for_load_state("networkidle")
+            return page
+
+    from utils.manual.scrape_legal_websites.extract_urls_using_javascript import extract_urls_using_javascript
 
     async def get_links(self, page: AsyncPlaywrightPage):
-        pass
+        page: AsyncPlaywrightPage = await self.async_open_webpage()
+        urls_dict: dict = await self.extract_urls_using_javascript(page)
 
+
+    async def respectful_fetch(self, url, fetch_function, *args, **kwargs):
+        async with self.semaphore:
+            if url not in self.robot_rules:
+
+            rules = self.robot_rules[url].get(self.user_agent, self.robot_rules[url]['*'])
+            
+            if self.can_fetch(url):
+                await asyncio.sleep(rules['crawl_delay'])
+                return await fetch_function(url, *args, **kwargs)
+            else:
+                print(f"Robots.txt disallows fetching {url}")
+                return None
 
     #### END PAGE PROCESSING METHODS ####
 
@@ -441,11 +441,11 @@ async def scrape_site(df: pd.DataFrame, site_df_list: list, scraper: Scraper, db
 
     scraper_name =scraper.__qualname__
     if scraper_name == "MunicodeScraper":
-        robots_txt_url = legal_website_dict["municode"]["robots_txt"]
+        robots_txt_url = LEGAL_WEBSITE_DICT["municode"]["robots_txt"]
     elif scraper_name == "AmericanLegalScraper":
-        robots_txt_url = legal_website_dict["american_legal"]["robots_txt"]
+        robots_txt_url = LEGAL_WEBSITE_DICT["american_legal"]["robots_txt"]
     elif scraper_name == "GeneralCodeScraper":
-        robots_txt_url = legal_website_dict["general_code"]["robots_txt"]
+        robots_txt_url = LEGAL_WEBSITE_DICT["general_code"]["robots_txt"]
     else:
         raise NotImplementedError("Other legal website scrapers have not been implemented.")
 
@@ -471,13 +471,10 @@ async def scrape_legal_websites(db: MySqlDatabase, site_df_list: list[None], scr
     return site_df_list
 
 
-
 from config import OUTPUT_FOLDER
 
-async def main():
 
-    HEADLESS = True
-    SLOWMO = 100
+async def main():
 
     # Step 1. Instantiate the website-specific scraping classes.
     scraper_list = [
@@ -486,7 +483,6 @@ async def main():
         GeneralCodeScraper,
     ]
     site_df_list =[]
-
 
     next_step(step=2, stop=True)
     # Step 2. Use selenium to scrape the websites for its URLs
@@ -502,7 +498,7 @@ async def main():
     next_step(step=4, stop=True)
     # Step 4. Output the URLs to a csv.
     output_df.to_csv(OUTPUT_FOLDER)
-
+    logger.info(f"{__file__} program completed successfully! Yay!")
 
     sys.exit(0)
 

@@ -38,7 +38,7 @@ class Cleaner:
                 response_text_list = []
 
                 for idx, url in enumerate(url):
-                    jinja_url = "https://r.jina.ai/{s}".format(url)
+                    jinja_url = f"https://r.jina.ai/{url}"
                     async with await session.get(jinja_url, headers=headers, allow_redirects=True, timeout=0.01) as response: 
                         response_text_list.extend(
                             (idx, url, response.text,)
@@ -46,7 +46,7 @@ class Cleaner:
                 return response_text_list 
 
             else: # Single url route
-                jinja_url = "https://r.jina.ai/{s}".format(url)
+                jinja_url = f"https://r.jina.ai/{url}"
                 async with await session.get(jinja_url, headers=headers, allow_redirects=True, timeout=0.01) as response: 
                     return response.text
 

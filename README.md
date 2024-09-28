@@ -1,35 +1,33 @@
 
-
-Program: scrape_the_law
+# Program: scrape_the_law
 
 1.	Problem definition
 2.	High-level architecture
 3.	Data structures
-4.	Algorithms
-5.	Function/method signatures
-6.	Error handling
-7.	Testing strategy
-8.	Code organization
-9.	Naming conventions
-10.	External dependencies
-11.	Performance considerations
-12.	Scalability
-13.	Security considerations
-14.	Documentation needs
-15.	User interface (if applicable)
+4.	Algorithms - TODO
+5.	Function/method signatures - TODO
+6.	Error handling - TODO
+7.	Testing strategy - TODO
+8.	Code organization - TODO
+9.	Naming conventions - TODO
+10.	External dependencies - TODO
+11.	Performance considerations - TODO
+12.	Scalability - TODO
+13.	Security considerations - TODO
+14.	Documentation needs - TODO
 
-# Problem Definition
+# 1. Problem Definition
 Objective: Retrieve, store, and maintain text of all local legal codes in the US related to an input datapoint.
-Languages: Python, MySQL
+Languages: Python, MySQL, JavaScript
 Inputs:
-•   A string of a single, specific datapoint name (e.g. "sales tax").
-•   Input validation
-•   Ensure the input is a non-empty string, containing only alphanumeric characters and spaces, maximum 100 characters.
-•   Support for non-English inputs (e.g. impuestos, Steuer)
-•   Potential for adding a list of datapoints in the future.
-Outputs: A SQL database of all local legal codes in the US related to the input datapoint. The ultimate variable “pg_content” is in plain text. The database schema is listed below.
+   •   A string of a single, specific datapoint name (e.g. "sales tax").
+Input validation:
+   •   Ensure the input is a non-empty string, containing only alphanumeric characters and spaces, maximum 100 characters.
+   •   Support for non-English inputs (e.g. impuestos, Steuer)
+   •   Potential for adding a list of datapoints in the future.
+Outputs: A MySQL database of all local legal codes in the US related to the input datapoint. The ultimate variable “pg_content” is in plain text. The database schema is listed below.
 
-# Database "socialtoolkit"
+# Database Schema
 ## Table 1: 'locations'
 | Field             | Type                | Null | Key | Default | Extra          |
 |-------------------|---------------------|------|-----|---------|----------------|
@@ -147,6 +145,7 @@ g. saved_in_database: Boolean indicating if the document is saved in the databas
 h. other_metadata: JSON field for additional metadata
 i. created_at: Timestamp of when the record was created
 
+
 ## Table 6: 'doc_content'
 | Field             | Type               | Null | Key | Default | Extra          |
 |-------------------|--------------------|------|-----|---------|----------------|
@@ -166,6 +165,7 @@ e. pg_content: Cleaned content of the page
 f. data_was_cleaned: Boolean indicating if the content has been cleaned
 g. local_file_path: Path to the local file (if applicable)
 
+
 Constraints:
 1. Data Integrity:
    • Only primary/official sources (e.g. government websites, contracted law repository websites).
@@ -184,9 +184,9 @@ Constraints:
    • Design for monthly execution and updates.
    • Extensible to weekly or daily updates if needed.
 6. Robustness:
-•  Input format agnostic (plaintext, html, pdf, etc.)
-•  Rate limiting of scraping and search engine usage.
-•  Overcome data gatekeeping attempts; alert user if unsuccessful.
+   •  Input format agnostic (plaintext, html, pdf, etc.)
+   •  Rate limiting of scraping and search engine usage.
+   •  Overcome data gatekeeping attempts; alert user if unsuccessful.
 7. Output format: Human-readable plaintext.
 
 # Scope:
@@ -214,6 +214,7 @@ Constraints:
    - Respect copyright laws and terms of service. 
    - Implement ethical web scraping practices. 
 
+
 # Data Integrity and Verification:
 1. Implement checksums for downloaded and processed documents.
 2. Cross-reference data with multiple sources where possible.
@@ -240,7 +241,7 @@ Use cases:
 5. Policy analysts: Compare local laws across different regions.
    - Key Metric: Accuracy of Cleaned Text to Source Text.
 
-# High-Level Architecture
+# 2. High-Level Architecture
 
 1. **Input Processing Module 'input.py'**
    - Validates and sanitizes the input datapoint
@@ -252,7 +253,7 @@ Use cases:
    - Implements rate limiting and error handling
    - Stores search results and metadata in the ‘locations’ and ‘searches’ tables, respectively
    - Already implemented via “google_seach.py” and the “PlaywrightGoogleLinkSearch” class.
-   - Still needs a little bit but otherwise going well.
+   - **COMPLETE BUT FUCK GOOGLE**
 
 3. **Query Generator 'query.py'**
    - Generates search engine queries based on input datapoint and location information
@@ -260,6 +261,7 @@ Use cases:
    - Handles query hashing for efficient storage and retrieval
    - Stores generated queries and their metadata in the 'searches' table
    - Provides functionality to retrieve existing queries from the database
+   - **COMPLETE BUT NEEDS FINE-TUNING**
 
 4. **Archiving Module 'archive.py'**
    - Saves search result URLs to the Internet Archive
@@ -271,6 +273,7 @@ Use cases:
    - Handles different input formats (HTML, PDF, etc.)
    - Stores raw content and metadata in “doc_content” and “doc_metadata” tables, respectively.
    - Retrieving URLs is already handled in a separate python program/subprocess “waybackup”
+   - **COMPLETE BUT NEEDS FINE-TUNING**
 
 6. **Content Extraction and Cleaning Module 'clean.py'**
    - Extracts text from various document formats
@@ -299,30 +302,32 @@ Use cases:
    - Comprehensive logging for debugging and auditing
    - **COMPLETE**
 
-9. **Data Validation and Integrity Module 'validate.py'**
+11. **Data Validation and Integrity Module 'validate.py'**
    - Implements checksums for downloaded documents
    - Manages periodic audits and cross-referencing
    - **IN FUTURES FOLDER**
 
-10. **Scalability Management Module 'scale.py'**
+12. **Scalability Management Module 'scale.py'**
    - Handles distributed processing (if implemented)
    - Manages resources for increased load
-   - Unnecessary at the moment, but leave a place for it.
+   - **IN FUTURES FOLDER**
 
-11. **API/Interface Layer**
+13. **API/Interface Layer**
    - Provides access to the collected data for various use cases
    - Implements security and access control
    - Unnecessary, as the data will be accessed via MySQL database by different programs.
-   - This program is essentially backend for socialtoolkit.
+   - This program is essentially backend for Socialtoolkit.
 
-12. **Scheduler 'schedule.py'**
+14. **Scheduler 'schedule.py'**
    - Manages the execution of full retrieval cycles and updates
    - Coordinates the operation of other modules
+   - **IN FUTURES FOLDER**
 
-Data Structures
+# 3. Data Structures
 
 - Uses Pandas dataframes for handling data and manipulation.
-- Key variables defined in the MySQL database.
+- Input/output variables defined in MySQL database schemas.
+- Key configs defined in a private and public config yaml.
 
 
 

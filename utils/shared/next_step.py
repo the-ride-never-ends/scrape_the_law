@@ -1,10 +1,8 @@
-try:
-    from main import SKIP
-except:
-    SKIP = True
+from config import SKIP_STEPS
+
 
 def next_step(step: int=None, stop: bool=False):
-    if SKIP is False and stop is True:
+    if SKIP_STEPS is False and stop is True:
         if step:
             current_step = step - 1
             result = input(f"Continue to Step {step}? y/n: ")

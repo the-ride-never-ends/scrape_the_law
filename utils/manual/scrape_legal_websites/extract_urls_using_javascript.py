@@ -1,12 +1,11 @@
 
 import os
 
-from config import GOOGLE_SEARCH_RESULT_TAG, DEBUG_FILEPATH
+from config import GOOGLE_SEARCH_RESULT_TAG, DEBUG_FILEPATH, LEGAL_WEBSITE_DICT
 from logger import Logger
 
 from utils.shared.safe_format import safe_format
 from utils.shared.sanitize_filename import sanitize_filename
-
 
 from playwright.async_api import Page as AsyncPlaywrightPage
 
@@ -23,42 +22,23 @@ def _check_for_empty_sublists(urls: list[list[str]]) -> bool:
         return True
 
 
-
-        # Extract all links with class "codeLink"
-        links = page.evaluate('''
-            () => Array.from(document.querySelectorAll('a.codeLink')).map(a => ({
-                href: a.href,
-                text: a.textContent.trim()
-            }))
-        ''')
-
-
-legal_website_dict = {
-    "american_legal": {
-        "base_url": "https://codelibrary.amlegal.com/regions/",
-        "target_class": "browse-link roboto",
-        "wait_in_seconds": 5,
-    },
-    "municode": {
-        "base_url": "https://library.municode.com/",
-        "target_class": "index-link",
-        "wait_in_seconds": 15,
-    },
-    "general_code" : {
-        "base_url": "https://www.generalcode.com/source-library/?state=",
-        "target_class": "codeLink",
-        "wait_in_seconds": 0,
-    },
-}
+# # Extract all links with class "codeLink"
+# links = page.evaluate('''
+#     () => Array.from(document.querySelectorAll('a.codeLink')).map(a => ({
+#         href: a.href,
+#         text: a.textContent.trim()
+#     }))
+# ''')
 
 
 async def extract_urls_using_javascript(page: AsyncPlaywrightPage, source: str) -> list[str] | list[None]:
     """
-    Use javascript to extract URLs and associated text from webpage
-    #### Example
+    Use javascript to extract URLs and associated text from a webpage.
+
+    Example:
     >>> urls = await extract_links(page)
     >>> for url, text in urls_dict.values:
-    >>>    logger.debug(f"Found URL: {url}\n txt: {text}")
+    >>>    logger.debug(f"Found URL: {url} txt: {text}")
     """
     javascript = """
         () => Array.from(document.querySelectorAll('a.{TARGET}')).map(a => ({
@@ -67,7 +47,7 @@ async def extract_urls_using_javascript(page: AsyncPlaywrightPage, source: str) 
         }))
     """
     args = {
-        "TARGET": legal_website_dict[source]["target_class"]
+        "TARGET": LEGAL_WEBSITE_DICT[source]["target_class"]
     }
     javascript = safe_format(javascript, **args)
     urls_dict: list[dict] = await page.evaluate(javascript)

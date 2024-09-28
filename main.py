@@ -13,18 +13,11 @@ from clean import Cleaner
 from utils.shared.next_step import next_step
 
 from database import MySqlDatabase
-from config import DATAPOINT, RAND_SEED, SEARCH_ENGINE
+from config import DATAPOINT, RAND_SEED, SEARCH_ENGINE, HEADLESS, USE_API_FOR_SEARCH, SLOWMO
 from logger import Logger
 
 logger = Logger(logger_name=__name__)
 
-SKIP = True
-HEADLESS = True
-SLOW_MO = 100
-USE_API = False
-
-# Codestral API key: WskOYvWioCL7oFuV7UPJaEby1otAGLUk 
-# https://console.mistral.ai/codestral
 
 async def main():
 
@@ -77,7 +70,7 @@ async def main():
     # NOTE. We might have to use the Google Search API here. Google will probably get wise to this eventually.
     # This will also be pretty slow.
     SKIP_SEARCH = False
-    search: SearchEngine = SearchEngine().start_engine(SEARCH_ENGINE, USE_API, headless=HEADLESS, slow_mo=SLOW_MO)
+    search: SearchEngine = SearchEngine().start_engine(SEARCH_ENGINE, USE_API_FOR_SEARCH, headless=HEADLESS, slow_mo=SLOWMO)
     urls_df = await search.results(queries_df, skip_seach=SKIP_SEARCH)
     logger.debug(f"main urls_df:\n{urls_df.head()}")
     logger.info("Step 3 Complete.")
@@ -85,7 +78,6 @@ async def main():
     next_step(step=4)
     # Step 4. Filter out URLs that are obviously bad or wrong.
     # NOTE This step will be less and less necessary as queries get more refined.
-    
     url_filter: FilterUrls = FilterUrls()
     filtered_urls_df = url_filter.strain(urls_df)
 
