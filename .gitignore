@@ -7,3 +7,4 @@ __pycache__/
 *.csv
 *.html
 *.zip
+SQLSCHEMA.md
