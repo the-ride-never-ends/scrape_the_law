@@ -1,7 +1,7 @@
+
 from config import GOOGLE_SEARCH_RESULT_TAG
 
 from utils.shared.safe_format import safe_format
-
 
 async def extract_search_results(page):
     """

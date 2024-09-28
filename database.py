@@ -22,7 +22,7 @@ from aiomysql.cursors import Cursor as AioMySQLCursor
 
 from config import HOST, USER, PORT, PASSWORD, MYSQL_SCRIPT_FILE_PATH, DATABASE_NAME, INSERT_BATCH_SIZE
 from logger import Logger
-log_level = 10
+log_level = 20
 logger = Logger(logger_name=__name__, log_level=log_level)
 
 from utils.shared.safe_format import safe_format
@@ -611,22 +611,25 @@ class MySqlDatabase:
         """
         Asynchronously cxecute an unbuffered SQL query and yield results asynchronously.
 
-        Allows processing large result sets without loading all into memory at once.
+        Allows processing large result sets without loading it all into memory at once.
 
-        ### Parameters
-        - command (LiteralString): The SQL query to execute.
-        - params (tuple[Any,...] | list[tuple[Any,...]], optional): Parameters to be used with the SQL query.
-        - connection (aiomysql.Connection, optional): The database connection to use.
-        - is_query (bool, default=True): Indicates if the command is a query (should always be True for this method).
-        - args (dict, optional): Variables for safe string formatting of the SQL command.
-        - unbuffered (bool, default=True): Indicates if the query should be unbuffered (should always be True for this method).
-        - return_dict (bool, default=False): If True, returns each row as a dictionary instead of a tuple.
-        - size (int, optional): Not used in this method, but kept for consistency with _async_execute_sql_command.
+        Args:
+            command (LiteralString): The SQL query to execute.
+            params (tuple[Any,...] | list[tuple[Any,...]], optional): Parameters to be used with the SQL query. Defaults to None.
+            connection (aiomysql.Connection, optional): The database connection to use. Defaults to None.
+            is_query (bool, optional): Indicates if the command is a query (should always be True for this method). Defaults to True.
+            args (dict, optional): Variables for safe string formatting of the SQL command. Defaults to None.
+            unbuffered (bool, optional): Indicates if the query should be unbuffered (should always be True for this method). Defaults to True.
+            return_dict (bool, optional): If True, returns each row as a dictionary instead of a tuple. Defaults to False.
+            size (int, optional): Not used in this method, but kept for consistency with _async_execute_sql_command. Defaults to None.
 
-        ### Yields
-        - row: Each row of the query result. The type depends on the return_dict parameter:
-            - If return_dict is True: dict[str, Any]
-            - If return_dict is False: tuple[Any, ...]
+        Yields:
+            If return_dict is True:
+                dict[str, Any]: Each row of the query result as a dictionary.
+            If return_dict is False:
+                tuple[Any, ...]: Each row of the query result as a tuple.
+        Raises:
+            Any exceptions raised by _async_execute_sql_command or cursor operations.
         """
         logger.debug("Executing async unbuffered query...")
         try:
@@ -642,123 +645,42 @@ class MySqlDatabase:
             self._return_connection_to_pool(connection)
 
 
-    # def _route_commands(self, command: str, is_query: bool=None, unbuffered: bool=False, **kwargs):
-    #     connection: MySQLConnection = self.pool.get_connection()
-    #     is_query = is_query or bool(QUERY_PATTERN.match(command.strip()))
-
-    #     # Execute the SQL command.
-    #     if is_query: # Query route
-    #         if unbuffered: # Unbuffered query
-    #             logger.debug(f"Chose unbuffered query route.")
-    #             return self._async_execute_unbuffered_query(command, connection=connection, unbuffered=unbuffered, is_query=is_query, **kwargs)
-    #         else: # Buffered query
-    #             logger.debug(f"Chose buffered query route.")
-    #             results = self._execute_sql_command(command,  connection=connection, is_query=is_query, **kwargs)
-    #             self._return_connection_to_pool(connection)
-    #             return results
-
-    #     else: # Alteration route
-    #         self._execute_sql_command(command, connection=connection, **kwargs)
-    #         self._return_connection_to_pool(connection)
-    #         return
-
-
-    # def execute_sql_command(self,
-    #                         command: LiteralString,
-    #                         params: ( tuple[Any,...] | dict[str,Any] | list[tuple[Any,...]] | list[dict[str,Any]] ) = None,
-    #                         args: dict=None,
-    #                         unbuffered:bool=False,
-    #                         return_dict:bool=False,
-    #                         size: int=None,
-    #                         ) -> list[tuple[Any,...]] | list[dict[str,Any]] | Generator | None:
-    #     """
-    #     Directly execute a SQL command to query or alter the database.
-    #     This method automatically detects whether the command is a query or an alteration command based on its first word.
-    #     It handles both buffered and unbuffered queries.
-
-    #     ### Parameters
-    #     - command: SQL command to execute.
-    #     - params: Parameters/values to feed into the SQL command. Optional
-    #     - args: Variable names and values that are inserted into the command string using the safe_format function. Optional
-    #     - unbuffered: If True, executes an unbuffered query, allowing for processing large result sets without loading the entire result into memory at once.
-    #     - return_dict: If True, returns each row as a dictionary instead of a tuple.
-    #     - size: Number of rows to fetch at a time. If None, fetches all rows.
-
-    #     ### Returns
-    #     - For buffered queries, returns a list of tuples containing the query results.
-    #     - For buffered queries with return_dict=True, returns a list of dictionaries containing the query results.
-    #     - For unbuffered queries, returns an async generator that yields results one at a time.
-    #     - For database alteration commands (non-queries), returns None.
-    #     """
-        
-
-    #     if command.endswith((".sql", ".txt")):
-    #         command = format_sql_file(command)
-    #         if isinstance(command, str):
-    #             is_query = bool(QUERY_PATTERN.match(command.strip()))
-    #             if is_query:
-    #                 return self._route_commands(command, is_query, unbuffered=unbuffered, params=params, args=args,  return_dict=return_dict)
-    #             else:
-    #                 return self._route_commands(command, is_query, unbuffered=unbuffered, params=params, args=args,  return_dict=return_dict)
-    #         else:
-    #             command_set = {bool(pattern.match(com.strip())) for com in command}
-    #             if True and False in command_set:
-    #                 raise ValueError("File has both query and alteration commands.")
-    #             else:
-    #                 for com in command:
-    #                     is_query = bool(QUERY_PATTERN.match(command.strip()))
-    #     else:
-    #         is_query = bool(QUERY_PATTERN.match(command.strip()))
-    #         if is_query:
-    #             return self._route_commands(command, is_query)
-    #         else:
-
-
     async def async_insert_by_batch(self,
                                     results: list[dict] | list[tuple],
                                     batch_size: int=INSERT_BATCH_SIZE,
+                                    table: str=None,
                                     args: dict=None,
                                     columns:list[str]=None,
                                     statement:str=None,
-                                    table: str=None) -> None:
+                                    update: list[str]=None) -> None:
         """
-        Asynchronously insert data into the database in batches.
+        Asynchronously insert data into a MySQL database in batches.
+        NOTE table and batch_size function as positional arguments, but are set as a keyword arguments for code clarity.
 
-        ### Args
-        - results: Data to be inserted.
-        - batch_size: Number of records per batch.
-        - args: Additional arguments for the SQL statement.
-        - columns: Column names if results is a list of tuples.
-        - statement: Custom INSERT statement.
-        - table: Name of the table to insert into.
+        Args:
+            results (list[dict] | list[tuple]): Data to be inserted.
+            batch_size (int): Number of records per batch. Defaults to constant INSERT_BATCH_SIZE.
+            table (str): Name of the table to insert into.
+            args (dict, optional): Argument key-values for formatting named placeholders in the INSERT statement.
+            columns (list[str], optional): List of column names if results is a list of tuples.
+            statement (str, optional): Custom INSERT statement. Defaults to a pre-defined INSERT statement
+            update (list[str], optional): List of columns to update in the pre-definfed INSERT statement if wanted. 
 
-        Raises
-        - AssertionError: If input types are incorrect.
+        Raises:
+            Exception: If there's any error inserting the data.
         """
-        if not columns:
-            logger.debug(f"type results: {type(results)}")
-            logger.debug(f"results: {results}")
-            time.sleep(10)
-            #assert isinstance(results[0], dict), f"type results: {type(results)}\nresults: {results}"
-        else:
-            assert isinstance(columns, list)
-            assert isinstance(columns[0], str)
-            _columns = ", ".join(columns)
-            columns = _columns
-        
-        if len(results) == 0:
-            logger.error("async_insert_by_batch results list is empty. Ending funcion...")
+        type_check = _type_check_async_insert_by_batch(results, 
+                                                        batch_size=batch_size, 
+                                                        args=args, 
+                                                        columns=columns, 
+                                                        statement=statement, 
+                                                        table=table, 
+                                                        update=update)
+        if type_check[0]:
+            logger.error("async_insert_by_batch results list is empty. Ending function...")
             return
-
-        # Assume INSERT as base operation.
-        command = statement or "INSERT INTO {table} ({columns}) VALUES ({placeholders});"
-        one_tuple = results[0]
-        args = args or {
-            "table": table or None,
-            "placeholders": get_num_placeholders(one_tuple),
-            "columns": columns or get_column_names(one_tuple)
-        }
-        logger.debug(f"args: {args}\none_tuple: {one_tuple}")
+        else:
+            command, args, batch_size, _ = type_check
 
         total_inserted = 0
         for i in range(0, len(results), batch_size):
@@ -793,19 +715,27 @@ class MySqlDatabase:
         This method automatically detects whether the command is a query or an alteration command based on its first word.
         It handles both buffered and unbuffered queries.
 
-        ### Parameters
-        - command: SQL command to execute.
-        - params: Parameters/values to feed into the SQL command. Optional
-        - args: Variable names and values that are inserted into the command string using the safe_format function. Optional
-        - unbuffered: If True, executes an unbuffered query, allowing for processing large result sets without loading the entire result into memory at once.
-        - return_dict: If True, returns each row as a dictionary instead of a tuple.
-        - size: Number of rows to fetch at a time. If None, fetches all rows.
+        Args:
+            command (LiteralString): SQL command to execute.
+            params (tuple[Any,...] | dict[str,Any] | list[tuple[Any,...]] | list[dict[str,Any]], optional):
+                Parameters/values to feed into the SQL command. Defaults to None.
+            args (dict, optional): Variable names and values that are inserted into the
+                command string using the safe_format function. Defaults to None.
+            unbuffered (bool, optional): If True, executes an unbuffered query, allowing
+                for processing large result sets without loading the entire result into
+                memory at once. Defaults to False.
+            return_dict (bool, optional): If True, returns each row as a dictionary
+                instead of a tuple. Defaults to False.
+            size (int, optional): Number of rows to fetch at a time. If None, fetches
+                all rows. Defaults to None.
 
-        ### Returns
-        - For buffered queries, returns a list of tuples containing the query results.
-        - For buffered queries with return_dict=True, returns a list of dictionaries containing the query results.
-        - For unbuffered queries, returns an async generator that yields results one at a time.
-        - For database alteration commands (non-queries), returns None.
+        Returns:
+            For buffered queries, returns a list of tuples containing the query results.
+            For buffered queries with return_dict=True, returns a list of dictionaries
+                containing the query results.
+            For unbuffered queries, returns an async generator that yields results
+                one at a time.
+            For database alteration commands (non-queries), returns None.
         """
 
         connection: AioMySqlConnection = await self._async_get_connection_from_pool()
@@ -841,13 +771,16 @@ class MySqlDatabase:
         """
         Execute an async MySQL query and return results as a Pandas DataFrame.
 
-        ### Parameters
-        - query: SQL query to execute.
-        - params: Query parameters.
-        - args: Variables for safe string formatting.
-        - unbuffered: If True, uses unbuffered query.
-        ### Returns
-        - Query results as a Pandas DataFrame.
+        Args:
+            query: SQL query to execute.
+            params: Query parameters.
+            args: Variables for safe string formatting.
+            unbuffered: If True, uses unbuffered query.
+        Returns:
+            A Pandas DataFrame containing the query results.
+
+        Raises:
+            MySQLError: If there's an error executing the query.
         """
         results = await self.async_execute_sql_command(query, params=params, unbuffered=unbuffered, args=args, return_dict=True)
         return pd.DataFrame.from_dict(results)
@@ -862,14 +795,104 @@ class MySqlDatabase:
         """
         Execute a MySQL query and return results as a Pandas DataFrame.
 
-        ### Parameters
-        - query: SQL query to execute.
-        - params: Query parameters.
-        - args: Variables for safe string formatting.
-        - unbuffered: If True, uses unbuffered query.
-        ### Returns
-        - Query results as a Pandas DataFrame.
+        Args:
+            query: SQL query to execute.
+            params: Query parameters.
+            args: Variables for safe string formatting.
+            unbuffered: If True, uses unbuffered query.
+        Returns:
+            A Pandas DataFrame containing the query results.
         """
         results = self.execute_sql_command(query, params=params, unbuffered=unbuffered, args=args, return_dict=True)
         return pd.DataFrame.from_dict(results)
+
+
+
+def _type_check_async_insert_by_batch(results: list[dict] | list[tuple],
+                                    args: dict=None,
+                                    batch_size: int=None,
+                                    columns:list[str]=None,
+                                    statement:str=None,
+                                    table: str=None,
+                                    update: list=None
+                                    ) -> tuple[str, dict, bool]:
+    """
+    Type check and prepare arguments for the async_insert_by_batch method.
+
+    Args:
+        results: List of dictionaries or tuples containing the data to insert.
+        args: Optional dictionary of additional arguments.
+        columns: Optional list of column names.
+        statement: Optional custom SQL statement.
+        table: Name of the table to insert into.
+        update: Optional list of columns to update on duplicate key.
+
+    Returns:
+        Tuple containing the SQL command, arguments, and a boolean indicating if the operation should be skipped.
+    """
+    # Check if the results list is empty.
+    if not results:
+        return None, None, None, True
+
+    one_tuple = results[0]
+
+    if batch_size <= 0:
+        logger.warning(f"invalid batch_size value. Defaulting to {INSERT_BATCH_SIZE}")
+        batch_size = INSERT_BATCH_SIZE
+
+    # Check if there are columns.
+    if columns:
+        if not isinstance(columns, list) or not all(isinstance(col, str) for col in columns):
+            raise ValueError("Columns must be a list of strings if given as a parameter.")
+        joined_columns = ", ".join(columns)
+        columns = joined_columns
+    else:
+        logger.debug(f"type results: {type(results)}")
+        logger.debug(f"results: {results}")
+        time.sleep(1)
+
+    # Check if table argument is filled in.
+    if not table:
+        # Check if the table is specified in the args dict.
+        if isinstance(args, dict):
+            for key, value in args.items():
+                if key == "table" and isinstance(value, str):
+                    pass
+                else:
+                    raise ValueError("table not specified in parameters or args dict.")
+        else:
+            raise ValueError("table not specified in parameters or args dict.")
+
+    # Assume INSERT as base operation.
+    if not update:
+        default_statement = "INSERT INTO {table} ({columns}) VALUES ({placeholders});" 
+    else: # Add on an UPDATE clause if an update list is present.
+        if isinstance(update, list): # NOTE This assumes there is a unique key in the table.
+            update_list = [
+                f"{up}=VALUES({up})" for up in update if up in columns or get_column_names(one_tuple)
+            ]
+            update = ", ".join(update_list)
+            default_statement = """
+            "INSERT INTO {table} ({columns}) VALUES ({placeholders}) 
+            ON DUPLICATE KEY UPDATE
+            {update};
+            """
+        else:
+            logger.warning("update argument is not a list. Defaulting to base INSERT INTO statement.")
+
+    # Define the command, argument, and boolean returns.
+    command = statement or default_statement
+    args = args or {
+        "table": table,
+        "placeholders": get_num_placeholders(one_tuple),
+        "columns": columns or get_column_names(one_tuple),
+        "update": ", ".join(update) if update else None
+    }
+    logger.debug(f"args: {args}\none_tuple: {one_tuple}")
+
+    return command, args, batch_size, False
+
+
+
+
 

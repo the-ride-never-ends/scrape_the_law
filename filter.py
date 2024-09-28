@@ -3,9 +3,9 @@
 
 
 
-class ProcessUrl:
+class FilterUrls:
     def __init__(self):
         pass
 
-    def process(self):
+    def strain(self):
         pass

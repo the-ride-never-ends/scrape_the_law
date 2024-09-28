@@ -18,7 +18,7 @@ logger = Logger(logger_name=__name__)
 from config import *
 from database import MySqlDatabase
 
-from utils.archive.sanitize_filename import sanitize_filename
+from utils.shared.sanitize_filename import sanitize_filename
 from utils.archive.reconstruct_domain_from_csv_filename import reconstruct_domain_from_csv_filename
 from utils.archive.read_urls_from_csv import read_urls_from_csv
 
@@ -39,10 +39,8 @@ DEFAULT = f"--current --list --verbosity {VERBOSITY} --start {START} --output {O
 
 
 class SaveToInternetArchive:
-    def __init__(self,
-                 db: MySqlDatabase
-                ):
-        self.db = db
+    def __init__(self):
+        self.db: MySqlDatabase = None
 
 
     async def _get_domains(self) -> pd.DataFrame:

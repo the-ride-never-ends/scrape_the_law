@@ -1,5 +1,5 @@
 
-from typing import Any
+from typing import Any, NamedTuple
 import re
 
 import pandas as pd
@@ -62,7 +62,7 @@ class SearchQueryGenerator:
         return query, source
 
 
-    def make_american_legal_query(self, row):
+    def make_american_legal_query(self, row: NamedTuple):
         """
         Constructs a search query for the American Legal Publishing website.
 
@@ -146,7 +146,7 @@ class SearchQueryGenerator:
         """
         # Set the source identifier
         source = "place_domain"
-        
+
         # Extract the domain name from the row data
         domain_name = row.domain_name
         
@@ -267,43 +267,3 @@ class SearchQueryGenerator:
 
         return pd.DataFrame(data, columns=["gnis", "query", "source", "query_hash"])
 
-
-
-
-# if __name__ == "__main__":
-#     # Example usage
-#     generator = SearchQueryGenerator()
-    
-    
-#     #queries = generator.generate_queries(datapoint, location)
-    
-#     print(f"Generated {len(queries)} queries:")
-#     for query in queries:
-#         print(query)
-
-        # return pd.DataFrame(queries)
-
-        # # Clean and prepare the datapoint
-        # clean_datapoint = re.sub(r'[^\w\s]', '', datapoint).lower()
-        # logger.debug(f"clean_datapoint: {clean_datapoint}")
-
-        # # Extract location information
-        # place_name = location.get('place_name', '').strip()
-        # state_name = location.get('state_name', '').strip()
-        # domain_name = location.get('domain_name', '').strip()
-
-        # # Generate queries
-        # queries.append(f'site:{domain_name} "{clean_datapoint}"')
-        # queries.append(f'"{place_name}" "{state_name}" "{clean_datapoint}"')
-
-        # for term in self.common_terms:
-        #     queries.append(f'"{place_name}" "{state_name}" "{clean_datapoint}" {term}')
-        #     if domain_name:
-        #         queries.append(f'site:{domain_name} "{clean_datapoint}" {term}')
-
-        # # Add some variations
-        # queries.append(f'"{place_name}" "{clean_datapoint}" law')
-        # queries.append(f'"{state_name}" local "{clean_datapoint}" regulation')
-
-        # # Remove any duplicate queries
-        # return list(set(queries))

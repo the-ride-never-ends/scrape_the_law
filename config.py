@@ -18,7 +18,7 @@ TAX_TERMS: dict[str, list[str]] = {
         "combined sales tax", "transaction privilege tax", "general excise tax", "gross receipts tax", "retail sales tax"
     ],
     "income tax": ["tax", "direct tax", "progressive tax", "personal income tax", "corporate income tax"],
-    "property tax": ["tax", "ad valorem tax", "real estate tax", "millage tax"],
+    "property tax": ["tax", "ad valorem tax", "real estate tax", "millage tax", "mill rate"],
     "payroll tax": ["tax", "employment tax", "social security tax", "Medicare tax", "FICA tax"],
     "consumption tax": ["tax", "sales tax", "value-added tax", "VAT", "goods and services tax", "GST"],
     "tariff": ["tax", "import duty", "customs duty", "excise tax"],
@@ -35,7 +35,7 @@ try:
     ROUTE: str = config(path, 'ROUTE') or "NA"
     CONCURRENCY_LIMIT: int = config(path, 'CONCURRENCY_LIMIT') or 2
     FILENAME_PREFIX: str = config(path, 'FILENAME_PREFIX') or "scrape_the_law"
-    OUTPUT_FOLDER: str = config(path, 'OUTPUT_FOLDER') or script_dir
+    OUTPUT_FOLDER: str = config(path, 'OUTPUT_FOLDER') or os.path.join(script_dir, "output")
     WAIT_TIME: int = config(path, 'WAIT_TIME') or 0
     DATAPOINT: str = config(path, 'DATAPOINT') or "sales tax"
 

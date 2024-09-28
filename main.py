@@ -7,6 +7,8 @@ from search import SearchEngine
 from query import SearchQueryGenerator
 from archive import SaveToInternetArchive
 from scrape import ScrapeInternetArchive
+from filter import FilterUrls
+from clean import Cleaner
 
 from utils.shared.next_step import next_step
 
@@ -19,6 +21,7 @@ logger = Logger(logger_name=__name__)
 SKIP = True
 HEADLESS = True
 SLOW_MO = 100
+USE_API = False
 
 # Codestral API key: WskOYvWioCL7oFuV7UPJaEby1otAGLUk 
 # https://console.mistral.ai/codestral
@@ -73,46 +76,53 @@ async def main():
     # Step 3. Search these up on Google and get the URLs.
     # NOTE. We might have to use the Google Search API here. Google will probably get wise to this eventually.
     # This will also be pretty slow.
-    search: SearchEngine = SearchEngine().start_engine(SEARCH_ENGINE, headless=HEADLESS, slow_mo=SLOW_MO)
-    urls_df = await search.results(queries_df)
+    SKIP_SEARCH = False
+    search: SearchEngine = SearchEngine().start_engine(SEARCH_ENGINE, USE_API, headless=HEADLESS, slow_mo=SLOW_MO)
+    urls_df = await search.results(queries_df, skip_seach=SKIP_SEARCH)
     logger.debug(f"main urls_df:\n{urls_df.head()}")
     logger.info("Step 3 Complete.")
 
     next_step(step=4)
-    # Step 4. Filter out URLs that
+    # Step 4. Filter out URLs that are obviously bad or wrong.
+    # NOTE This step will be less and less necessary as queries get more refined.
+    
+    url_filter: FilterUrls = FilterUrls()
+    filtered_urls_df = url_filter.strain(urls_df)
 
 
-    next_step(step=4, stop=True)
+    next_step(step=5, stop=True)
     # Step 5. Check if these links are in the Wayback Machine. If they aren't save them.
     async with await MySqlDatabase as db:
-        ia_saver = SaveToInternetArchive(db)
-        ia_links_df = await ia_saver.save(urls_df)
-        logger.info("Step 4 Complete.")
+        ia_saver: SaveToInternetArchive = SaveToInternetArchive(db)
+        ia_links_df = await ia_saver.save(filtered_urls_df)
 
 
-    next_step(step=5)
+    next_step(step=6)
     # Step 6. Scrape the results from the Wayback Machine using the Waybackup program.
     async with await MySqlDatabase as db:
         scraper = ScrapeInternetArchive(db)
         text_df = scraper.scrape(ia_links_df)
 
 
-    next_step(step=6)
+    next_step(step=7)
     # Step 7. Clean the text and save it to the database
-    from clean import Cleaner
+
     async with await MySqlDatabase as db:
         clean = Cleaner(db)
-        text_df = scraper.scrape(ia_links_df)
+        text_df = clean.clean(ia_links_df)
 
 
-    next_step(step=7)
+    next_step(step=8)
     # Step 8. Get metadata from the text: 
-
 
     sys.exit(0)
 
+
 if __name__ == "__main__":
+    import os
+    base_name = os.path.basename(__file__) 
+    program_name = base_name if base_name != "main.py" else os.path.dirname(__file__)
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("scrape_the_law program stopped.")
+        print(f"{program_name} program stopped.")

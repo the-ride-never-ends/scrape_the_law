@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-""" Web Scraping """
+""" Scrape a Search Engine """
 import asyncio
 import time
 from typing import Any, Coroutine
@@ -10,16 +10,19 @@ from playwright.async_api import (
     async_playwright,
     TimeoutError as PlaywrightTimeoutError,
 )
-import tqdm.asyncio as async_tqdm
+#from tqdm import asyncio as tqdmasyncio
+
 
 from config import INSERT_BATCH_SIZE, SEARCH_ENGINE
+
 
 from utils.search.google_search import PlaywrightGoogleLinkSearch
 from utils.shared.get_formatted_datetime import get_formatted_datetime
 from utils.shared.make_sha256_hash import make_sha256_hash
-from utils.shared.convert_integer_to_datetime_str import convert_integer_to_datetime_str
-from utils.database.get_insert_into_values import get_insert_into_values
-from utils.archive.sanitize_filename import sanitize_filename
+#from utils.shared.convert_integer_to_datetime_str import convert_integer_to_datetime_str
+#from utils.database.get_insert_into_values import get_insert_into_values
+#from utils.archive.sanitize_filename import sanitize_filename
+
 
 from database import MySqlDatabase
 from logger import Logger
@@ -27,24 +30,9 @@ log_level = 10
 logger = Logger(logger_name=__name__,log_level=log_level)
 
 
-# Set up rate-limit-conscious functions
+from utils.shared.limiter import Limiter
 CONCURRENCY_LIMIT = 2
-semaphore = asyncio.Semaphore(CONCURRENCY_LIMIT)
-stop_signal = False
-
-
-async def run_task_with_limit(task: Coroutine):
-    async with semaphore:
-        result = await task
-        if result == "stop_condition":  # Replace with your specific stop condition
-            global stop_signal
-            stop_signal = True
-        return result
-
-
-    # queries = [
-    #     'site:https://library.municode.com/ca/ Camarillo tax', "City of Honeyville UT"
-    # ]
+limiter = Limiter(CONCURRENCY_LIMIT)
 
 
 class SearchEngine:
@@ -52,7 +40,7 @@ class SearchEngine:
     A class representing a search engine interface for various search providers.
 
     This class provides a unified interface for performing web searches using different
-    search engines, with Google as the default option.
+    search engines. Defaults to Google.
 
     - start_engine(cls, search_engine, launch_kwargs): Create and return a SearchEngine instance for the specified search engine.
     - results(self, df: pd.DataFrame) -> pd.DataFrame: Perform a search for queries in the provided DataFrame and return the results.
@@ -159,17 +147,18 @@ class SearchEngine:
             search_results: list[list[str]] = await self.search.results(queries)
             logger.debug(f"search_results:\n{search_results}")
             logger.info(f"Got search results. Processing...")
-            results = await self.search.results(queries)
             await asyncio.gather(*[
                 self._process_search_result(
                     gnis, 
                     query_text, 
                     result, 
                     source_site
-                    ) for query_text, result, source_site in zip(queries, results, source_sites)
+                    ) for query_text, result, source_site in zip(queries, search_results, source_sites)
             ])
         except PlaywrightTimeoutError as e:
             logger.error(f"Timeout occurred while searching for GNIS {gnis}: {e}")
+        except asyncio.InvalidStateError as e:
+            logger.error(f"Invalid State error occurred while searching for GNIS {gnis}: {e}")
         except Exception as e:
             logger.error(f"Error occurred while searching for GNIS {gnis}: {e}")
 
@@ -188,6 +177,19 @@ class SearchEngine:
         """
         hashes = await self.db.async_execute_sql_command(query, args={"gnis": gnis})
         return  {row[0] for row in hashes}
+
+
+    async def _insert_batched_data(self, batch_size: int=20):
+        """
+        Insert URLs and queries if they go over the batch size, then clear them.
+        """
+        if len(self.urls_list) >= batch_size:
+            await self.db.async_insert_by_batch(self.urls_list, table="urls", batch_size=batch_size)
+            self.urls_list = []
+
+        if len(self.queries_list) >= batch_size:
+            await self.db.async_insert_by_batch(self.queries_list, table="searches", batch_size=batch_size)
+            self.queries_list = []
 
 
     async def results(self, df: pd.DataFrame, batch_size: int=INSERT_BATCH_SIZE, skip_seach=False)-> pd.DataFrame:
@@ -222,57 +224,49 @@ class SearchEngine:
         # Group the DataFrame by geographic ID 'gnis'
         async with MySqlDatabase(database="socialtoolkit") as db:
             self.db = db
-            for gnis, groups_df in df.groupby('gnis'): 
-                # Get the list of queries and URL's we've already performed/got for this gnis.
-                logger.info(f"Gettings url hashes for gnis '{gnis}'...")
-                self.url_hash_set = await self._get_hash_by_gnis(self.sql_queries["url_hash"], gnis)
-                self.query_hash_set = await self._get_hash_by_gnis(self.sql_queries["query_hash"], gnis)
+            try:
+                for gnis, groups_df in df.groupby('gnis'): 
+                    # Get the list of queries and URL's we've already performed/got for this gnis.
+                    logger.info(f"Gettings url hashes for gnis '{gnis}'...")
+                    self.url_hash_set = await self._get_hash_by_gnis(self.sql_queries["url_hash"], gnis)
+                    self.query_hash_set = await self._get_hash_by_gnis(self.sql_queries["query_hash"], gnis)
 
-                # Filter out the queries we've already performed
-                if len(self.query_hash_set) > 0:
-                    groups_df[~groups_df['query_hash'].isin(list(self.query_hash_set))]
-                    logger.info(f"Filtered out {len(groups_df)} redundant queries")
+                    # Filter out the queries we've already performed
+                    if len(self.query_hash_set) > 0:
+                        groups_df[~groups_df['query_hash'].isin(list(self.query_hash_set))]
+                        logger.info(f"Filtered out {len(groups_df)} redundant queries")
 
-                if log_level == 10:
-                    wait  = 60
-                    logger.debug(f"Waiting {wait} seconds...")
-                    time.sleep(wait)
+                    #logger.debug(f"search groups_df with gnis '{gnis}':\n{groups_df.head()}")
 
-                logger.debug(f"search groups_df with gnis '{gnis}':\n{groups_df.head()}")
+                    # Stop the process if in debug to see the results.
+                    logger.debug(f"self.url_hash_set:\n{self.url_hash_set}")
+                    if log_level == 10:
+                        logger.debug("LET'S FUCKING GOOOOOOO!!!!")
+                        time.sleep(1)
 
-                # Stop the process if in debug to see the results.
-                logger.debug(f"self.url_hash_set:\n{self.url_hash_set}")
-                if log_level == 10:
-                    logger.debug("LET'S FUCKING GOOOOOOO!!!!")
-                    time.sleep(2)
+                    # Perform the search
+                    # NOTE We don't paginate results as the search classes will never go beyond the first page of results.
+                    start = time.time()
+                    await self._batched_search_results(gnis, groups_df)
+                    execution_time = time.time() - start
+                    logger.debug(f"*** {len(groups_df)} Queries took {execution_time} seconds to complete. ***")
 
-                # Perform the search
-                # NOTE We don't paginate results as the search classes will never go beyond the first page of results.
-                await self._batched_search_results(gnis, groups_df) 
+                    # Insert data in smaller batches for more steady input
+                    await self._insert_batched_data(batch_size=20)
 
-                # Insert urls and queries if they go over the batch size.
-                if len(self.urls_list) >= batch_size:
-                    await self.db.async_insert_by_batch(self.urls_list, table="urls", batch_size=batch_size)
-                if len(self.queries_list) >= batch_size:
-                    await self.db.async_insert_by_batch(self.queries_list, table="searches", batch_size=batch_size)
-
-                # Insert any remaining items and reset url_hash_set and queries_list.
-                await self.db.async_insert_by_batch(self.urls_list, table="urls", batch_size=batch_size)
-                await self.db.async_insert_by_batch(self.queries_list, table="searches", batch_size=batch_size)
-                self.url_hash_set = set()
-                self.queries_list = []
+            except asyncio.CancelledError: 
+                logger.info("Keyboard Interupt was called. Saving remaining data...")
+            finally:
+                # Ensure any remaining data is saved
+                await self._insert_batched_data(batch_size=1)  # Insert all remaining items
 
             # Insert any remaining items
             if self.urls_list:
-                await self.db.async_insert_by_batch(self.urls_list, batch_size=batch_size)
+                await self.db.async_insert_by_batch(self.urls_list, batch_size=1)
             if self.queries_list:
-                await self.db.async_insert_by_batch(self.queries_list, batch_size=batch_size)
+                await self.db.async_insert_by_batch(self.queries_list, batch_size=1)
 
         logger.info(f"'{SEARCH_ENGINE}' search complete")
         # Since searches will likely occur over time, we get URLs for the next step from the database instead.
         return await self._get_urls_without_ia_url()
-
-
-
-
 

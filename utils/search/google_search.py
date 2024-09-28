@@ -3,10 +3,12 @@
 import asyncio
 import os
 import re
+import time
 import traceback
 
 from playwright.async_api import (
     async_playwright,
+    Playwright as AsyncPlaywright,
     Page as PlaywrightPage,
     TimeoutError as PlaywrightTimeoutError,
 )
@@ -14,7 +16,7 @@ from playwright.async_api import (
 from config import GOOGLE_CONCURRENCY_LIMIT, GOOGLE_SEARCH_RESULT_TAG, DEBUG_FILEPATH
 from utils.query.clean_search_query import clean_search_query
 from utils.shared.make_id import make_id
-from utils.archive.sanitize_filename import sanitize_filename
+from utils.shared.sanitize_filename import sanitize_filename
 from utils.shared.safe_format import safe_format
 
 from utils.shared.limiter import Limiter
@@ -67,7 +69,7 @@ class PlaywrightGoogleLinkSearch:
         self._browser = None
 
 
-    async def _load_browser(self, pw_instance):
+    async def _load_browser(self, pw_instance: AsyncPlaywright):
         """Launch a chromium instance and load a page"""
         self._browser = await pw_instance.chromium.launch(**self.launch_kwargs)
 
@@ -91,19 +93,23 @@ class PlaywrightGoogleLinkSearch:
             await context.tracing.stop_chunk(path=os.path.join(DEBUG_FILEPATH, "_search_new_page.zip"))
             await navigate_to_google(page, context=context)
             await perform_google_search(page, query, context=context)
-            return await extract_links(page)
+            return await extract_links(page, query)
 
         else:
             page = await self._browser.new_page()
             await navigate_to_google(page)
             await perform_google_search(page, query)
-            return await extract_links(page)
+            return await extract_links(page, query)
 
 
     async def _skip_exc_search(self, query, num_results=10):
         """Perform search while ignoring timeout errors"""
         try:
-            return await self._search(query, num_results=num_results)
+            start = time.time()
+            results = await self._search(query, num_results=num_results)
+            execution_time = time.time() - start
+            logger.debug(f"Query '{query}' took {execution_time} seconds to complete.")
+            return results
         except PlaywrightTimeoutError as e:
             logger.info(f"Google timed-out for query '{query}'. Returning empty list...")
             #logger.exception(e)
