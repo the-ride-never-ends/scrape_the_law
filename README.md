@@ -20,34 +20,35 @@
 - Objective: Retrieve, store, and maintain text of all local legal codes in the US related to an input datapoint.
 - Languages: Python, MySQL, JavaScript
 - Inputs:
-   •   A string of a single, specific datapoint name (e.g. "sales tax").
+   - A string of a single, specific datapoint name (e.g. "sales tax").
 - Input validation:
-   •   Ensure the input is a non-empty string, containing only alphanumeric characters and spaces, maximum 100 characters.
-   •   Support for non-English inputs (e.g. impuestos, Steuer)
-   •   Potential for adding a list of datapoints in the future.
+   - Ensure the input is a non-empty string, containing only alphanumeric characters and spaces, maximum 100 characters.
+   - Support for non-English inputs (e.g. impuestos, Steuer)
+   - Potential for adding a list of datapoints in the future.
 Outputs: A MySQL database of all local legal codes in the US related to the input datapoint. The ultimate variable “pg_content” is in plain text.
 
 ## Constraints:
 1. Data Integrity:
-   • Only primary/official sources (e.g. government websites, contracted law repository websites).
-   • Publicly accessible online.
-   • Text must be archived with a third party (e.g. Internet Archive, Libgen).
+   - Only primary/official sources (e.g. government websites, contracted law repository websites).
+   - Publicly accessible online.
+   - Text must be archived with a third party (e.g. Internet Archive, Libgen).
 2. Scalability:
-   • Handle and store millions or more pages of text and associated metadata.
-   • Metadata sufficient for rigorous academic citation.
-   • Extensible beyond local laws if needed.
+   - Handle and store millions or more pages of text and associated metadata.
+   - Metadata sufficient for rigorous academic citation.
+   - Extensible beyond local laws if needed.
 3. Performance:
-   • Complete full retrieval and cleaning cycle monthly.
-   • Maximum time for retrieval and cleaning: 14 days.
-   • Cost optimization: Minimize cost per character of output text so that the dataset is produced as cheaply as possible.
-4. Reliability: Ensure high dataset size, factual accuracy, and trustworthiness
+   - Complete full retrieval and cleaning cycle monthly.
+   - Maximum time for retrieval and cleaning: 14 days.
+   - Cost optimization: Minimize cost per character of output text so that the dataset is produced as cheaply as possible.
+4. Reliability: 
+   - Ensure high dataset size, factual accuracy, and trustworthiness
 5. Maintainability: 
-   • Design for monthly execution and updates.
-   • Extensible to weekly or daily updates if needed.
+   - Design for monthly execution and updates.
+   - Extensible to weekly or daily updates if needed.
 6. Robustness:
-   •  Input format agnostic (plaintext, html, pdf, etc.)
-   •  Rate limiting of scraping and search engine usage.
-   •  Overcome data gatekeeping attempts; alert user if unsuccessful.
+   - Input format agnostic (plaintext, html, pdf, etc.)
+   - Rate limiting of scraping and search engine usage.
+   - Overcome data gatekeeping attempts; alert user if unsuccessful.
 7. Output format: Human-readable plaintext.
 
 
@@ -82,16 +83,17 @@ Outputs: A MySQL database of all local legal codes in the US related to the inpu
 2. Cross-reference data with multiple sources where possible.
 3. Periodic audits of random samples.
 4. Version control system for tracking changes in laws over time.
-Scalability Plans
+## Scalability Plans
 1. Design database schema to accommodate multiple datapoints.
 2. Implement modular code structure for easy addition of new data sources.
 3. Plan for distributed processing capabilities for handling increased load.
-Update Process:
+## Update Process:
 1. Full database refresh: Annually
 2. Incremental updates: Monthly checks for significant law changes
 3. Version control: Maintain historical versions of laws for tracking changes.
 4. Update notifications: Alert system for users when relevant laws are updated by comparing versions gathered over time.
-Use cases:
+
+## Use cases:
 1. Constructing a dataset of legal codes for extracting legal data by hand or via LLM.
    - Key Metric: Size of Dataset
 2. Legal researchers: Analyze trends in local legislation across jurisdictions.
