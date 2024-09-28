@@ -17,11 +17,11 @@
 14. Documentation needs - TODO
 
 # 1. Problem Definition
-Objective: Retrieve, store, and maintain text of all local legal codes in the US related to an input datapoint.
-Languages: Python, MySQL, JavaScript
-Inputs:
+- Objective: Retrieve, store, and maintain text of all local legal codes in the US related to an input datapoint.
+- Languages: Python, MySQL, JavaScript
+- Inputs:
    •   A string of a single, specific datapoint name (e.g. "sales tax").
-Input validation:
+- Input validation:
    •   Ensure the input is a non-empty string, containing only alphanumeric characters and spaces, maximum 100 characters.
    •   Support for non-English inputs (e.g. impuestos, Steuer)
    •   Potential for adding a list of datapoints in the future.
