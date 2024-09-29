@@ -60,7 +60,6 @@ try:
     ROUTE: str = config(path, 'ROUTE') or "NA"
     CONCURRENCY_LIMIT: int = config(path, 'CONCURRENCY_LIMIT') or 2
     FILENAME_PREFIX: str = config(path, 'FILENAME_PREFIX') or "scrape_the_law"
-    OUTPUT_FOLDER: str = config(path, 'OUTPUT_FOLDER') or os.path.join(script_dir, "output")
     WAIT_TIME: int = config(path, 'WAIT_TIME') or 0
     DATAPOINT: str = config(path, 'DATAPOINT') or "sales tax"
 
@@ -149,6 +148,9 @@ try:
     path = "PLAYWRIGHT"
     HEADLESS: bool = config(path, 'HEADLESS') or True
     SLOWMO: int = config(path, 'SLOWMOW') or 0 # NO BREAKS ON THIS TRAIN!
+
+    path = "PRIVATE_FOLDER_PATHS"
+    OUTPUT_FOLDER: str = config(path, 'OUTPUT_FOLDER') or os.path.join(script_dir, "output")
 
 except KeyError as e:
     logger.exception(f"Missing configuration item: {e}")

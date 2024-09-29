@@ -1,15 +1,16 @@
 import asyncio
-from contextlib import asynccontextmanager
+from contextlib import contextmanager, asynccontextmanager
 import re
 import time
 import traceback
 from typing import Any, AsyncGenerator, LiteralString, Generator
 import queue
 
+
 import pandas as pd
 import aiomysql
 
-# These are primarily imported for errors and type-hinting purposes.
+# NOTE These are primarily imported for errors and type-hinting purposes.
 from mysql.connector.connection import MySQLConnection
 from mysql.connector.cursor import MySQLCursor
 from mysql.connector.pooling import MySQLConnectionPool, PooledMySQLConnection, CONNECTION_POOL_LOCK
@@ -19,6 +20,7 @@ from mysql.connector.errors import PoolError as MySqlPoolError
 from aiomysql.pool import Pool as AioMySQLConnectionPool
 from aiomysql.connection import Connection as AioMySqlConnection
 from aiomysql.cursors import Cursor as AioMySQLCursor
+
 
 from config import HOST, USER, PORT, PASSWORD, MYSQL_SCRIPT_FILE_PATH, DATABASE_NAME, INSERT_BATCH_SIZE
 from logger import Logger
@@ -30,17 +32,6 @@ from utils.database.get_num_placeholders import get_num_placeholders
 from utils.database.get_column_names import get_column_names
 from utils.database.format_sql_file import format_sql_file
 from utils.shared.make_id import make_id
-
-# NOTE For reference only.
-TABLE_NAMES = [
-    "locations", # Table of every incorporated village, town, city, and county in the US, along with geolocation data and domains. NOTE This is the seed dataset that will be fed to the web crawler.
-    "doc_content", # Table of cleaned documents to be fed to an LLM
-    "doc_metadata", # Table of metadata about the documents in doc_content
-    "urls", # Table of crawled urls and their associated data. Domains are included, as they may have information to extract. NOTE This is where web crawler output goes.
-    "ia_url_metadata", # Table of Internet Archive (IA) copies of the URLs in 'url', as well as their IA metadata.
-    "searches", # Searches we've conducted so far, as well as metadata on them.
-    "sources",
-]
 
 # If a MySQL command starts with SELECT, SHOW, WITH, or EXPLAIN, it's a query.
 QUERY_PATTERN = re.compile(r"^(SELECT|SHOW|WITH|EXPLAIN)\b", re.IGNORECASE) 
@@ -267,6 +258,9 @@ class MySqlDatabase:
         """
         Return a connection to the connection pool.
 
+        Args:
+            connection( PooledMySQLConnection ): A pooled connection to the MySQL server.
+        
         Raises:
             ConnectionError: If there's any sort of error returning the connection.
         """
@@ -480,7 +474,7 @@ class MySqlDatabase:
         Data Manipulation Language (DML) commands. It supports parameterized queries,
         safe string formatting, and different cursor types for flexible result handling.
     
-        Parameters:
+        Args:
             command: The SQL command to execute.
             params: Parameters for the SQL command. A tuple for single execution, or a list of tuples for batch execution.
             connection: The database connection to use.
@@ -568,7 +562,7 @@ class MySqlDatabase:
             traceback.print_exc()
             raise e
 
-
+    @contextmanager
     def _execute_unbuffered_query(self,
                                     command: LiteralString,
                                     params: (tuple[Any,...] | list[tuple[Any,...]]) = None,
@@ -597,7 +591,7 @@ class MySqlDatabase:
             cursor.close()
             self._return_connection_to_pool(connection)
 
-
+    @asynccontextmanager
     async def _async_execute_unbuffered_query(self,
                                     command: LiteralString,
                                     params: (tuple[Any,...] | list[tuple[Any,...]]) = None,

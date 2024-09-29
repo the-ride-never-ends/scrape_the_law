@@ -2,7 +2,6 @@ SYSTEM:
   SKIP_STEPS: True
   CONCURRENCY_LIMIT: 2
   FILENAME_PREFIX: "scrape_the_law"
-  OUTPUT_FOLDER: "/mnt/e/AI_TEMP/wayback_machine_downloader_output/"
   WAIT_TIME: 5
   ROUTE: "NA"
   DATAPOINT: "sales tax"
