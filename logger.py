@@ -63,6 +63,7 @@ class Logger:
         current_time (str): The initialization time of the logger.
         logger_folder (str): The folder where log files are stored.
         log_level (int): The current logging level.
+        stacklevel (int): The depth of function calls. Used to determine which names and lines numbers the logger pulls from in formatting.
         logger (logging.Logger): The underlying Python logger object.
         filename (str): The name of the log file.
         filepath (str): The full path to the log file.
@@ -86,6 +87,8 @@ class Logger:
         The class uses the following log levels:
         CRITICAL = 50, ERROR = 40, WARNING = 30, INFO = 20, DEBUG = 10, NOTSET = 0
         FATAL is an alias for CRITICAL, and WARN is an alias for WARNING.
+        
+
     """
 
     def __init__(self,
@@ -124,7 +127,7 @@ class Logger:
                 self.logger =  logging.getLogger(f"prompt_logger_for_{self.prompt_name}_batch_id_{self.batch_id}")
                 filename =  f"{self.prompt_name}_{self.batch_id}_{self.current_time}.log"
                 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s: %(lineno)d - %(message)s')
-                self.stacklevel = 1 # Force the stack to log the generation class' name
+                self.stacklevel = 1 # Force the stack to log the LLM engine's name
 
             case _: # All other specialized loggers.
                 self.logger = logging.getLogger(f"{self.logger_name}_logger")

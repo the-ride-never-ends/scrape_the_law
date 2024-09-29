@@ -32,16 +32,17 @@ from utils.database.format_sql_file import format_sql_file
 from utils.shared.make_id import make_id
 
 # NOTE For reference only.
-SOCIALTOOLKIT_TABLE_NAMES = [
+TABLE_NAMES = [
     "locations", # Table of every incorporated village, town, city, and county in the US, along with geolocation data and domains. NOTE This is the seed dataset that will be fed to the web crawler.
     "doc_content", # Table of cleaned documents to be fed to an LLM
     "doc_metadata", # Table of metadata about the documents in doc_content
     "urls", # Table of crawled urls and their associated data. Domains are included, as they may have information to extract. NOTE This is where web crawler output goes.
-    "ia_url_metadata", # Internet Archive (IA) copies of the URLs in 'url', as well as their IA metadata.
-    "searches" # Searches we've conducted so far, as well as metadata on them.
+    "ia_url_metadata", # Table of Internet Archive (IA) copies of the URLs in 'url', as well as their IA metadata.
+    "searches", # Searches we've conducted so far, as well as metadata on them.
+    "sources",
 ]
 
-# If the command starts with SELECT, SHOW, WITH, or EXPLAIN, it's a query.
+# If a MySQL command starts with SELECT, SHOW, WITH, or EXPLAIN, it's a query.
 QUERY_PATTERN = re.compile(r"^(SELECT|SHOW|WITH|EXPLAIN)\b", re.IGNORECASE) 
 
 class MySqlDatabase:
@@ -50,38 +51,37 @@ class MySqlDatabase:
     Supports synchronous and asynchronous queries (e.g. SELECT) and alteration commands (e.g. UPDATE, DELETE, INSERT, ALTER, etc).\n
     Can also run SQL commands directly and load them in from .sql files.
 
-    ### Parameters
-    - database: (str) Name of a MySQL database. Defaults to 'socialtoolkit'.
-    - pool_name: (str) Name of the connection pool. Defaults to 'connection_pool'.
-    - pool_size: (int) Number of connections to have in the connection pool. Defaults to 5.
-    - port: (int) The server's port address. Defaults to yaml file configs.
-    - user: (str) The username of the person using the server. Defaults to yaml file configs.
-    - password: (str) The server's password. Defaults to yaml file configs.
-    - host: (str) The server's host address. Typically 'localhost' or a remote host IP address. Defaults to yaml file configs.
+    Parameters:
+        database: (str) Name of a MySQL database. Defaults to 'socialtoolkit'.
+        pool_name: (str) Name of the connection pool. Defaults to 'connection_pool'.
+        pool_size: (int) Number of connections to have in the connection pool. Defaults to 5.
+        port: (int) The server's port address. Defaults to yaml file configs.
+        user: (str) The username of the person using the server. Defaults to yaml file configs.
+        password: (str) The server's password. Defaults to yaml file configs.
+        host: (str) The server's host address. Typically 'localhost' or a remote host IP address. Defaults to yaml file configs.
 
-    ### Instance Attributes
-    - db_config: (dict) A dictionary of database configs. 
-    - mysql_scripts_file_path: (str) The filepath to the MySQL scripts.
-    - pool: (Awaitable[Callable]) A pool of connections to the MySQL server.
-    - pool_name: (str) The name of open the connection pool.
-    - pool_size: (int) The number of available connections in the connection pool.
+    Attributes:
+        db_config: (dict) A dictionary of database configs. 
+        mysql_scripts_file_path: (str) The filepath to the MySQL scripts.
+        pool: (Awaitable[Callable]) A pool of connections to the MySQL server.
+        pool_name: (str) The name of open the connection pool.
+        pool_size: (int) The number of available connections in the connection pool.
 
-    ### Methods
-    #### Internal (Async)
-    - _create_pool(): Creates a pool of connections to the MySQL server.
-    - _async_get_connection_from_pool(): Get a connection from the pool.
-    - _return_connection_to_pool(): Return a connection to the pool.
-    - _async_execute_sql_command(): Execute a SQL command.
+    Internal Methods (Async):
+        _create_pool(): Creates a pool of connections to the MySQL server.
+        _async_get_connection_from_pool(): Get a connection from the pool.
+        _return_connection_to_pool(): Return a connection to the pool.
+        _async_execute_sql_command(): Execute a SQL command.
+    
+    External Methods (Async)
+        sync_connect_to_server(): Startup the connections pool to the server.
+        async_execute_sql_command(): Execute a SQL command via _async_execute_sql_command.
+        execute_sql_file(): Directly execute a SQL file via _async_execute_sql_command.
+        query_database(): Execute a simple SELECT query from the MySQL database.
+        alter_database(): Alter the MySQL database.
+        async_close_connection_to_server(): Close the connections pool.
 
-    #### External (Async)
-    - async_connect_to_server(): Startup the connections pool to the server.
-    - async_execute_sql_command(): Execute a SQL command via _async_execute_sql_command.
-    - execute_sql_file(): Directly execute a SQL file via _async_execute_sql_command.
-    - query_database(): Execute a simple SELECT query from the MySQL database.
-    - alter_database(): Alter the MySQL database.
-    - async_close_connection_to_server(): Close the connections pool.
-
-    ### Example Usage
+    Examples:
     >>> async with await MySqlDatabase(database="socialtoolkit") as db\n
     >>>     if query:
     >>>         return await db.async_execute_sql_command("SELECT * FROM links")\n
@@ -187,8 +187,8 @@ class MySqlDatabase:
         Create a pool of connections to the MySQL server.
         This reduces server overhead from constantly making connections and disconnections.
 
-        ### Exceptions
-        - ConnectionError: If there's any sort of error creating the pool.
+        Raises:
+            ConnectionError: If there's any sort of error creating the pool.
         """
         try:
             logger.debug("Attempting to create MySQL server connection pool...")
@@ -209,8 +209,8 @@ class MySqlDatabase:
         Create an async pool of connections to the MySQL server.
         This reduces server overhead and helps prevent deadlocks caused by async code.
 
-        ### Exceptions
-        - ConnectionError: If there's any sort of error creating the pool.
+        Raises:
+            ConnectionError: If there's any sort of error creating the pool.
         """
         try:
             logger.debug("Attempting to create async MySQL server connection pool...")
@@ -235,8 +235,8 @@ class MySqlDatabase:
         """
         Get a connection from the connection pool.
 
-        ### Exceptions
-        - ConnectionError: If there's any sort of error getting a connection from the pool.
+        Raises
+            ConnectionError: If there's any sort of error getting a connection from the pool.
         """
         try:
             return self.pool.get_connection()
@@ -250,8 +250,8 @@ class MySqlDatabase:
         """
         Get a connection from the async connection pool.
 
-        ### Exceptions
-        - ConnectionError: If there's any sort of error getting a connection from the pool.
+        Raises:
+            ConnectionError: If there's any sort of error getting a connection from the pool.
         """
         try:
             return await self.pool.acquire()
@@ -267,8 +267,8 @@ class MySqlDatabase:
         """
         Return a connection to the connection pool.
 
-        ### Exceptions
-        - ConnectionError: If there's any sort of error returning the connection.
+        Raises:
+            ConnectionError: If there's any sort of error returning the connection.
         """
         if self.sync:
             logger.debug("Returning connection to pool...")
@@ -299,8 +299,8 @@ class MySqlDatabase:
         we have to access the internals of the MySQLConnectionPool and close it manually.\n
         This might break in the future should Oracle change _cnx_queue in the Pool class.
 
-        ### Exceptions
-        - ConnectionError: If there's any sort of error closing the pool.
+        Raises:
+            ConnectionError: If there's any sort of error closing the pool.
         """
         logger.debug(f"Attempting to close connection pool...")
         with CONNECTION_POOL_LOCK:
@@ -327,8 +327,8 @@ class MySqlDatabase:
         """
         Close the async connection pool.
 
-        ### Exceptions
-        - ConnectionError: If there's any sort of error closing the pool.
+        Raises:
+            ConnectionError: If there's any sort of error closing the pool.
         """
         try:
             logger.debug(f"Attempting to close async connection pool...")
@@ -480,31 +480,31 @@ class MySqlDatabase:
         Data Manipulation Language (DML) commands. It supports parameterized queries,
         safe string formatting, and different cursor types for flexible result handling.
     
-        ### Parameters
-        - command: The SQL command to execute.
-        - params: Parameters for the SQL command. A tuple for single execution, or a list of tuples for batch execution.
-        - connection: The database connection to use.
-        - is_query: Whether the command is a query (True) or a database alteration (False).
-        - args: Variables for safe string formatting of the SQL command.
-        - unbuffered: Whether to use an unbuffered cursor.
-        - return_dict: Whether to return results as dictionaries instead of tuples.
-        - size: The number of rows to fetch for buffered queries. If default or None, fetches all rows.
+        Parameters:
+            command: The SQL command to execute.
+            params: Parameters for the SQL command. A tuple for single execution, or a list of tuples for batch execution.
+            connection: The database connection to use.
+            is_query: Whether the command is a query (True) or a database alteration (False).
+            args: Variables for safe string formatting of the SQL command.
+            unbuffered: Whether to use an unbuffered cursor.
+            return_dict: Whether to return results as dictionaries instead of tuples.
+            size: The number of rows to fetch for buffered queries. If default or None, fetches all rows.
 
-        ### Returns
-        - list[tuple[Any,...]]: For buffered queries, a list of tuples containing the query results.
-        - dict[tuple[Any,...]]: For buffered queries with return_dict=True, a list of dictionaries containing the query results.
-        - aiomysql.Cursor: For unbuffered queries, returns the cursor for further processing.
-        - None: For database alteration commands (non-queries).
+        Returns:
+            list[tuple[Any,...]]: For buffered queries, a list of tuples containing the query results.
+            dict[tuple[Any,...]]: For buffered queries with return_dict=True, a list of dictionaries containing the query results.
+            aiomysql.Cursor: For unbuffered queries, returns the cursor for further processing.
+            None: For database alteration commands (non-queries).
 
-        ### Raises
-        - ValueError: If no SQL statement or database connection is provided.
-        - TypeError: If the params argument is of incorrect type.
-        - aiomysql.Error: If there's an error executing the MySQL command.
-        - Exception: For any other unexpected errors during execution.
+        Raises:
+            ValueError: If no SQL statement or database connection is provided.
+            TypeError: If the params argument is of incorrect type.
+            aiomysql.Error: If there's an error executing the MySQL command.
+            Exception: For any other unexpected errors during execution.
 
-        ### Notes
-        - For queries, the method supports both parameterized and non-parameterized execution.
-        - For database alterations, the method uses transactions and supports rollback in case of errors.
+        Notes:
+            For queries, the method supports both parameterized and non-parameterized execution.
+            For database alterations, the method uses transactions and supports rollback in case of errors.
         """
         is_tuple, params, command = self._type_check_execute_sql_command(connection, command, params=params, args=args)
 
@@ -741,7 +741,7 @@ class MySqlDatabase:
         connection: AioMySqlConnection = await self._async_get_connection_from_pool()
 
         pattern = re.compile(r"^(SELECT|SHOW|WITH|EXPLAIN)\b", re.IGNORECASE) # If the command starts with SELECT, SHOW, WITH, or EXPLAIN, it's a query.
-        is_query = bool(pattern.match(command.strip()))
+        is_query = bool(QUERY_PATTERN.match(command.strip()))
 
         # Execute the SQL command.
         if is_query: # Query route

@@ -50,84 +50,17 @@ sql_commands = {
                             """,
 }
 
-
-
 import asyncio
 from urllib.parse import urlparse
 from urllib.robotparser import RobotFileParser
 import aiohttp
 
-class AsyncRobotsRespector:
-    def __init__(self):
-        self.robot_parsers = {}
-        self.semaphore = asyncio.Semaphore(CONCURRENCY_LIMIT)  # Limit concurrent requests
-
-    async def fetch_robots_txt(self, url):
-        parsed_url = urlparse(url)
-        base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
-        robots_url = f"{base_url}/robots.txt"
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(robots_url) as response:
-                if response.status == 200:
-                    return await response.text()
-                return ""
-
-    async def can_fetch(self, url, user_agent="*"):
-        parsed_url = urlparse(url)
-        base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
-
-        if base_url not in self.robot_parsers:
-            robots_txt = await self.fetch_robots_txt(url)
-            parser = RobotFileParser()
-            parser.parse(robots_txt.splitlines())
-            self.robot_parsers[base_url] = parser
-
-        return self.robot_parsers[base_url].can_fetch(user_agent, url)
-
-    async def respectful_fetch(self, url, fetch_function, *args, **kwargs):
-        async with self.semaphore:
-            if await self.can_fetch(url):
-                await asyncio.sleep(1)  # Respect rate limiting
-                return await fetch_function(url, *args, **kwargs)
-            else:
-                print(f"Robots.txt disallows fetching {url}")
-                return None
-
-class RespectfulScraper:
-    def __init__(self, pw_instance: AsyncPlaywright):
-        self.pw_instance = pw_instance
-        self.browser: AsyncPlaywrightBrowser = None
-        self.robots_respector = AsyncRobotsRespector()
-
-    async def __aenter__(self):
-        self.browser = await self.pw_instance.chromium.launch(headless=True)
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self.browser.close()
-
-    async def scrape_page(self, url: str):
-        page = await self.browser.new_page()
-        try:
-            result = await self.robots_respector.respectful_fetch(url, self._fetch_page, page)
-            return result
-        finally:
-            await page.close()
-
-    async def _fetch_page(self, url: str, page: AsyncPlaywrightPage):
-        await page.goto(url)
-        await page.wait_for_load_state("networkidle")
-        # Implement your scraping logic here
-        return await page.title()
-
-
 from utils.manual.scrape_legal_websites.fetch_robots_txt import fetch_robots_txt, async_fetch_robots_txt
 from utils.manual.scrape_legal_websites.parse_robots_txt import parse_robots_txt 
 
-class Scraper(RespectfulScraper):
+class Scraper:
 
-    def __init__(self, pw_instance: AsyncPlaywright|Playwright, robot_txt_url: str, user_agent="*", **launch_kwargs):
+    def __init__(self, pw_instance: AsyncPlaywright|Playwright, robot_txt_url: str, user_agent: str="*", **launch_kwargs):
         """
         Parameters
         ----------
@@ -147,6 +80,7 @@ class Scraper(RespectfulScraper):
         self.robot_txt_url = robot_txt_url
         self.browser: AsyncPlaywrightBrowser|PlaywrightBrowser = None
         self.robot_rules = {}
+        self.source = None
 
     #### START CLASS STARTUP AND EXIT METHODS ####
 
@@ -180,10 +114,10 @@ class Scraper(RespectfulScraper):
 
 
     @classmethod
-    def start(cls, pw_instance, user_agent, **launch_kwargs) -> 'Scraper':
+    def start(cls, pw_instance, user_agent, robot_txt_url, **launch_kwargs) -> 'Scraper':
         instance = cls(pw_instance, user_agent=user_agent, **launch_kwargs)
         instance._load_browser()
-        instance.get_robot_rules()
+        instance.get_robot_rules(robot_txt_url)
         return instance
 
 
@@ -281,7 +215,7 @@ class Scraper(RespectfulScraper):
         """
         Open a specified webpage asynchronously and wait for any dynamic elements to load.
         """
-        # See if we're allowed to get the URL, and the specified delay from robots.txt
+        # See if we're allowed to get the URL, as well get the specified delay from robots.txt
         fetch, delay = self.can_fetch(scrape_url)
 
         if not fetch:
@@ -295,27 +229,23 @@ class Scraper(RespectfulScraper):
 
     from utils.manual.scrape_legal_websites.extract_urls_using_javascript import extract_urls_using_javascript
 
-    async def get_links(self, page: AsyncPlaywrightPage):
-        page: AsyncPlaywrightPage = await self.async_open_webpage()
-        urls_dict: dict = await self.extract_urls_using_javascript(page)
+    async def get_links(self, url: str):
+        page: AsyncPlaywrightPage = await self.async_open_webpage(url)
+        urls_dict: dict = await self.extract_urls_using_javascript(page, self.source)
+        return urls_dict
 
-
-    async def respectful_fetch(self, url, fetch_function, *args, **kwargs):
+    async def async_respectful_fetch(self, url):
         async with self.semaphore:
-            if url not in self.robot_rules:
-
-            rules = self.robot_rules[url].get(self.user_agent, self.robot_rules[url]['*'])
-            
-            if self.can_fetch(url):
-                await asyncio.sleep(rules['crawl_delay'])
-                return await fetch_function(url, *args, **kwargs)
-            else:
-                print(f"Robots.txt disallows fetching {url}")
+            fetch, delay = self.can_fetch(url)
+            if not fetch:
+                logger.warning(f"Cannot scrape URL '{url}' as it's disallowed in robots.txt")
                 return None
+            else:
+                await asyncio.sleep(delay)
+                return await self.get_links(url)
+  
 
     #### END PAGE PROCESSING METHODS ####
-
-
 
 class GeneralCodeScraper(Scraper):
 
@@ -350,15 +280,18 @@ class AmericanLegalScraper(Scraper):
 
     def _build_state_url(self, row: NamedTuple) -> str:
         base_url = self.legal_website_dict["american_legal"]["base_url"]
+        self.source = self.legal_website_dict["american_legal"]["source"]
         path = row.state_code.lower()
-        scrape_url = f"{base_url}{path}" # -> "https://codelibrary.amlegal.com/regions/az"
+        url = f"{base_url}{path}" # -> "https://codelibrary.amlegal.com/regions/az"
         assert len(scrape_url) == 42, f"scrape_url is not 40 characters, but {len(scrape_url)}"
-        return scrape_url
+        return url
 
-
-    async def scrape(self) -> pd.DataFrame:
-        pass
-
+    async def scrape(self, df: pd.DataFrame, db: MySqlDatabase) -> pd.DataFrame:
+        for row in df.itertuples():
+            try:
+                await self.async_respectful_fetch(self, url)
+            except PlaywrightTimeoutError as e:
+                print("")
 
 
 class MunicodeScraper(Scraper):
@@ -389,14 +322,15 @@ class MunicodeScraper(Scraper):
         super().__init__(pw_instance, robots_txt_url, **launch_kwargs)
 
 
-    def _build_state_url(self, row: NamedTuple):
+    def _build_state_url(self, row: NamedTuple) -> str:
         base_url = self.legal_website_dict["municode"]["base_url"]
+        self.source = self.legal_website_dict["american_legal"]["source"]
         path = row.state_code.lower()
-        scrape_url = f"{base_url}/{path}"
-        return scrape_url
+        url = f"{base_url}/{path}"
+        return url
 
-    async def _start_scrape(self, scrape_url: str):
-        await self.open_webpage(scrape_url)
+    async def _start_scrape(self, url: str):
+        await self.open_webpage(url)
 
 
     async def scrape(self, locations_df: pd.DataFrame, db: MySqlDatabase) -> pd.DataFrame:
@@ -411,19 +345,11 @@ class MunicodeScraper(Scraper):
                 await self._start_scrape(url)
 
 
-
-#    # "City of Los Angeles" -> los_angeles
-#     formatted_place = row.place_name.split(' of ')[-1].lower().replace(' ', '_')
-
-#     await page.get_by_label("Search", exact=True).fill(search_query)
-
-
 async def get_locations(db: MySqlDatabase) -> pd.DataFrame:
     command = sql_commands["get_locations"]
     return await db.async_query_to_dataframe(command)
 
 # from utils.manual.scrape_legal_websites.insert_into_sources import import_into_sources
-
 
 async def insert_into_sources(output_df: pd.DataFrame, db: MySqlDatabase) -> None:
     """

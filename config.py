@@ -32,19 +32,22 @@ LEGAL_WEBSITE_DICT = {
         "base_url": "https://codelibrary.amlegal.com/regions/",
         "target_class": "browse-link roboto",
         "wait_in_seconds": 5,
-        "robots_txt": "https://codelibrary.amlegal.com/robots.txt"
+        "robots_txt": "https://codelibrary.amlegal.com/robots.txt",
+        "source": "american_legal",
     },
     "municode": {
         "base_url": "https://library.municode.com/",
         "target_class": "index-link",
         "wait_in_seconds": 15,
-        "robots_txt": "https://municode.com/robots.txt"
+        "robots_txt": "https://municode.com/robots.txt",
+        "source": "municode",
     },
     "general_code" : {
         "base_url": "https://www.generalcode.com/source-library/?state=",
         "target_class": "codeLink",
         "wait_in_seconds": 0,
-        "robots_txt": "https://www.generalcode.com/robots.txt"
+        "robots_txt": "https://www.generalcode.com/robots.txt",
+        "source": "source",
     },
 }
 
