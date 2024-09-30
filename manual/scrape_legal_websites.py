@@ -1,14 +1,12 @@
 
 
 import asyncio
-from contextlib import contextmanager, asynccontextmanager, AsyncExitStack
+from contextlib import AsyncExitStack
 import sys
-from typing import Any, NamedTuple
+from typing import NamedTuple
+
 
 import pandas as pd
-from utils.shared.next_step import next_step
-
-
 from playwright.async_api import (
     async_playwright,
     Playwright as AsyncPlaywright,
@@ -16,7 +14,6 @@ from playwright.async_api import (
     Page as AsyncPlaywrightPage,
     TimeoutError as AsyncPlaywrightTimeoutError,
 )
-
 from playwright.sync_api import (
     sync_playwright,
     Playwright,
@@ -25,229 +22,23 @@ from playwright.sync_api import (
     TimeoutError as PlaywrightTimeoutError,
 )
 
-import re
-from urllib.parse import ParseResult
-from utils.manual.scrape_legal_websites.extract_urls_using_javascript import extract_urls_using_javascript
-
 
 from database import MySqlDatabase
 
-from config import LEGAL_WEBSITE_DICT, CONCURRENCY_LIMIT, HEADLESS
+from config import OUTPUT_FOLDER, INSERT_BATCH_SIZE, LEGAL_WEBSITE_DICT, CONCURRENCY_LIMIT, HEADLESS, SLOWMO
 
 from logger import Logger
 logger = Logger(logger_name=__name__)
 
-from utils.shared.return_s_percent import return_s_percent
+# TODO Figure out what the hell is up with these imports.
+from utils.shared.next_step import next_step
+from utils.manual.scrape_legal_websites_utils.get_robots_txt_url import get_robots_txt_url
 
-sql_commands = {
-    "get_locations":"""
-                    SELECT gnis, place_name, class_code, state_code 
-                    WHERE domain_name IS NOT NULL;
-                    """,
-    "insert_into_searches": """
-                            INSERT INTO {table} ({column_names}) VALUES {values}
-                            ON DUPLICATE KEY UPDATE  
-                            """,
-}
-
-import asyncio
-from urllib.parse import urlparse
-from urllib.robotparser import RobotFileParser
-import aiohttp
-
-from utils.manual.scrape_legal_websites.fetch_robots_txt import fetch_robots_txt, async_fetch_robots_txt
-from utils.manual.scrape_legal_websites.parse_robots_txt import parse_robots_txt 
-
-class Scraper:
-
-    def __init__(self, pw_instance: AsyncPlaywright|Playwright, robot_txt_url: str, user_agent: str="*", **launch_kwargs):
-        """
-        Parameters
-        ----------
-        pw_instance: A Playwright instance. May be either synchronous or asynchronous.
-        **launch_kwargs
-            Keyword arguments to be passed to
-            `playwright.chromium.launch`. For example, you can pass
-            ``headless=False, slow_mo=50`` for a visualization of the
-            search.
-        """
-        self.launch_kwargs = launch_kwargs
-        self.legal_website_dict: dict = LEGAL_WEBSITE_DICT
-        self.sql_commands: dict = sql_commands
-        self.pw_instance = pw_instance
-        self.user_agent = user_agent
-        self.semaphore = asyncio.Semaphore(CONCURRENCY_LIMIT)
-        self.robot_txt_url = robot_txt_url
-        self.browser: AsyncPlaywrightBrowser|PlaywrightBrowser = None
-        self.robot_rules = {}
-        self.source = None
-
-    #### START CLASS STARTUP AND EXIT METHODS ####
-
-    async def __aenter__(self) -> 'Scraper':
-        self.exit_stack = AsyncExitStack()
-        await self._async_load_browser()
-        await self.async_get_robot_rules(self.robot_txt_url)
-        return self
+from manual.scraper_base_class.async_scraper import AsyncScraper
+from manual.scraper_base_class.scraper import Scraper
 
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
-        await self.exit_stack.aclose()
-
-
-    def __enter__(self) -> 'Scraper':
-        self._load_browser()
-        self.get_robot_rules(self.robot_txt_url)
-        return self
-
-
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        self._close_browser()
-
-
-    @classmethod
-    async def async_start(cls, pw_instance, robot_txt_url, user_agent, **launch_kwargs) -> 'Scraper':
-        instance = cls(pw_instance, user_agent=user_agent, **launch_kwargs)
-        await instance._async_load_browser()
-        await instance.async_get_robot_rules(robot_txt_url)
-        return instance
-
-
-    @classmethod
-    def start(cls, pw_instance, user_agent, robot_txt_url, **launch_kwargs) -> 'Scraper':
-        instance = cls(pw_instance, user_agent=user_agent, **launch_kwargs)
-        instance._load_browser()
-        instance.get_robot_rules(robot_txt_url)
-        return instance
-
-
-    async def async_close(self) -> None:
-        await self._async_close_browser()
-
-
-    def close(self) -> None:
-        self._close_browser()
-
-
-    def _load_browser(self) -> None:
-        """Launch a chromium instance and load a page"""
-        self.browser = self.pw_instance.chromium.launch(**self.launch_kwargs)
-
-
-    def _close_browser(self) -> None:
-        """Close browser instance and reset internal attributes"""
-        if self.browser:
-            self.browser.close()
-            self.browser = None
-
-
-    async def _async_load_browser(self) -> None:
-        """Asynchronously launch a chromium instance and load a page"""
-        self.browser = await self.pw_instance.chromium.launch(**self.launch_kwargs)
-
-
-    async def _async_close_browser(self) -> None:
-        """Close browser instance and reset internal attributes"""
-        if self.browser:
-            await self.browser.close()
-            self.browser = None
-
-    #### END CLASS STARTUP AND EXIT METHODS ####
-
-    #### START ROBOTS.TXT METHODS #### 
-
-    def get_robot_rules(self):
-        robots_txt = fetch_robots_txt(self.robot_txt_url)
-        rules = parse_robots_txt(robots_txt)
-        self.robot_rules = rules
-
-
-    async def async_get_robot_rules(self):
-        robots_txt = async_fetch_robots_txt(self.robot_txt_url)
-        rules = parse_robots_txt(robots_txt)
-        self.robot_rules = rules
-
-
-    def can_fetch(self, url: str) -> bool:
-        path = urlparse(url).path
-
-        # Check if path matches any allow rule
-        for allow_path in self.robot_rules.get('allow', []):
-            if re.match(allow_path.replace('*', '.*'), path):
-                return True
-
-        # Check if path matches any disallow rule
-        for disallow_path in self.robot_rules.get('disallow', []):
-            if re.match(disallow_path.replace('*', '.*'), path):
-                return False
-        # If no rules match, it's allowed by default
-        return True
-
-    #### END ROBOTS.TXT METHODS ####
-
-    #### START PAGE PROCESSING METHODS ####
-
-    def create_page(self) -> PlaywrightPage:
-        context = self.browser.new_context()
-        page = context.new_page()
-        return page
-
-
-    async def async_create_page(self):
-        context = await self.browser.new_context()
-        page = await context.new_page()
-        return page
-
-
-    def open_webpage(self, scrape_url: str, page: PlaywrightPage) -> None:
-        """
-        Open a specified webpage and wait for any dynamic elements to load.
-        """
-        if not self.can_fetch(scrape_url):
-            logger.warning(f"Cannot scrape URL '{scrape_url}' as it's disallowed in robots.txt")
-            return
-        page.goto(scrape_url)
-        page.wait_for_load_state("networkidle")
-        return page
-
-
-    async def async_open_webpage(self, scrape_url: str, page: AsyncPlaywrightPage) -> None:
-        """
-        Open a specified webpage asynchronously and wait for any dynamic elements to load.
-        """
-        # See if we're allowed to get the URL, as well get the specified delay from robots.txt
-        fetch, delay = self.can_fetch(scrape_url)
-
-        if not fetch:
-            logger.warning(f"Cannot scrape URL '{scrape_url}' as it's disallowed in robots.txt")
-            return
-        else:
-            await asyncio.sleep(delay)
-            await page.goto(scrape_url)
-            await page.wait_for_load_state("networkidle")
-            return page
-
-    from utils.manual.scrape_legal_websites.extract_urls_using_javascript import extract_urls_using_javascript
-
-    async def get_links(self, url: str):
-        page: AsyncPlaywrightPage = await self.async_open_webpage(url)
-        urls_dict: dict = await self.extract_urls_using_javascript(page, self.source)
-        return urls_dict
-
-    async def async_respectful_fetch(self, url):
-        async with self.semaphore:
-            fetch, delay = self.can_fetch(url)
-            if not fetch:
-                logger.warning(f"Cannot scrape URL '{url}' as it's disallowed in robots.txt")
-                return None
-            else:
-                await asyncio.sleep(delay)
-                return await self.get_links(url)
-  
-
-    #### END PAGE PROCESSING METHODS ####
-
-class GeneralCodeScraper(Scraper):
+class GeneralCodeScraper(Scraper, AsyncScraper):
 
     def __init__(self, pw_instance, robots_txt_url, **launch_kwargs):
         """
@@ -261,10 +52,20 @@ class GeneralCodeScraper(Scraper):
         """
         super().__init__(pw_instance, robots_txt_url, **launch_kwargs)
 
-        async def scrape(self) -> pd.DataFrame:
-            pass
+        def _build_state_url(self, row: NamedTuple) -> str:
+            self.source = self.legal_website_dict["american_legal"]["source"]
+            base_url = self.legal_website_dict["american_legal"]["base_url"]
 
-class AmericanLegalScraper(Scraper):
+            path = row.state_code.lower()
+            url = f"{base_url}{path}" # -> "https://www.generalcode.com/source-library/?state=AZ"
+
+            logger.debug(f"url : {url}")
+            assert len(url) == 52, f"scrape_url is not 52 characters, but {len(url)}"
+            return url
+
+
+
+class AmericanLegalScraper(Scraper, AsyncScraper):
 
     def __init__(self, pw_instance, robots_txt_url, **launch_kwargs):
         """
@@ -279,34 +80,30 @@ class AmericanLegalScraper(Scraper):
         super().__init__(pw_instance, robots_txt_url, **launch_kwargs)
 
     def _build_state_url(self, row: NamedTuple) -> str:
-        base_url = self.legal_website_dict["american_legal"]["base_url"]
         self.source = self.legal_website_dict["american_legal"]["source"]
+        base_url = self.legal_website_dict["american_legal"]["base_url"]
+
         path = row.state_code.lower()
         url = f"{base_url}{path}" # -> "https://codelibrary.amlegal.com/regions/az"
-        assert len(scrape_url) == 42, f"scrape_url is not 40 characters, but {len(scrape_url)}"
+
+        logger.debug(f"url : {url}")
+        assert len(url) == 42, f"scrape_url is not 40 characters, but {len(url)}"
         return url
 
-    async def scrape(self, df: pd.DataFrame, db: MySqlDatabase) -> pd.DataFrame:
-        for row in df.itertuples():
-            try:
-                await self.async_respectful_fetch(self, url)
-            except PlaywrightTimeoutError as e:
-                print("")
 
-
-class MunicodeScraper(Scraper):
+class MunicodeScraper(Scraper, AsyncScraper):
     """
     Search for top results on google and return their links.\n
     NOTE This has been heavily modified from ELM's original code. We'll see if it's more effective in the long run.
 
-    Parameters
-    ----------
-    pw_instance: an asynchronous playwright instance.
-    **launch_kwargs
-        Keyword arguments to be passed to
-        `playwright.chromium.launch`. For example, you can pass
-        ``headless=False, slow_mo=50`` for a visualization of the
-        search.
+    Parameters:
+        pw_instance: An asynchronous or synchronous playwright instance.
+        robots_txt_url: The URL for a 
+        **launch_kwargs:
+            Keyword arguments to be passed to
+            `playwright.chromium.launch`. For example, you can pass
+            ``headless=False, slow_mo=50`` for a visualization of the
+            search.
     """
 
     def __init__(self, pw_instance, robots_txt_url, **launch_kwargs):
@@ -322,34 +119,64 @@ class MunicodeScraper(Scraper):
         super().__init__(pw_instance, robots_txt_url, **launch_kwargs)
 
 
-    def _build_state_url(self, row: NamedTuple) -> str:
-        base_url = self.legal_website_dict["municode"]["base_url"]
+    def _build_state_url(self, state_code: str) -> str:
+        """
+        Create the URL paths for the domain we want to scrape.
+        """
         self.source = self.legal_website_dict["american_legal"]["source"]
-        path = row.state_code.lower()
-        url = f"{base_url}/{path}"
-        return url
+        base_url = self.legal_website_dict["municode"]["base_url"]
 
-    async def _start_scrape(self, url: str):
-        await self.open_webpage(url)
+        path = state_code.state_code.lower()
+        state_url = f"{base_url}/{path}" # -> https://library.municode.com/az
+
+        logger.debug(f"state_url: {state_url}")
+        assert len(state_url) == 31, f"scrape_url is not 40 characters, but {len(state_url)}"
+        return state_url
+
+
+    def _check_against_href_text():
+        """"
+        Check to see if the place name is in the href's text from the website
+        """
+        pass
 
 
     async def scrape(self, locations_df: pd.DataFrame, db: MySqlDatabase) -> pd.DataFrame:
+        """
+        Create the scrape URLs and add it to a dataframe
+        """
+        #
+        state_url_list = []
+        for state_code, df in locations_df.groupby('state_code'):
+            logger.info(f"Creating URLs for state_code '{state_code}'...")
+            state_url = self._build_state_url(state_code)
+            logger.info("state_url built successfully.")
+            state_url_list.append((state_code, state_url,))
 
-        for df in locations_df.groupby("gnis"):
-            for row in df.itertuples():
-                scrape_url_list = []
-                scrape_url = self._build_state_url(row)
-                scrape_url_list.append(scrape_url)
+        state_urls_df = pd.DataFrame.from_records(state_url_list, columns=["state_code", "state_url"])
+        locations_df.join(state_urls_df, on="state_code", how="inner")
 
-            for url in scrape_url_list:
-                await self._start_scrape(url)
+        for idx, row in enumerate(locations_df.itertuples()):
+            pass
+
+        for idx, row in enumerate(locations_df.groupby('state_code')):
+            logger.info(f"Getting ULRs under {row.state_url}")
+            logger.debug("BLANK")
+            await self.async_scrape(state_url)
+            state_url_list.append(state_url)
+
+
+
+
+
 
 
 async def get_locations(db: MySqlDatabase) -> pd.DataFrame:
-    command = sql_commands["get_locations"]
+    command = """
+        SELECT gnis, place_name, class_code, state_code;
+        """
     return await db.async_query_to_dataframe(command)
 
-# from utils.manual.scrape_legal_websites.insert_into_sources import import_into_sources
 
 async def insert_into_sources(output_df: pd.DataFrame, db: MySqlDatabase) -> None:
     """
@@ -363,57 +190,77 @@ async def insert_into_sources(output_df: pd.DataFrame, db: MySqlDatabase) -> Non
     return
 
 
-async def scrape_site(df: pd.DataFrame, site_df_list: list, scraper: Scraper, db: MySqlDatabase, headless: bool=True, slowmo=1) -> pd.DataFrame:
 
+
+async def scrape_site(df: pd.DataFrame, site_df_list: list, scraper: Scraper, db: MySqlDatabase, headless: bool=True, slowmo=1) -> None:
     scraper_name =scraper.__qualname__
-    if scraper_name == "MunicodeScraper":
-        robots_txt_url = LEGAL_WEBSITE_DICT["municode"]["robots_txt"]
-    elif scraper_name == "AmericanLegalScraper":
-        robots_txt_url = LEGAL_WEBSITE_DICT["american_legal"]["robots_txt"]
-    elif scraper_name == "GeneralCodeScraper":
-        robots_txt_url = LEGAL_WEBSITE_DICT["general_code"]["robots_txt"]
-    else:
-        raise NotImplementedError("Other legal website scrapers have not been implemented.")
+    robots_txt_url = get_robots_txt_url(scraper_name)
 
-    try:
-        async with async_playwright() as pw_instance:
-            logger.info(f"Playwright instance for '{scraper_name}' instantiated successfully")
-            async with await scraper(pw_instance, robots_txt_url, headless=headless, slowmo=slowmo) as scraper:
-                results = await scraper.scrape(df, db)
-    finally:
-        logger.info(f"scraper {scraper_name} has completed its scrape. It returned {len(results)} URLs. Adding to site_df_list list...")
-        site_df_list.append(results)
+    # Create an exit stack.
+    async with AsyncExitStack() as stack:
+        # Create a playwright instance within the stack.
+        pw_instance = await stack.enter_async_context(async_playwright())
+        logger.info(f"Playwright instance for '{scraper_name}' instantiated successfully")
+
+        # Instantiate each scraper.
+        scraper_instance: Scraper = await stack.enter_async_context(
+            await scraper(pw_instance, robots_txt_url, headless=headless, slowmo=slowmo)
+        )
+
+        # Scrape each domain and return the results.
+        results = await scraper_instance.scrape(df, db)
+
+    logger.info(f"scraper {scraper_name} has completed its scrape. It returned {len(results)} URLs. Adding to site_df_list list...")
+    site_df_list.append(results)
 
 
-async def scrape_legal_websites(db: MySqlDatabase, site_df_list: list[None], scraper_list: list[Scraper], headless: bool=True, slowmo: int=100):
+async def scrape_legal_websites(db: MySqlDatabase,
+                                site_df_list: list[None],
+                                scraper_list: list[Scraper],
+                                headless: bool=True,
+                                slowmo: int=100
+                                ) -> list[pd.DataFrame]:
+    """
+    Scrape legal websites concurrently using site-specific Scraper classes.
+
+    Args:
+        db (MySqlDatabase): The database connection object.
+        site_df_list (list[None]): An empty list that will be populated with DataFrames containing the scraped data from each site.
+        scraper_list (list[Scraper]): A list of Scraper classes, each representing a different legal website to be scraped.
+        headless (bool, optional): Whether to run the browser in headless mode. Defaults to True.
+        slowmo (int, optional): The number of milliseconds to wait between actions. Defaults to 100.
+
+    Returns:
+        list[pd.DataFrame]: A list of pandas DataFrames, each containing the scraped data from a legal website.
+    """
     outer_task_name = asyncio.current_task().get_name()
     scrapes = [
         asyncio.create_task(
-            scraper.scrape_site(db, site_df_list, headless=headless, slowmo=slowmo),
-            outer_task_name
+            scrape_site(db, scraper, site_df_list, headless=headless, slowmo=slowmo),
+            name=f"{outer_task_name}_{scraper.__qualname__}"
         ) for scraper in scraper_list
     ]
-    await asyncio.gather(*scrapes)
+    await asyncio.gather(*scrapes) # -> list[dict]
     return site_df_list
 
-
-from config import OUTPUT_FOLDER
 
 
 async def main():
 
-    # Step 1. Instantiate the website-specific scraping classes.
+    # Step 1. Define the website-specific scraping classes and output list.
     scraper_list = [
         MunicodeScraper,
         AmericanLegalScraper,
         GeneralCodeScraper,
     ]
-    site_df_list =[]
+    site_df_list = []
+
 
     next_step(step=2, stop=True)
     # Step 2. Use selenium to scrape the websites for its URLs
     async with MySqlDatabase() as db:
         site_df_list = await scrape_legal_websites(db, site_df_list, scraper_list, headless=HEADLESS, slowmo=SLOWMO)
+
 
         next_step(step=3, stop=True)
     # Step 3. Merge the 3 dataframes into 1.
@@ -421,9 +268,16 @@ async def main():
         for df in site_df_list[1:]:
             output_df = output_df.merge(df, on="gnis", how="left")
 
+
     next_step(step=4, stop=True)
     # Step 4. Output the URLs to a csv.
     output_df.to_csv(OUTPUT_FOLDER)
+
+
+    next_step(step=5, stop=True)
+    # Step 5. Insert the output_df into the database
+
+
     logger.info(f"{__file__} program completed successfully! Yay!")
 
     sys.exit(0)

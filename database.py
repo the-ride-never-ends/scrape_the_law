@@ -640,7 +640,7 @@ class MySqlDatabase:
 
 
     async def async_insert_by_batch(self,
-                                    results: list[dict] | list[tuple],
+                                    input_list: list[dict] | list[tuple],
                                     batch_size: int=INSERT_BATCH_SIZE,
                                     table: str=None,
                                     args: dict=None,
@@ -652,18 +652,18 @@ class MySqlDatabase:
         NOTE table and batch_size function as positional arguments, but are set as a keyword arguments for code clarity.
 
         Args:
-            results (list[dict] | list[tuple]): Data to be inserted.
+            input_list (list[dict] | list[tuple]): Data to be inserted.
             batch_size (int): Number of records per batch. Defaults to constant INSERT_BATCH_SIZE.
             table (str): Name of the table to insert into.
             args (dict, optional): Argument key-values for formatting named placeholders in the INSERT statement.
-            columns (list[str], optional): List of column names if results is a list of tuples.
+            columns (list[str], optional): List of column names if input_list is a list of tuples.
             statement (str, optional): Custom INSERT statement. Defaults to a pre-defined INSERT statement
             update (list[str], optional): List of columns to update in the pre-definfed INSERT statement if wanted. 
 
         Raises:
             Exception: If there's any error inserting the data.
         """
-        type_check = _type_check_async_insert_by_batch(results, 
+        type_check = _type_check_async_insert_by_batch(input_list, 
                                                         batch_size=batch_size, 
                                                         args=args, 
                                                         columns=columns, 
@@ -671,24 +671,24 @@ class MySqlDatabase:
                                                         table=table, 
                                                         update=update)
         if type_check[0]:
-            logger.error("async_insert_by_batch results list is empty. Ending function...")
+            logger.error("async_insert_by_batch input_list is empty. Ending function...")
             return
         else:
             command, args, batch_size, _ = type_check
 
         total_inserted = 0
-        for i in range(0, len(results), batch_size):
-            params = results[i:i+batch_size]
+        for i in range(0, len(input_list), batch_size):
+            params = input_list[i:i+batch_size]
             try:
                 await self.async_execute_sql_command(command, params=params, args=args)
                 total_inserted += len(params)
                 logger.info(f"Inserted {len(params)} records into the database. Total: {total_inserted}")
             except Exception as e:
                 logger.error(f"Error inserting batch: {e}")
-                # Save batched results in CSV in case something goes wrong
-                csv_filename = f"failed_insert_batch_{i}_{make_id()}.csv"
+                # Save batched input_list in CSV in case something goes wrong
                 try:
-                    results = pd.DataFrame(params).to_csv(csv_filename, index=False)
+                    csv_filename = f"failed_insert_batch_{i}_{make_id()}.csv"
+                    pd.DataFrame(params).to_csv(csv_filename, index=False)
                     logger.info(f"Saved failed batch to {csv_filename}")
                 except Exception as csv_error:
                     logger.error(f"Failed to save batch to CSV: {csv_error}")
@@ -809,7 +809,7 @@ def _type_check_async_insert_by_batch(results: list[dict] | list[tuple],
                                     statement:str=None,
                                     table: str=None,
                                     update: list=None
-                                    ) -> tuple[str, dict, bool]:
+                                    ) -> tuple[str, dict, int, bool]:
     """
     Type check and prepare arguments for the async_insert_by_batch method.
 
@@ -822,7 +822,7 @@ def _type_check_async_insert_by_batch(results: list[dict] | list[tuple],
         update: Optional list of columns to update on duplicate key.
 
     Returns:
-        Tuple containing the SQL command, arguments, and a boolean indicating if the operation should be skipped.
+        Tuple containing the SQL command, arguments, batch size, and a boolean indicating if the operation should be skipped.
     """
     # Check if the results list is empty.
     if not results:
@@ -882,7 +882,7 @@ def _type_check_async_insert_by_batch(results: list[dict] | list[tuple],
         "columns": columns or get_column_names(one_tuple),
         "update": ", ".join(update) if update else None
     }
-    logger.debug(f"args: {args}\none_tuple: {one_tuple}")
+    logger.debug(f"command: {command}\nargs: {args}\nbatch_size: {batch_size}\none_tuple: {one_tuple}")
 
     return command, args, batch_size, False
 

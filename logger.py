@@ -29,7 +29,7 @@ except Exception as e:
     # Automatically run the entire program in debug mode if we lack configs.
     DEFAULT_LOG_LEVEL = logging.DEBUG
     FORCE_DEFAULT_LOG_LEVEL_FOR_WHOLE_PROGRAM = True
-    print(f"Could not get debug level from config.yaml. Default LOG_LEVEL set to '{DEFAULT_LOG_LEVEL}'\nDefault FORCE_DEFAULT_LOG_LEVEL set to '{FORCE_DEFAULT_LOG_LEVEL_FOR_WHOLE_PROGRAM}'")
+    print(f"Could not get debug level from config.yaml due to '{e}'.\nDefault LOG_LEVEL set to '{DEFAULT_LOG_LEVEL}'\nDefault FORCE_DEFAULT_LOG_LEVEL set to '{FORCE_DEFAULT_LOG_LEVEL_FOR_WHOLE_PROGRAM}'")
 
 # Get the program's name
 PROGRAM_NAME = os.path.dirname(__file__) 
@@ -63,7 +63,7 @@ class Logger:
         current_time (str): The initialization time of the logger.
         logger_folder (str): The folder where log files are stored.
         log_level (int): The current logging level.
-        stacklevel (int): The depth of function calls. Used to determine which names and lines numbers the logger pulls from in formatting.
+        stacklevel (int): The depth of function calls. Used to determine which names and lines numbers the logger pulls from in formatting (e.g. the function, the class, the file, etc.)
         logger (logging.Logger): The underlying Python logger object.
         filename (str): The name of the log file.
         filepath (str): The full path to the log file.
@@ -96,7 +96,8 @@ class Logger:
                  prompt_name: str="prompt_log",
                  batch_id: str=make_id(),
                  current_time: datetime=datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
-                 log_level=DEFAULT_LOG_LEVEL
+                 log_level: int=DEFAULT_LOG_LEVEL,
+                 stacklevel: int=None
                 ):
         self.logger_name = logger_name
         self.prompt_name = prompt_name
@@ -104,7 +105,7 @@ class Logger:
         self.current_time = current_time
         self.logger_folder = debug_log_folder
         self.log_level = log_level if not FORCE_DEFAULT_LOG_LEVEL_FOR_WHOLE_PROGRAM else DEFAULT_LOG_LEVEL
-        self.stacklevel = None
+        self.stacklevel = stacklevel
         self.logger = None
         self.filename = None
         self.filepath = None
@@ -121,19 +122,19 @@ class Logger:
                 self.logger = logging.getLogger(f"{PROGRAM_NAME}_logger")
                 filename = f"{PROGRAM_NAME}_debug_log_{self.current_time}.log"
                 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(filename)s: %(lineno)d - %(message)s')
-                self.stacklevel = 2 # We make stacklevel=2 as otherwise it'll give the filename and line numbers from the logger class itself.
+                self.stacklevel = self.stacklevel or 2 # We make stacklevel=2 as otherwise it'll give the filename and line numbers from the logger class itself.
 
             case "prompt":
                 self.logger =  logging.getLogger(f"prompt_logger_for_{self.prompt_name}_batch_id_{self.batch_id}")
                 filename =  f"{self.prompt_name}_{self.batch_id}_{self.current_time}.log"
                 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s: %(lineno)d - %(message)s')
-                self.stacklevel = 1 # Force the stack to log the LLM engine's name
+                self.stacklevel = self.stacklevel or 1 # Force the stack to log the LLM engine's name
 
             case _: # All other specialized loggers.
                 self.logger = logging.getLogger(f"{self.logger_name}_logger")
                 filename = f"{self.logger_name}_debug_log_{self.current_time}.log"
                 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(filename)s: %(lineno)d - %(message)s')
-                self.stacklevel = 2
+                self.stacklevel = self.stacklevel or 2
 
         # Create the logger itself.
         self.logger.setLevel(self.log_level)

@@ -47,7 +47,7 @@ LEGAL_WEBSITE_DICT = {
         "target_class": "codeLink",
         "wait_in_seconds": 0,
         "robots_txt": "https://www.generalcode.com/robots.txt",
-        "source": "source",
+        "source": "general_code",
     },
 }
 
@@ -149,6 +149,7 @@ try:
     HEADLESS: bool = config(path, 'HEADLESS') or True
     SLOWMO: int = config(path, 'SLOWMOW') or 0 # NO BREAKS ON THIS TRAIN!
 
+    # PRIVATE PATH FOLDERS
     path = "PRIVATE_FOLDER_PATHS"
     OUTPUT_FOLDER: str = config(path, 'OUTPUT_FOLDER') or os.path.join(script_dir, "output")
 
