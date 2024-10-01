@@ -15,15 +15,11 @@ from playwright.sync_api import Page as PlaywrightPage
 log_level=10
 logger = Logger(logger_name=__name__, log_level=log_level)
 
-def _check_for_empty_sublists(urls: list[list[str]]) -> bool:
+def _check_for_empty_sublists(urls: list[dict[str, str]]) -> bool:
     results = [
-        not sublist for sublist in urls
+        not bool(dictionary) for dictionary in urls
     ]
-    if False in results:
-        return False 
-    else:
-        return True
-
+    return all(results)
 
 def safe_format_js_selector(source: str, js_command: str=None, args: dict[str,Any]=None) -> str:
     """"
@@ -56,7 +52,7 @@ def safe_format_js_selector(source: str, js_command: str=None, args: dict[str,An
 
 
 
-async def extract_urls_using_javascript(page: PlaywrightPage, source: str) -> list[str] | list[None]:
+async def extract_urls_using_javascript(page: PlaywrightPage, source: str) -> list[dict[str,str]] | list[None]:
     """
     Use javascript to extract URLs and associated text from a webpage.
 
@@ -69,7 +65,7 @@ async def extract_urls_using_javascript(page: PlaywrightPage, source: str) -> li
     urls_dict: list[dict] = page.evaluate(javascript)
     logger.debug(f"urls for url '{page.url}': {urls_dict}")
     if log_level == 10:
-        check = _check_for_empty_sublists
+        check = _check_for_empty_sublists()
         if check:
             filename = sanitize_filename(page.url)
             path = os.path.join(DEBUG_FILEPATH, "playwright", f"{filename}.jpeg")
@@ -77,7 +73,7 @@ async def extract_urls_using_javascript(page: PlaywrightPage, source: str) -> li
     return urls_dict
 
 
-async def async_extract_urls_using_javascript(page: AsyncPlaywrightPage, source: str) -> list[str] | list[None]:
+async def async_extract_urls_using_javascript(page: AsyncPlaywrightPage, source: str) -> list[dict[str,str]] | list[None]:
     """
     Use javascript to asynchronously extract URLs and associated text from a webpage.
 
@@ -86,15 +82,21 @@ async def async_extract_urls_using_javascript(page: AsyncPlaywrightPage, source:
     >>> for url, text in urls_dict.values:
     >>>    logger.debug(f"Found URL: {url} txt: {text}")
     """
-    # Foramt the js code with
+    # Format the js code with
     javascript = safe_format_js_selector(source)
-    list_of_urls_dict: list[dict] = await page.evaluate(javascript)
-    logger.debug(f"urls for url '{page.url}': {list_of_urls_dict}")
-    if log_level == 10:
-        check = _check_for_empty_sublists
+
+    # Get the URLs
+    urls_dict_list: list[dict] = await page.evaluate(javascript)
+    logger.debug(f"urls for url '{page.url}': {urls_dict_list}")
+
+    # If in debug, check for empty lists. 
+    # If there are any, take a screenshot.
+    if log_level == 10: 
+        check = _check_for_empty_sublists(urls_dict_list)
         if check:
             filename = sanitize_filename(page.url)
             path = os.path.join(DEBUG_FILEPATH, "playwright", f"{filename}.jpeg")
             await page.screenshot(path=path, type='jpeg')
-    return list_of_urls_dict
+
+    return urls_dict_list
 

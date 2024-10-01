@@ -7,6 +7,7 @@ import sys
 import time
 from typing import NamedTuple
 
+import abc
 
 import pandas as pd
 from playwright.async_api import (
@@ -57,8 +58,9 @@ class GeneralCodeScraper(Scraper, AsyncScraper):
         """
         super().__init__(pw_instance, robots_txt_url, **launch_kwargs)
 
-
-    def _build_state_url(self, state_code: str) -> str:
+    def _build_url(self, state_code: str) -> str:
+        # Get URL components from legal_website_dict
+        logger.debug(f"Creating URLs for state_code '{state_code}'...")
         self.source = self.legal_website_dict["general_code"]["source"]
         base_url = self.legal_website_dict["general_code"]["base_url"]
 
@@ -67,49 +69,73 @@ class GeneralCodeScraper(Scraper, AsyncScraper):
         #logger.debug(f"url : {url}")
         # NOTE The URL must be 52 characters long.
         assert len(url) == 52, f"scrape_url is not 52 characters, but {len(url)}"
+        logger.debug("state_url built successfully.")
         return url
 
 
-    async def scrape(self, locations_df: pd.DataFrame, db: MySqlDatabase) -> pd.DataFrame:
+    def build_urls(self, locations_df: pd.DataFrame) -> list[dict[str,str]]:
+        return super().build_urls(locations_df)
+
+
+    async def scrape(self, locations_df: pd.DataFrame, urls: list[dict[str,str]], db: MySqlDatabase) -> pd.DataFrame:
+        super().scrape(locations_df, urls, db)
+
+
+    def process_into_bool():
+        super().process_into_bool()
+
+
+    def process_into_bool(url_df):
+        pass
+
+
+    async def scrape(self, locations_df: pd.DataFrame, urls: list[dict[str,str]], db: MySqlDatabase) -> pd.DataFrame:
         """
-        Create the scrape URLs and add it to a dataframe
+        Scrape URLs and add it to a dataframe.
+
+
+        Merge the created URLs with locations dataframe.
+        NOTE Merge works instead of join because merge works on strings instead of indexes.
+         See: https://stackoverflow.com/questions/50649853/trying-to-merge-2-dataframes-but-get-valueerror
+        state_urls_df = pd.DataFrame.from_records(state_url_list, columns=["state_code", "state_url"])
+        locations_df = locations_df.merge(state_urls_df, on="state_code", how="inner")
+
+        locations_df.join(state_urls_df, on="state_code", how="inner")
+        logger.debug(f"locations_df\n{locations_df.head()}",f=True)
         """
-        # Create the URLs
-        state_url_dict_list = []
-        for state_code, df in locations_df.groupby('state_code'):
-            logger.debug(f"Creating URLs for state_code '{state_code}'...")
-            state_url = self._build_state_url(state_code)
-            logger.debug("state_url built successfully.")
-            state_url_dict_list.append(
-                {"state_code": state_code, "state_url": state_url}
-            )
-        logger.info("Created state_code URLs for General Code",f=True)
 
-        # Merge the created URLs with locations dataframe.
-        # NOTE Merge works instead of join because merge works on strings instead of indexes.
-        #  See: https://stackoverflow.com/questions/50649853/trying-to-merge-2-dataframes-but-get-valueerror
-        #state_urls_df = pd.DataFrame.from_records(state_url_list, columns=["state_code", "state_url"])
-        #locations_df = locations_df.merge(state_urls_df, on="state_code", how="inner")
+        results_url_list = []
+        unprocessed_urls = []
+        for url in urls:
+            output_filename = f"{url['state_code']}_{self.source}.csv"
+            output_path = os.path.join(OUTPUT_FOLDER, output_filename)
+            if not os.path.isfile(output_path):
+                unprocessed_urls.append(unprocessed_urls)
 
-        # locations_df.join(state_urls_df, on="state_code", how="inner")
-        #logger.debug(f"locations_df\n{locations_df.head()}",f=True)
+        # Scrape the URL and return its URLs and text.
+        # Create a list of dictionaries for each item in results and turn it into a dataframe.
+        logger.info(f"Getting URLs from General Code...")
+        generator = (
+            {
+                'state_code': url['state_code'],
+                'state_url': url['state_url'],
+                **result # Unpack the result dictionary into the row
+            } for url in urls for result in await self.async_scrape(url['state_code'])
+        )
+        async for rows in generator:
+            # Save each URL's results as a separate CSV file, as we don't want to lose data if we're kicked off the site.
+            output_df = pd.DataFrame.from_dict(rows)
+            state_code = output_df['state_code'].iloc[1]
 
-        # NOTE Pandas doesn't support async for-lists, so we need to do everything after the fact.
-        async for dict in state_url_dict_list:
-            logger.info(f"Getting URLs for '{dict['state_code']}'")
+            # Save the output dataframe to a CSV file.
+            output_filename = f"{state_code}_{self.source}.csv"
+            output_path = os.path.join(OUTPUT_FOLDER, output_filename)
+            output_df.to_csv(output_path)
 
-
-
-
-        for state_code, df in locations_df.groupby('state_code'):
-            # Convert DataFrame to a list of tuples
-            df_tuples = list(df.itertuples(index=False, name=None))
-            logger.info(f"Getting URLs for '{state_code}'")
-            logger.debug(f"df {state_code}: {df_tuples[:5]}")  # Show first 5 tuples
-            time.sleep(10)
-            await self.async_scrape(state_url) # -> dict[str,str] | dict[None]
-            state_url_list.append(state_url)
-
+            # We don't append the dataframe directly, as it's inefficient.
+            results_url_list.append(rows)
+ 
+        # results_url_list should be a list of dataframes.
 
 
 class AmericanLegalScraper(Scraper, AsyncScraper):
@@ -177,7 +203,7 @@ class MunicodeScraper(Scraper, AsyncScraper):
         state_url = f"{base_url}/{path}" # -> https://library.municode.com/az
 
         logger.debug(f"state_url: {state_url}")
-        assert len(state_url) == 31, f"scrape_url is not 40 characters, but {len(state_url)}"
+        assert len(state_url) == 31, f"scrape_url is not 31 characters, but {len(state_url)}"
         return state_url
 
 
@@ -246,12 +272,15 @@ async def scrape_site(db: MySqlDatabase, scraper: Scraper, site_df_list: list, l
         logger.info(f"Playwright instance for '{scraper_name}' instantiated successfully")
 
         # Instantiate each scraper.
-        scraper_instance: Scraper = await stack.enter_async_context(
+        scraper_instance: AsyncScraper = await stack.enter_async_context(
             scraper(pw_instance, robots_txt_url, headless=headless, slow_mo=slow_mo)
         )
 
+        # Build URL paths for each domain.
+        urls = await scraper_instance.build_urls(locations_df)
+
         # Scrape each domain and return the results.
-        results = await scraper_instance.scrape(locations_df, db)
+        results = await scraper_instance.scrape(locations_df, urls, db)
 
     logger.info(f"scraper {scraper_name} has completed its scrape. It returned {len(results)} URLs. Adding to site_df_list list...")
     site_df_list.append(results)

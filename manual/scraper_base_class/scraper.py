@@ -1,6 +1,7 @@
 import time
 from typing import Any
 
+import pandas as pd
 from playwright.sync_api import (
     Playwright,
     Browser as PlaywrightBrowser,
@@ -8,7 +9,7 @@ from playwright.sync_api import (
     TimeoutError as PlaywrightTimeoutError,
 )
 
-
+from abc import ABC, abstractmethod
 
 from utils.manual.scrape_legal_websites_utils.fetch_robots_txt import fetch_robots_txt
 from utils.manual.scrape_legal_websites_utils.parse_robots_txt import parse_robots_txt 
@@ -22,12 +23,12 @@ logger = Logger(logger_name=__name__)
 
 
 
-class Scraper:
+class Scraper(ABC):
     """
     Use Playwright to scrape a webpage of URLs.
 
     Parameters:
-        pw_instance: A Playwright instance. May be either synchronous or asynchronous.
+        pw_instance: A synchronous Playwright instance.
         robot_txt_url: URL path to a website's robots.txt page.
         user_agent: The chosen user agent in robots.txt. Defaults to '*'
         **launch_kwargs:
@@ -139,11 +140,12 @@ class Scraper:
             return self._fetch_urls_from_page(url)
 
 
-    def scrape(self, url: str) -> dict[str]|dict[None]:
-        try:
-            return self._respectful_fetch(self, url)
-        except PlaywrightTimeoutError as e:
-            logger.info(f"url '{url}' timed out.")
-            logger.debug(e)
-            return {}
+    # def scrape(self, url: str) -> dict[str]|dict[None]:
+    #     try:
+    #         return self._respectful_fetch(self, url)
+    #     except PlaywrightTimeoutError as e:
+    #         logger.info(f"url '{url}' timed out.")
+    #         logger.debug(e)
+    #         return {}
+
 
