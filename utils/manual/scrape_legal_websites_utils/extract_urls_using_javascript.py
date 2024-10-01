@@ -27,7 +27,8 @@ def _check_for_empty_sublists(urls: list[list[str]]) -> bool:
 
 def safe_format_js_selector(source: str, js_command: str=None, args: dict[str,Any]=None) -> str:
     """"
-    Safe format a JS string with input arguments
+    Safe format a JavaScript string with input arguments.
+    Defaults to 'querySelectorAll'
     
     Example:
     >>> # Extract all URLs with class "codeLink"
@@ -52,6 +53,7 @@ def safe_format_js_selector(source: str, js_command: str=None, args: dict[str,An
         "TARGET": LEGAL_WEBSITE_DICT[source]["target_class"]
     }
     return safe_format(javascript, **args)
+
 
 
 async def extract_urls_using_javascript(page: PlaywrightPage, source: str) -> list[str] | list[None]:

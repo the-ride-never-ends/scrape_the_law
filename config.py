@@ -114,13 +114,15 @@ try:
     S3_SECRET_KEY: str = config(path, "S3_SECRET_KEY") or ""
 
     # SEARCH
-    path = "SEARCH"
+    path = "SEARCH.PARAMETERS"
     USE_API_FOR_SEARCH: bool = config(path, 'SEARCH_ENGINE') or False
     SEARCH_ENGINE: str = config(path, 'SEARCH_ENGINE') or "google"
+    NUM_RESULTS: int = config(path, 'NUM_RESULTS') or 10
+
+    path = "SEARCH.GOOGLE"
     GOOGLE_AUTOFILL_SUGGESTIONS_HTML_TAG: str = config(path, 'GOOGLE_SEARCH_RESULT_TAG') or "#gb"
     GOOGLE_SEARCH_RESULT_TAG: str = config(path, 'GOOGLE_SEARCH_RESULT_TAG') or '[jsname="UWckNb"]'
     GOOGLE_CONCURRENCY_LIMIT: int = config(path, 'GOOGLE_CONCURRENCY_LIMIT') or 2
-    NUM_RESULTS: int = config(path, 'NUM_RESULTS') or 10
 
     # SITE URLS
     path = "SEARCH.SITE_URLS"
@@ -130,7 +132,7 @@ try:
     CODE_PUBLISHING_CO_URL: str = config(path, 'CODE_PUBLISHING_CO_URL') or "https://www.codepublishing.com/"
 
     # SEARCH APIS
-    path = "SEARCH.PRIVATE"
+    path = "SEARCH_API"
     GOOGLE_SEARCH_API_KEY: str = config(path, 'GOOGLE_SEARCH_API_KEY') or ""
 
     # MYSQL OPTIONS
@@ -147,11 +149,13 @@ try:
     # PLAYWRIGHT
     path = "PLAYWRIGHT"
     HEADLESS: bool = config(path, 'HEADLESS') or True
-    SLOWMO: int = config(path, 'SLOWMOW') or 0 # NO BREAKS ON THIS TRAIN!
+    SLOW_MO: int = config(path, 'SLOW_MO') or 0 # NO BREAKS ON THIS TRAIN!
 
     # PRIVATE PATH FOLDERS
     path = "PRIVATE_FOLDER_PATHS"
     OUTPUT_FOLDER: str = config(path, 'OUTPUT_FOLDER') or os.path.join(script_dir, "output")
+
+    logger.info("YAML configs loaded.")
 
 except KeyError as e:
     logger.exception(f"Missing configuration item: {e}")

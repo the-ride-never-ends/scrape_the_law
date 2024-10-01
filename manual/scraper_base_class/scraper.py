@@ -20,6 +20,8 @@ from config import LEGAL_WEBSITE_DICT
 from logger import Logger
 logger = Logger(logger_name=__name__)
 
+
+
 class Scraper:
     """
     Use Playwright to scrape a webpage of URLs.

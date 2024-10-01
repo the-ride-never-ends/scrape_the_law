@@ -15,11 +15,17 @@ def get_config_files() -> dict:
     - yaml.YAMLError: If there's an error parsing the YAML files.
     """
     
-    script_dir = os.path.dirname(os.path.abspath(os.path.join(os.getcwd(), "main.py")))
-    config_path = os.path.join(script_dir, './config.yaml')
-    priv_config_path = os.path.join(script_dir, './private_config.yaml')
-    _priv_config_path = os.path.join(script_dir, './_private_config.yaml')
+    # Get the filepaths of all the config files.
+    top_level_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    #print(f"top_level_dir: {top_level_dir}")
+    #main_script_dir = os.path.dirname(os.path.abspath(os.path.join(os.getcwd(), "main.py")))
+
+
+    config_path = os.path.join(top_level_dir, 'config.yaml')
+    priv_config_path = os.path.join(top_level_dir, 'private_config.yaml')
+    _priv_config_path = os.path.join(top_level_dir, '_private_config.yaml')
     config_dict = {}
+    #print(f"config_path: {config_path}\n priv_config_path: {priv_config_path}\n_priv_config_path: {_priv_config_path}")
 
     # If private_config.yaml doesn't exist and _private_config.yaml does,
     # Set the path for _private_config.yaml as the private_config.yaml path

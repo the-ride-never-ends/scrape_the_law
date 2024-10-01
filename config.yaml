@@ -39,12 +39,14 @@ ARCHIVE:
       CDX_INJECT: "--cdxinject"
       AUTO: False
 SEARCH: # NOTE These will likely change as the years wear on.
-  USE_API_FOR_SEARCH: False
-  SEARCH_ENGINE: "google"
-  GOOGLE_AUTOFILL_SUGGESTIONS_HTML_TAG: '#gb'
-  GOOGLE_SEARCH_RESULT_TAG: '[jsname="UWckNb"]'
-  GOOGLE_CONCURRENCY_LIMIT: 2
-  NUM_RESULTS: 10
+  PARAMETERS:
+    USE_API_FOR_SEARCH: False
+    NUM_RESULTS: 10
+    SEARCH_ENGINE: "google"
+  GOOGLE:
+    GOOGLE_AUTOFILL_SUGGESTIONS_HTML_TAG: '#gb'
+    GOOGLE_SEARCH_RESULT_TAG: '[jsname="UWckNb"]'
+    GOOGLE_CONCURRENCY_LIMIT: 2
   SITE_URLS:
     MUNICODE_URL: "https://library.municode.com/"
     AMERICAN_LEGAL_URL: "https://codelibrary.amlegal.com/codes/"
@@ -52,4 +54,4 @@ SEARCH: # NOTE These will likely change as the years wear on.
     CODE_PUBLISHING_CO_URL: "https://www.codepublishing.com/"
 PLAYWRIGHT:
   HEADLESS: True
-  SLOWMO: 100
+  SLOW_MO: 100

@@ -69,9 +69,9 @@ class Logger:
         filepath (str): The full path to the log file.
 
     Methods:
-        info(): Log a message with severity 'INFO'.
-        debug(): Log a message with severity 'DEBUG'.
-        warning(): Log a message with severity 'WARNING'.
+        info(): Log a message with severity 'INFO'. Options for formatting with asterisks and lines.
+        debug(): Log a message with severity 'DEBUG'. Options for formatting with asterisks and lines.
+        warning(): Log a message with severity 'WARNING'. 
         error(): Log a message with severity 'ERROR'.
         critical(): Log a message with severity 'CRITICAL'.
         exception(): Log a message with severity 'ERROR', as well as include exception information.
@@ -109,6 +109,9 @@ class Logger:
         self.logger = None
         self.filename = None
         self.filepath = None
+        # Formating variables.
+        self.asterisk = "\n********************\n"
+        self.line = "\n--------------------\n"
 
         # Create the specified log folder if it doesn't exist.
         # This assures that we always have a valid path for the log file.
@@ -158,12 +161,18 @@ class Logger:
             self.logger.addHandler(file_handler)
             self.logger.addHandler(console_handler)
 
-    def info(self, message):
-        self.logger.info(message, stacklevel=self.stacklevel) 
+    def info(self, message, f: bool=False):
+        if not f: # f is for formatting.
+            self.logger.info(message, stacklevel=self.stacklevel)
+        else:
+            self.logger.info(f"{self.asterisk}{message}{self.asterisk}", stacklevel=self.stacklevel)
 
-    def debug(self, message):
-        self.logger.debug(message, stacklevel=self.stacklevel)
-    
+    def debug(self, message, f: bool=False):
+        if not f: # f is for formatting.
+            self.logger.debug(message, stacklevel=self.stacklevel)
+        else:
+            self.logger.debug(f"{self.asterisk}{message}{self.asterisk}", stacklevel=self.stacklevel)
+
     def warning(self, message):
         self.logger.warning(message, stacklevel=self.stacklevel)
 
@@ -179,4 +188,4 @@ class Logger:
 ###############################
 
 # Create singletons of the loggers.
-logger = Logger()
+#logger = Logger()

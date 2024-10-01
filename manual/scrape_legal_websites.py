@@ -2,7 +2,9 @@
 
 import asyncio
 from contextlib import AsyncExitStack
+import os
 import sys
+import time
 from typing import NamedTuple
 
 
@@ -22,10 +24,13 @@ from playwright.sync_api import (
     TimeoutError as PlaywrightTimeoutError,
 )
 
+# Insert the top-level directory as a filepath to prevent import errors. We'll see if it works.
+insert_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+sys.path.insert(0,insert_path)
 
 from database import MySqlDatabase
 
-from config import OUTPUT_FOLDER, INSERT_BATCH_SIZE, LEGAL_WEBSITE_DICT, CONCURRENCY_LIMIT, HEADLESS, SLOWMO
+from config import OUTPUT_FOLDER, INSERT_BATCH_SIZE, LEGAL_WEBSITE_DICT, CONCURRENCY_LIMIT, HEADLESS, SLOW_MO
 
 from logger import Logger
 logger = Logger(logger_name=__name__)
@@ -52,16 +57,58 @@ class GeneralCodeScraper(Scraper, AsyncScraper):
         """
         super().__init__(pw_instance, robots_txt_url, **launch_kwargs)
 
-        def _build_state_url(self, row: NamedTuple) -> str:
-            self.source = self.legal_website_dict["american_legal"]["source"]
-            base_url = self.legal_website_dict["american_legal"]["base_url"]
 
-            path = row.state_code.lower()
-            url = f"{base_url}{path}" # -> "https://www.generalcode.com/source-library/?state=AZ"
+    def _build_state_url(self, state_code: str) -> str:
+        self.source = self.legal_website_dict["general_code"]["source"]
+        base_url = self.legal_website_dict["general_code"]["base_url"]
 
-            logger.debug(f"url : {url}")
-            assert len(url) == 52, f"scrape_url is not 52 characters, but {len(url)}"
-            return url
+        url = f"{base_url}{state_code}" # -> "https://www.generalcode.com/source-library/?state=AZ"
+
+        #logger.debug(f"url : {url}")
+        # NOTE The URL must be 52 characters long.
+        assert len(url) == 52, f"scrape_url is not 52 characters, but {len(url)}"
+        return url
+
+
+    async def scrape(self, locations_df: pd.DataFrame, db: MySqlDatabase) -> pd.DataFrame:
+        """
+        Create the scrape URLs and add it to a dataframe
+        """
+        # Create the URLs
+        state_url_dict_list = []
+        for state_code, df in locations_df.groupby('state_code'):
+            logger.debug(f"Creating URLs for state_code '{state_code}'...")
+            state_url = self._build_state_url(state_code)
+            logger.debug("state_url built successfully.")
+            state_url_dict_list.append(
+                {"state_code": state_code, "state_url": state_url}
+            )
+        logger.info("Created state_code URLs for General Code",f=True)
+
+        # Merge the created URLs with locations dataframe.
+        # NOTE Merge works instead of join because merge works on strings instead of indexes.
+        #  See: https://stackoverflow.com/questions/50649853/trying-to-merge-2-dataframes-but-get-valueerror
+        #state_urls_df = pd.DataFrame.from_records(state_url_list, columns=["state_code", "state_url"])
+        #locations_df = locations_df.merge(state_urls_df, on="state_code", how="inner")
+
+        # locations_df.join(state_urls_df, on="state_code", how="inner")
+        #logger.debug(f"locations_df\n{locations_df.head()}",f=True)
+
+        # NOTE Pandas doesn't support async for-lists, so we need to do everything after the fact.
+        async for dict in state_url_dict_list:
+            logger.info(f"Getting URLs for '{dict['state_code']}'")
+
+
+
+
+        for state_code, df in locations_df.groupby('state_code'):
+            # Convert DataFrame to a list of tuples
+            df_tuples = list(df.itertuples(index=False, name=None))
+            logger.info(f"Getting URLs for '{state_code}'")
+            logger.debug(f"df {state_code}: {df_tuples[:5]}")  # Show first 5 tuples
+            time.sleep(10)
+            await self.async_scrape(state_url) # -> dict[str,str] | dict[None]
+            state_url_list.append(state_url)
 
 
 
@@ -145,7 +192,7 @@ class MunicodeScraper(Scraper, AsyncScraper):
         """
         Create the scrape URLs and add it to a dataframe
         """
-        #
+
         state_url_list = []
         for state_code, df in locations_df.groupby('state_code'):
             logger.info(f"Creating URLs for state_code '{state_code}'...")
@@ -155,27 +202,21 @@ class MunicodeScraper(Scraper, AsyncScraper):
 
         state_urls_df = pd.DataFrame.from_records(state_url_list, columns=["state_code", "state_url"])
         locations_df.join(state_urls_df, on="state_code", how="inner")
+        logger.debug(locations_df.head())
 
-        for idx, row in enumerate(locations_df.itertuples()):
-            pass
-
-        for idx, row in enumerate(locations_df.groupby('state_code')):
+        for idx, row in enumerate(locations_df.groupby('state_code'), start=1):
             logger.info(f"Getting ULRs under {row.state_url}")
-            logger.debug("BLANK")
-            await self.async_scrape(state_url)
+            logger.debug(f"row {idx}: {row}")
+            await self.async_scrape(state_url) # -> dict[str,str] | dict[None]
             state_url_list.append(state_url)
-
-
-
-
-
 
 
 async def get_locations(db: MySqlDatabase) -> pd.DataFrame:
     command = """
-        SELECT gnis, place_name, class_code, state_code;
+        SELECT gnis, place_name, class_code, state_code FROM locations;
         """
-    return await db.async_query_to_dataframe(command)
+    locations_df: pd.DataFrame = await db.async_query_to_dataframe(command)
+    return locations_df
 
 
 async def insert_into_sources(output_df: pd.DataFrame, db: MySqlDatabase) -> None:
@@ -192,9 +233,11 @@ async def insert_into_sources(output_df: pd.DataFrame, db: MySqlDatabase) -> Non
 
 
 
-async def scrape_site(df: pd.DataFrame, site_df_list: list, scraper: Scraper, db: MySqlDatabase, headless: bool=True, slowmo=1) -> None:
+async def scrape_site(db: MySqlDatabase, scraper: Scraper, site_df_list: list, locations_df: pd.DataFrame=None, headless: bool=True, slow_mo: int=1) -> None:
+    # Get the robots.txt file
     scraper_name =scraper.__qualname__
     robots_txt_url = get_robots_txt_url(scraper_name)
+    logger.debug(f"robots_txt_url for {scraper}: {robots_txt_url}")
 
     # Create an exit stack.
     async with AsyncExitStack() as stack:
@@ -204,11 +247,11 @@ async def scrape_site(df: pd.DataFrame, site_df_list: list, scraper: Scraper, db
 
         # Instantiate each scraper.
         scraper_instance: Scraper = await stack.enter_async_context(
-            await scraper(pw_instance, robots_txt_url, headless=headless, slowmo=slowmo)
+            scraper(pw_instance, robots_txt_url, headless=headless, slow_mo=slow_mo)
         )
 
         # Scrape each domain and return the results.
-        results = await scraper_instance.scrape(df, db)
+        results = await scraper_instance.scrape(locations_df, db)
 
     logger.info(f"scraper {scraper_name} has completed its scrape. It returned {len(results)} URLs. Adding to site_df_list list...")
     site_df_list.append(results)
@@ -217,8 +260,9 @@ async def scrape_site(df: pd.DataFrame, site_df_list: list, scraper: Scraper, db
 async def scrape_legal_websites(db: MySqlDatabase,
                                 site_df_list: list[None],
                                 scraper_list: list[Scraper],
+                                locations_df: pd.DataFrame=None,
                                 headless: bool=True,
-                                slowmo: int=100
+                                slow_mo: int=100
                                 ) -> list[pd.DataFrame]:
     """
     Scrape legal websites concurrently using site-specific Scraper classes.
@@ -228,7 +272,7 @@ async def scrape_legal_websites(db: MySqlDatabase,
         site_df_list (list[None]): An empty list that will be populated with DataFrames containing the scraped data from each site.
         scraper_list (list[Scraper]): A list of Scraper classes, each representing a different legal website to be scraped.
         headless (bool, optional): Whether to run the browser in headless mode. Defaults to True.
-        slowmo (int, optional): The number of milliseconds to wait between actions. Defaults to 100.
+        slow_mo (int, optional): The number of milliseconds to wait between actions. Defaults to 100.
 
     Returns:
         list[pd.DataFrame]: A list of pandas DataFrames, each containing the scraped data from a legal website.
@@ -236,7 +280,7 @@ async def scrape_legal_websites(db: MySqlDatabase,
     outer_task_name = asyncio.current_task().get_name()
     scrapes = [
         asyncio.create_task(
-            scrape_site(db, scraper, site_df_list, headless=headless, slowmo=slowmo),
+            scrape_site(db, scraper, site_df_list, locations_df=locations_df, headless=headless, slow_mo=slow_mo),
             name=f"{outer_task_name}_{scraper.__qualname__}"
         ) for scraper in scraper_list
     ]
@@ -249,17 +293,23 @@ async def main():
 
     # Step 1. Define the website-specific scraping classes and output list.
     scraper_list = [
-        MunicodeScraper,
-        AmericanLegalScraper,
+        #MunicodeScraper,
+        #AmericanLegalScraper,
         GeneralCodeScraper,
     ]
     site_df_list = []
 
 
-    next_step(step=2, stop=True)
-    # Step 2. Use selenium to scrape the websites for its URLs
-    async with MySqlDatabase() as db:
-        site_df_list = await scrape_legal_websites(db, site_df_list, scraper_list, headless=HEADLESS, slowmo=SLOWMO)
+    next_step(step=2, stop=False)
+    # Step 2. Use Playwright to scrape the websites for its URLs
+    async with MySqlDatabase(database="socialtoolkit") as db:
+
+        # Get the locations dataframe
+        locations_df = await get_locations(db)
+        logger.debug(f"locations_df: {locations_df.head()}\ndtypes: {locations_df.dtypes}")
+
+        site_df_list = await scrape_legal_websites(db, site_df_list, scraper_list, 
+                                                   locations_df=locations_df, headless=HEADLESS, slow_mo=SLOW_MO)
 
 
         next_step(step=3, stop=True)
