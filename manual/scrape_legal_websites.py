@@ -39,9 +39,11 @@ logger = Logger(logger_name=__name__)
 # TODO Figure out what the hell is up with these imports.
 from utils.shared.next_step import next_step
 from utils.manual.scrape_legal_websites_utils.get_robots_txt_url import get_robots_txt_url
+from utils.manual.scrape_legal_websites_utils.get_locations import get_locations
+from utils.manual.scrape_legal_websites_utils.connect_scraped_urls_to_locations import connect_scraped_urls_to_locations
 
-from manual.scraper_base_class.async_scraper import AsyncScraper
 
+from manual.scraper_base_class.AsyncScraper import AsyncScraper
 
 # state_urls_df = pd.DataFrame.from_records(state_url_list, columns=["state_code", "state_url"])
 # locations_df = locations_df.merge(state_urls_df, on="state_code", how="inner")
@@ -77,26 +79,18 @@ LEGAL_WEBSITE_DICT = {
 
 
 class GeneralCodeScraper(AsyncScraper):
+    """
+    Parameters:
+        pw_instance (AsyncPlaywright): An Async Playwright Instance
+        robots_txt_url (str): A URL for a site's robots.txt. Defaults to self.site_dict['robots_txt']
+        **launch_kwargs: Keyword arguments to be passed to `playwright.chromium.launch`.
+    """
 
     def __init__(self, pw_instance, robots_txt_url:str=None, **launch_kwargs):
-        """
-        Parameters:
-            pw_instance (AsyncPlaywright): An Async Playwright Instance
-            robots_txt_url (str): A URL for a site's robots.txt. Defaults to self.site_dict['robots_txt'] in 
-            **launch_kwargs:
-                Keyword arguments to be passed to
-                `playwright.chromium.launch`. For example, you can pass
-                ``headless=False, slow_mo=50`` for a visualization of the
-                search.
-        """
         # Initialize the child class attributes
         self.scrape_url_length = 52
         self.site_dict = LEGAL_WEBSITE_DICT['general_code_co'] or None
-        if self.site_dict:
-            if not self.site_dict['robots_txt']:
-                raise ValueError(f"LEGAL_WEBSITE_DICT robots.txt entry missing for {__class__.__qualname__}")
-        else:
-            raise ValueError(f"LEGAL_WEBSITE_DICT entry missing for {__class__.__qualname__}")
+        self.type_check_site_dict(self, __class__.__qualname__, robots_txt_url=robots_txt_url)
 
         # Initialize the parent class attributes
         super().__init__(pw_instance, robots_txt_url=robots_txt_url, **launch_kwargs)
@@ -117,29 +111,21 @@ class GeneralCodeScraper(AsyncScraper):
 
 
 class AmericanLegalScraper(AsyncScraper):
+    """
+    Parameters:
+        pw_instance (AsyncPlaywright): An Async Playwright Instance
+        robots_txt_url (str): A URL for a site's robots.txt. Defaults to self.site_dict['robots_txt']
+        **launch_kwargs: Keyword arguments to be passed to `playwright.chromium.launch`.
+    """
 
     def __init__(self, pw_instance, robots_txt_url:str=None, **launch_kwargs):
-        """
-        Parameters
-        ----------
-        **launch_kwargs
-            Keyword arguments to be passed to
-            `playwright.chromium.launch`. For example, you can pass
-            ``headless=False, slow_mo=50`` for a visualization of the
-            search.
-        """
         # Initialize the child class attributes
         self.scrape_url_length = 42
         self.site_dict = LEGAL_WEBSITE_DICT['american_legal'] or None
-        if self.site_dict:
-            if not self.site_dict['robots_txt']:
-                raise ValueError(f"LEGAL_WEBSITE_DICT robots.txt entry missing for {__class__.__qualname__}")
-        else:
-            raise ValueError(f"LEGAL_WEBSITE_DICT entry missing for {__class__.__qualname__}")
+        self.type_check_site_dict(self, __class__.__qualname__, robots_txt_url=robots_txt_url)
 
         # Initialize the parent class attributes
         super().__init__(pw_instance, robots_txt_url, **launch_kwargs)
-
 
 
     def _build_url(self, state_code: str) -> str:
@@ -149,56 +135,37 @@ class AmericanLegalScraper(AsyncScraper):
         Example Output:
             https://www.generalcode.com/source-library/?state=AZ
         """
-        # Get URL components from legal_website_dict
-        logger.debug(f"Creating URLs for state_code '{state_code}'...")
         scrape_url = f"{self.base_url}{state_code.lower()}" # -> "https://codelibrary.amlegal.com/regions/az"
 
+        logger.debug(f"Creating URLs for state_code '{state_code}'...")
         scrape_url = self.check_url_length(scrape_url)
         return scrape_url
 
 
 class MunicodeScraper(AsyncScraper):
     """
-    Search for top results on google and return their links.\n
-    NOTE This has been heavily modified from ELM's original code. We'll see if it's more effective in the long run.
-
     Parameters:
-        pw_instance: An asynchronous or synchronous playwright instance.
-        robots_txt_url: The URL for a 
-        **launch_kwargs:
-            Keyword arguments to be passed to
-            `playwright.chromium.launch`. For example, you can pass
-            ``headless=False, slow_mo=50`` for a visualization of the
-            search.
+        pw_instance (AsyncPlaywright): An Async Playwright Instance
+        robots_txt_url (str): A URL for a site's robots.txt. Defaults to self.site_dict['robots_txt']
+        **launch_kwargs: Keyword arguments to be passed to `playwright.chromium.launch`.
     """
 
     def __init__(self, pw_instance, robots_txt_url:str=None, **launch_kwargs):
-        """
-        Parameters
-        ----------
-        **launch_kwargs
-            Keyword arguments to be passed to
-            `playwright.chromium.launch`. For example, you can pass
-            ``headless=False, slow_mo=50`` for a visualization of the
-            search.
-        """
+        # Initialize the child class attributes
         self.scrape_url_length = 31
         self.site_dict = LEGAL_WEBSITE_DICT['municode'] or None
-        if self.site_dict:
-            if not self.site_dict['robots_txt']:
-                if not robots_txt_url:
-                    raise ValueError(f"LEGAL_WEBSITE_DICT robots.txt entry missing for {__class__.__qualname__}.")
-                else:
-                    logger.warning(f"LEGAL_WEBSITE_DICT robots.txt entry missing for {__class__.__qualname__}. Defaulting to input robots_txt_url...")
-        else:
-            raise ValueError(f"LEGAL_WEBSITE_DICT entry missing for {__class__.__qualname__}.")
+        self.type_check_site_dict(self, __class__.__qualname__, robots_txt_url=robots_txt_url)
 
+        # Initialize the parent class attributes
         super().__init__(pw_instance, robots_txt_url=robots_txt_url, **launch_kwargs)
 
 
     def _build_url(self, state_code: str) -> str:
         """
-        Create the URL paths for the domain we want to scrape.
+        Build  Municode-specific URLs.
+        NOTE: The URL must be 32 characters long.
+        Example Output:
+            https://library.municode.com/az
         """
         scrape_url = f"{self.base_url}/{state_code.lower()}" # -> https://library.municode.com/az
 
@@ -207,21 +174,21 @@ class MunicodeScraper(AsyncScraper):
         return scrape_url
 
 
-
-
 async def insert_into_sources(output_df: pd.DataFrame, db: MySqlDatabase) -> None:
     """
-    Insert the output of main() into the MySQL database.\n
+    Insert the output of main() into the 'sources' table in the MySQL database.\n
     Insert command is
-    ```INSERT INTO sources (source_municode, source_general_code, source_american_legal, 
+    ```INSERT INTO sources (gnis, source_municode, source_general_code, source_american_legal, 
                             source_code_publishing_co, source_place_domain) 
         VALUES ({placeholders})
         ON DUPLICATE KEY UPDATE
-        source_municode=VALUES;
+        gnis = VALUES(gnis),
+        source_municode = VALUES(source_municode),
+        source_general_code = VALUES(source_general_code),
+        source_american_legal = VALUES(source_american_legal),
+        source_code_publishing_co = VALUES(source_code_publishing_co),
+        source_place_domain = VALUES(source_place_domain);
     ```
-
-    Examples:
-    >>> command = 
     """
     column_names = output_df.columns.to_list()
     insert_list = [
@@ -231,7 +198,16 @@ async def insert_into_sources(output_df: pd.DataFrame, db: MySqlDatabase) -> Non
     return
 
 
-async def scrape_site(db: MySqlDatabase, scraper: AsyncScraper, site_df_list: list, locations_df: pd.DataFrame=None, headless: bool=True, slow_mo: int=1) -> None:
+async def scrape_site(db: MySqlDatabase, 
+                      scraper: AsyncScraper, 
+                      site_df_list: list, 
+                      locations_df: pd.DataFrame=None, 
+                      headless: bool=True, 
+                      slow_mo: int=1
+                     ) -> None:
+    """
+    Scrape a website using Playwright
+    """
     # Get the robots.txt file
     scraper_name =scraper.__qualname__
     logger.debug(f"robots_txt_url for {scraper}: {get_robots_txt_url(scraper_name)}")
@@ -248,12 +224,13 @@ async def scrape_site(db: MySqlDatabase, scraper: AsyncScraper, site_df_list: li
         )
 
         # Build URL paths for each domain.
-        urls = await scraper_instance.build_urls(locations_df)
+        urls: list[dict[str,str]] = await scraper_instance.build_urls(locations_df)
 
-        # Scrape each domain and return the results.
-        results = await scraper_instance.scrape(locations_df, urls, db)
+        # Scrape each domain and return the URLs and their associated text.
+        sites_df: pd.DataFrame = await scraper_instance.scrape(locations_df, urls, db)
 
-        # Check the results against a boolean.
+        # Check the URLs and text against the locations in locations_df.
+        results: pd.DataFrame  = connect_scraped_urls_to_locations(locations_df, sites_df)
 
     logger.info(f"scraper {scraper_name} has completed its scrape. It returned {len(results)} URLs. Adding to site_df_list list...")
     site_df_list.append(results)
@@ -288,6 +265,7 @@ async def scrape_legal_websites(db: MySqlDatabase,
     ]
     await asyncio.gather(*scrapes) # -> list[dict]
     return site_df_list
+
 
 
 

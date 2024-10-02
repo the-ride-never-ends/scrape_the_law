@@ -1,6 +1,7 @@
 
 import asyncio
 import os
+import re
 import traceback
 from typing import Any, AsyncGenerator, Never
 
@@ -50,11 +51,25 @@ class AsyncScraper:
         # Child Class attributes
         self.site_dict: dict = None
         self.scrape_url_length: int = None
-        ###
+        # Site-dictionary attributes.
         self.source: str = self.site_dict['source']
         self.base_url: str = self.site_dict['base_url']
         self.target_class: str = self.site_dict['target_class']
         self.robots_txt_url: str = robots_txt_url or self.site_dict['robots_txt']
+
+    def type_check_site_dict(self, child_class_name, robots_txt_url: str=None) -> None:
+        """
+        Check if we have a site dictionary for the child class.
+        """
+        if self.site_dict:
+            if not self.site_dict['robots_txt']:
+                if not robots_txt_url:
+                    logger.error(f"LEGAL_WEBSITE_DICT robots.txt entry missing for {child_class_name}.")
+                    raise ValueError(f"LEGAL_WEBSITE_DICT robots.txt entry missing for {child_class_name}.")
+                else:
+                    logger.warning(f"LEGAL_WEBSITE_DICT robots.txt entry missing for {child_class_name}. Defaulting to input robots_txt_url...")
+        else:
+            raise ValueError(f"LEGAL_WEBSITE_DICT entry missing for {child_class_name}..")
 
     #### START CLASS STARTUP AND EXIT METHODS ####
     async def async_get_robot_rules(self, robots_txt_url) -> None:
@@ -325,40 +340,6 @@ class AsyncScraper:
         site_df = site_df.drop_duplicates(subset=['href'])
 
         return site_df
-
-    def process_into_bool(location_df, site_df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Takes in a list of URLs, compares them to a 
-        """
-        import re
-        def is_place_in_text(place_name, text):
-            # Remove common words like "City of", "Town of", etc.
-            clean_place_name = re.sub(r'^(City|Town|Borough) of ', '', place_name, flags=re.IGNORECASE)
-            
-            # Create a regex pattern to match the place name
-            pattern = r'\b' + re.escape(clean_place_name) + r'\b'
-            
-            # Check if the pattern is in the text
-            return bool(re.search(pattern, text, re.IGNORECASE))
-
-        def process_location(row, site_df):
-            place_name = row['place_name']
-            state_code = row['state_code']
-            
-            # Filter site_df for the current state
-            state_sites = site_df[site_df['state_code'] == state_code]
-            
-            # Check if the place name is in any of the text descriptions
-            matches = state_sites[state_sites['text'].apply(lambda x: is_place_in_text(place_name, x))]
-            
-            if not matches.empty:
-                return matches.iloc[0]  # Return the first match
-            return None
-
-        def find_matching_sites(location_df, site_df):
-            results = location_df.apply(lambda row: process_location(row, site_df), axis=1)
-            return pd.DataFrame(list(filter(None, results)))
-
 
 
 
