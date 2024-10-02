@@ -5,7 +5,7 @@ from contextlib import AsyncExitStack
 import os
 import sys
 import time
-from typing import NamedTuple
+from typing import NamedTuple, Never, Self, Generator, AsyncGenerator
 
 import abc
 
@@ -31,7 +31,7 @@ sys.path.insert(0,insert_path)
 
 from database import MySqlDatabase
 
-from config import OUTPUT_FOLDER, INSERT_BATCH_SIZE, LEGAL_WEBSITE_DICT, CONCURRENCY_LIMIT, HEADLESS, SLOW_MO
+from config import OUTPUT_FOLDER, LEGAL_WEBSITE_DICT, HEADLESS, SLOW_MO
 
 from logger import Logger
 logger = Logger(logger_name=__name__)
@@ -41,106 +41,84 @@ from utils.shared.next_step import next_step
 from utils.manual.scrape_legal_websites_utils.get_robots_txt_url import get_robots_txt_url
 
 from manual.scraper_base_class.async_scraper import AsyncScraper
-from manual.scraper_base_class.scraper import Scraper
 
 
-class GeneralCodeScraper(Scraper, AsyncScraper):
+# state_urls_df = pd.DataFrame.from_records(state_url_list, columns=["state_code", "state_url"])
+# locations_df = locations_df.merge(state_urls_df, on="state_code", how="inner")
 
-    def __init__(self, pw_instance, robots_txt_url, **launch_kwargs):
+# locations_df.join(state_urls_df, on="state_code", how="inner")
+# logger.debug(f"locations_df\n{locations_df.head()}",f=True)
+
+
+LEGAL_WEBSITE_DICT = {
+    "american_legal": {
+        "base_url": "https://codelibrary.amlegal.com/regions/",
+        "target_class": "browse-link roboto",
+        "wait_in_seconds": 5,
+        "robots_txt": "https://codelibrary.amlegal.com/robots.txt",
+        "source": "american_legal",
+    },
+    "municode": {
+        "base_url": "https://library.municode.com/",
+        "target_class": "index-link",
+        "wait_in_seconds": 15,
+        "robots_txt": "https://municode.com/robots.txt",
+        "source": "municode",
+    },
+    "general_code" : {
+        "base_url": "https://www.generalcode.com/source-library/?state=",
+        "target_class": "codeLink",
+        "wait_in_seconds": 0,
+        "robots_txt": "https://www.generalcode.com/robots.txt",
+        "source": "general_code",
+    },
+}
+
+
+
+class GeneralCodeScraper(AsyncScraper):
+
+    def __init__(self, pw_instance, robots_txt_url:str=None, **launch_kwargs):
         """
-        Parameters
-        ----------
-        **launch_kwargs
-            Keyword arguments to be passed to
-            `playwright.chromium.launch`. For example, you can pass
-            ``headless=False, slow_mo=50`` for a visualization of the
-            search.
+        Parameters:
+            pw_instance (AsyncPlaywright): An Async Playwright Instance
+            robots_txt_url (str): A URL for a site's robots.txt. Defaults to self.site_dict['robots_txt'] in 
+            **launch_kwargs:
+                Keyword arguments to be passed to
+                `playwright.chromium.launch`. For example, you can pass
+                ``headless=False, slow_mo=50`` for a visualization of the
+                search.
         """
-        super().__init__(pw_instance, robots_txt_url, **launch_kwargs)
+        # Initialize the child class attributes
+        self.scrape_url_length = 52
+        self.site_dict = LEGAL_WEBSITE_DICT['general_code_co'] or None
+        if self.site_dict:
+            if not self.site_dict['robots_txt']:
+                raise ValueError(f"LEGAL_WEBSITE_DICT robots.txt entry missing for {__class__.__qualname__}")
+        else:
+            raise ValueError(f"LEGAL_WEBSITE_DICT entry missing for {__class__.__qualname__}")
+
+        # Initialize the parent class attributes
+        super().__init__(pw_instance, robots_txt_url=robots_txt_url, **launch_kwargs)
+
 
     def _build_url(self, state_code: str) -> str:
+        """
+        Build General Code Co-specific URLs.
+        NOTE: The URL must be 52 characters long.
+        Example Output:
+            https://www.generalcode.com/source-library/?state=AZ
+        """
         # Get URL components from legal_website_dict
         logger.debug(f"Creating URLs for state_code '{state_code}'...")
-        self.source = self.legal_website_dict["general_code"]["source"]
-        base_url = self.legal_website_dict["general_code"]["base_url"]
-
-        url = f"{base_url}{state_code}" # -> "https://www.generalcode.com/source-library/?state=AZ"
-
-        #logger.debug(f"url : {url}")
-        # NOTE The URL must be 52 characters long.
-        assert len(url) == 52, f"scrape_url is not 52 characters, but {len(url)}"
-        logger.debug("state_url built successfully.")
-        return url
+        scrape_url = f"{self.base_url}{state_code}" # -> "https://www.generalcode.com/source-library/?state=AZ"
+        scrape_url = self.check_url_length(scrape_url)
+        return scrape_url
 
 
-    def build_urls(self, locations_df: pd.DataFrame) -> list[dict[str,str]]:
-        return super().build_urls(locations_df)
+class AmericanLegalScraper(AsyncScraper):
 
-
-    async def scrape(self, locations_df: pd.DataFrame, urls: list[dict[str,str]], db: MySqlDatabase) -> pd.DataFrame:
-        super().scrape(locations_df, urls, db)
-
-
-    def process_into_bool():
-        super().process_into_bool()
-
-
-    def process_into_bool(url_df):
-        pass
-
-
-    async def scrape(self, locations_df: pd.DataFrame, urls: list[dict[str,str]], db: MySqlDatabase) -> pd.DataFrame:
-        """
-        Scrape URLs and add it to a dataframe.
-
-
-        Merge the created URLs with locations dataframe.
-        NOTE Merge works instead of join because merge works on strings instead of indexes.
-         See: https://stackoverflow.com/questions/50649853/trying-to-merge-2-dataframes-but-get-valueerror
-        state_urls_df = pd.DataFrame.from_records(state_url_list, columns=["state_code", "state_url"])
-        locations_df = locations_df.merge(state_urls_df, on="state_code", how="inner")
-
-        locations_df.join(state_urls_df, on="state_code", how="inner")
-        logger.debug(f"locations_df\n{locations_df.head()}",f=True)
-        """
-
-        results_url_list = []
-        unprocessed_urls = []
-        for url in urls:
-            output_filename = f"{url['state_code']}_{self.source}.csv"
-            output_path = os.path.join(OUTPUT_FOLDER, output_filename)
-            if not os.path.isfile(output_path):
-                unprocessed_urls.append(unprocessed_urls)
-
-        # Scrape the URL and return its URLs and text.
-        # Create a list of dictionaries for each item in results and turn it into a dataframe.
-        logger.info(f"Getting URLs from General Code...")
-        generator = (
-            {
-                'state_code': url['state_code'],
-                'state_url': url['state_url'],
-                **result # Unpack the result dictionary into the row
-            } for url in urls for result in await self.async_scrape(url['state_code'])
-        )
-        async for rows in generator:
-            # Save each URL's results as a separate CSV file, as we don't want to lose data if we're kicked off the site.
-            output_df = pd.DataFrame.from_dict(rows)
-            state_code = output_df['state_code'].iloc[1]
-
-            # Save the output dataframe to a CSV file.
-            output_filename = f"{state_code}_{self.source}.csv"
-            output_path = os.path.join(OUTPUT_FOLDER, output_filename)
-            output_df.to_csv(output_path)
-
-            # We don't append the dataframe directly, as it's inefficient.
-            results_url_list.append(rows)
- 
-        # results_url_list should be a list of dataframes.
-
-
-class AmericanLegalScraper(Scraper, AsyncScraper):
-
-    def __init__(self, pw_instance, robots_txt_url, **launch_kwargs):
+    def __init__(self, pw_instance, robots_txt_url:str=None, **launch_kwargs):
         """
         Parameters
         ----------
@@ -150,21 +128,36 @@ class AmericanLegalScraper(Scraper, AsyncScraper):
             ``headless=False, slow_mo=50`` for a visualization of the
             search.
         """
+        # Initialize the child class attributes
+        self.scrape_url_length = 42
+        self.site_dict = LEGAL_WEBSITE_DICT['american_legal'] or None
+        if self.site_dict:
+            if not self.site_dict['robots_txt']:
+                raise ValueError(f"LEGAL_WEBSITE_DICT robots.txt entry missing for {__class__.__qualname__}")
+        else:
+            raise ValueError(f"LEGAL_WEBSITE_DICT entry missing for {__class__.__qualname__}")
+
+        # Initialize the parent class attributes
         super().__init__(pw_instance, robots_txt_url, **launch_kwargs)
 
-    def _build_state_url(self, row: NamedTuple) -> str:
-        self.source = self.legal_website_dict["american_legal"]["source"]
-        base_url = self.legal_website_dict["american_legal"]["base_url"]
-
-        path = row.state_code.lower()
-        url = f"{base_url}{path}" # -> "https://codelibrary.amlegal.com/regions/az"
-
-        logger.debug(f"url : {url}")
-        assert len(url) == 42, f"scrape_url is not 40 characters, but {len(url)}"
-        return url
 
 
-class MunicodeScraper(Scraper, AsyncScraper):
+    def _build_url(self, state_code: str) -> str:
+        """
+        Build  American Legal-specific URLs.
+        NOTE: The URL must be 52 characters long.
+        Example Output:
+            https://www.generalcode.com/source-library/?state=AZ
+        """
+        # Get URL components from legal_website_dict
+        logger.debug(f"Creating URLs for state_code '{state_code}'...")
+        scrape_url = f"{self.base_url}{state_code.lower()}" # -> "https://codelibrary.amlegal.com/regions/az"
+
+        scrape_url = self.check_url_length(scrape_url)
+        return scrape_url
+
+
+class MunicodeScraper(AsyncScraper):
     """
     Search for top results on google and return their links.\n
     NOTE This has been heavily modified from ELM's original code. We'll see if it's more effective in the long run.
@@ -179,7 +172,7 @@ class MunicodeScraper(Scraper, AsyncScraper):
             search.
     """
 
-    def __init__(self, pw_instance, robots_txt_url, **launch_kwargs):
+    def __init__(self, pw_instance, robots_txt_url:str=None, **launch_kwargs):
         """
         Parameters
         ----------
@@ -189,65 +182,46 @@ class MunicodeScraper(Scraper, AsyncScraper):
             ``headless=False, slow_mo=50`` for a visualization of the
             search.
         """
-        super().__init__(pw_instance, robots_txt_url, **launch_kwargs)
+        self.scrape_url_length = 31
+        self.site_dict = LEGAL_WEBSITE_DICT['municode'] or None
+        if self.site_dict:
+            if not self.site_dict['robots_txt']:
+                if not robots_txt_url:
+                    raise ValueError(f"LEGAL_WEBSITE_DICT robots.txt entry missing for {__class__.__qualname__}.")
+                else:
+                    logger.warning(f"LEGAL_WEBSITE_DICT robots.txt entry missing for {__class__.__qualname__}. Defaulting to input robots_txt_url...")
+        else:
+            raise ValueError(f"LEGAL_WEBSITE_DICT entry missing for {__class__.__qualname__}.")
+
+        super().__init__(pw_instance, robots_txt_url=robots_txt_url, **launch_kwargs)
 
 
-    def _build_state_url(self, state_code: str) -> str:
+    def _build_url(self, state_code: str) -> str:
         """
         Create the URL paths for the domain we want to scrape.
         """
-        self.source = self.legal_website_dict["american_legal"]["source"]
-        base_url = self.legal_website_dict["municode"]["base_url"]
+        scrape_url = f"{self.base_url}/{state_code.lower()}" # -> https://library.municode.com/az
 
-        path = state_code.state_code.lower()
-        state_url = f"{base_url}/{path}" # -> https://library.municode.com/az
-
-        logger.debug(f"state_url: {state_url}")
-        assert len(state_url) == 31, f"scrape_url is not 31 characters, but {len(state_url)}"
-        return state_url
+        logger.debug(f"Creating URLs for state_code '{state_code}'...")
+        scrape_url = self.check_url_length(scrape_url)
+        return scrape_url
 
 
-    def _check_against_href_text():
-        """"
-        Check to see if the place name is in the href's text from the website
-        """
-        pass
-
-
-    async def scrape(self, locations_df: pd.DataFrame, db: MySqlDatabase) -> pd.DataFrame:
-        """
-        Create the scrape URLs and add it to a dataframe
-        """
-
-        state_url_list = []
-        for state_code, df in locations_df.groupby('state_code'):
-            logger.info(f"Creating URLs for state_code '{state_code}'...")
-            state_url = self._build_state_url(state_code)
-            logger.info("state_url built successfully.")
-            state_url_list.append((state_code, state_url,))
-
-        state_urls_df = pd.DataFrame.from_records(state_url_list, columns=["state_code", "state_url"])
-        locations_df.join(state_urls_df, on="state_code", how="inner")
-        logger.debug(locations_df.head())
-
-        for idx, row in enumerate(locations_df.groupby('state_code'), start=1):
-            logger.info(f"Getting ULRs under {row.state_url}")
-            logger.debug(f"row {idx}: {row}")
-            await self.async_scrape(state_url) # -> dict[str,str] | dict[None]
-            state_url_list.append(state_url)
-
-
-async def get_locations(db: MySqlDatabase) -> pd.DataFrame:
-    command = """
-        SELECT gnis, place_name, class_code, state_code FROM locations;
-        """
-    locations_df: pd.DataFrame = await db.async_query_to_dataframe(command)
-    return locations_df
 
 
 async def insert_into_sources(output_df: pd.DataFrame, db: MySqlDatabase) -> None:
     """
-    Insert the output of main() into the MySQL database.
+    Insert the output of main() into the MySQL database.\n
+    Insert command is
+    ```INSERT INTO sources (source_municode, source_general_code, source_american_legal, 
+                            source_code_publishing_co, source_place_domain) 
+        VALUES ({placeholders})
+        ON DUPLICATE KEY UPDATE
+        source_municode=VALUES;
+    ```
+
+    Examples:
+    >>> command = 
     """
     column_names = output_df.columns.to_list()
     insert_list = [
@@ -257,23 +231,20 @@ async def insert_into_sources(output_df: pd.DataFrame, db: MySqlDatabase) -> Non
     return
 
 
-
-
-async def scrape_site(db: MySqlDatabase, scraper: Scraper, site_df_list: list, locations_df: pd.DataFrame=None, headless: bool=True, slow_mo: int=1) -> None:
+async def scrape_site(db: MySqlDatabase, scraper: AsyncScraper, site_df_list: list, locations_df: pd.DataFrame=None, headless: bool=True, slow_mo: int=1) -> None:
     # Get the robots.txt file
     scraper_name =scraper.__qualname__
-    robots_txt_url = get_robots_txt_url(scraper_name)
-    logger.debug(f"robots_txt_url for {scraper}: {robots_txt_url}")
+    logger.debug(f"robots_txt_url for {scraper}: {get_robots_txt_url(scraper_name)}")
 
     # Create an exit stack.
     async with AsyncExitStack() as stack:
         # Create a playwright instance within the stack.
         pw_instance = await stack.enter_async_context(async_playwright())
-        logger.info(f"Playwright instance for '{scraper_name}' instantiated successfully")
+        logger.info(f"Playwright instance for {scraper_name} instantiated successfully")
 
         # Instantiate each scraper.
         scraper_instance: AsyncScraper = await stack.enter_async_context(
-            scraper(pw_instance, robots_txt_url, headless=headless, slow_mo=slow_mo)
+            scraper(pw_instance, robots_txt_url=get_robots_txt_url(scraper_name), headless=headless, slow_mo=slow_mo)
         )
 
         # Build URL paths for each domain.
@@ -282,24 +253,26 @@ async def scrape_site(db: MySqlDatabase, scraper: Scraper, site_df_list: list, l
         # Scrape each domain and return the results.
         results = await scraper_instance.scrape(locations_df, urls, db)
 
+        # Check the results against a boolean.
+
     logger.info(f"scraper {scraper_name} has completed its scrape. It returned {len(results)} URLs. Adding to site_df_list list...")
     site_df_list.append(results)
 
 
 async def scrape_legal_websites(db: MySqlDatabase,
                                 site_df_list: list[None],
-                                scraper_list: list[Scraper],
+                                scraper_list: list[AsyncScraper],
                                 locations_df: pd.DataFrame=None,
                                 headless: bool=True,
                                 slow_mo: int=100
                                 ) -> list[pd.DataFrame]:
     """
-    Scrape legal websites concurrently using site-specific Scraper classes.
+    Scrape legal websites concurrently using site-specific AsyncScraper classes.
 
     Args:
         db (MySqlDatabase): The database connection object.
         site_df_list (list[None]): An empty list that will be populated with DataFrames containing the scraped data from each site.
-        scraper_list (list[Scraper]): A list of Scraper classes, each representing a different legal website to be scraped.
+        scraper_list (list[AsyncScraper]): A list of AsyncScraper classes, each representing a different legal website to be scraped.
         headless (bool, optional): Whether to run the browser in headless mode. Defaults to True.
         slow_mo (int, optional): The number of milliseconds to wait between actions. Defaults to 100.
 
@@ -328,7 +301,6 @@ async def main():
     ]
     site_df_list = []
 
-
     next_step(step=2, stop=False)
     # Step 2. Use Playwright to scrape the websites for its URLs
     async with MySqlDatabase(database="socialtoolkit") as db:
@@ -339,7 +311,6 @@ async def main():
 
         site_df_list = await scrape_legal_websites(db, site_df_list, scraper_list, 
                                                    locations_df=locations_df, headless=HEADLESS, slow_mo=SLOW_MO)
-
 
         next_step(step=3, stop=True)
     # Step 3. Merge the 3 dataframes into 1.
@@ -354,7 +325,11 @@ async def main():
 
 
     next_step(step=5, stop=True)
-    # Step 5. Insert the output_df into the database
+    # Step 5. Make the boolean URLs df
+
+
+    next_step(step=6, stop=True)
+    # Step 6. Insert the output_df into the database
 
 
     logger.info(f"{__file__} program completed successfully! Yay!")

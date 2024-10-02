@@ -1,6 +1,7 @@
 from datetime import datetime
 import logging
 import os
+import re
 import uuid
 
 import yaml
@@ -34,6 +35,22 @@ except Exception as e:
 # Get the program's name
 PROGRAM_NAME = os.path.dirname(__file__) 
 
+def _single_quote_fstring_curly_braces(msg: str) -> str:
+    if isinstance(msg, str) and msg.startswith('f"'):
+        def replacer(match):
+            full_match = match.group(0)
+            content = match.group(1)
+            
+            # Check if the curly brace is preceded by "\n" or ":"
+            if match.start() > 0 and msg[match.start()-2:match.start()] in ("\n{", ": {"):
+                return full_match
+            
+            return f"{{{content!r}}}"
+        
+        pattern = r'\{([^}]+?)\}'
+        return re.sub(pattern, replacer, msg)
+    return msg
+
 # NOTE
 # CRITICAL = 50
 # FATAL = CRITICAL
@@ -46,8 +63,8 @@ PROGRAM_NAME = os.path.dirname(__file__)
 
 class Logger:
     """
-    Create a logger. Supports dynamic log folder generation and routing.\n
-    Has a specialized prompt logger that can be called dynamically within an LLM engine.
+    Create a logger with dynamic log folder generation and routing capabilities.
+    Includes a specialized prompt logger for use within LLM engines.
 
     Parameters:
         logger_name: (str) Name for the logger. Defaults to the program's name i.e. the top-level directory's name.
@@ -55,7 +72,7 @@ class Logger:
         batch_id: (str) The logger's batch id. Used by the prompt logger. Defaults to random UUID4 string.
         current_time: (datetime) The time a logger is initialized. Defaults to now() in "%Y-%m-%d_%H-%M-%S" format.
         log_level (int): The logging level. Defaults to DEFAULT_LOG_LEVEL from config or logging.DEBUG if config is unavailable.
-
+        stacklevel (int): The depth of function calls for determining log origin. Defaults to None.
     Attributes:
         logger_name (str): The name of the logger.
         prompt_name (str): The name of the prompt (for prompt logging).
@@ -63,18 +80,19 @@ class Logger:
         current_time (str): The initialization time of the logger.
         logger_folder (str): The folder where log files are stored.
         log_level (int): The current logging level.
-        stacklevel (int): The depth of function calls. Used to determine which names and lines numbers the logger pulls from in formatting (e.g. the function, the class, the file, etc.)
+        stacklevel (int): The depth of function calls for determining log origin.
         logger (logging.Logger): The underlying Python logger object.
         filename (str): The name of the log file.
         filepath (str): The full path to the log file.
-
+        asterisk (str): Formatting string with asterisks.
+        line (str): Formatting string with dashes.
     Methods:
-        info(): Log a message with severity 'INFO'. Options for formatting with asterisks and lines.
-        debug(): Log a message with severity 'DEBUG'. Options for formatting with asterisks and lines.
-        warning(): Log a message with severity 'WARNING'. 
-        error(): Log a message with severity 'ERROR'.
-        critical(): Log a message with severity 'CRITICAL'.
-        exception(): Log a message with severity 'ERROR', as well as include exception information.
+        info(message, f=False, q=True): Log a message with severity 'INFO'.
+        debug(message, f=False, q=True): Log a message with severity 'DEBUG'.
+        warning(message, f=False, q=True): Log a message with severity 'WARNING'.
+        error(message, f=False, q=True): Log a message with severity 'ERROR'.
+        critical(message, f=False, q=True): Log a message with severity 'CRITICAL'.
+        exception(message, f=False, q=True): Log a message with severity 'ERROR', including exception information.
 
     Example:
         >>> from logger import Logger
@@ -87,8 +105,6 @@ class Logger:
         The class uses the following log levels:
         CRITICAL = 50, ERROR = 40, WARNING = 30, INFO = 20, DEBUG = 10, NOTSET = 0
         FATAL is an alias for CRITICAL, and WARN is an alias for WARNING.
-        
-
     """
 
     def __init__(self,
@@ -161,28 +177,62 @@ class Logger:
             self.logger.addHandler(file_handler)
             self.logger.addHandler(console_handler)
 
-    def info(self, message, f: bool=False):
-        if not f: # f is for formatting.
+    def info(self, message, f: bool=False, q: bool=True):
+        """
+        f is for formatting with self.asterisk.\n
+        q is for automatically putting single quotes around f-string curly brackets
+        """
+        message = _single_quote_fstring_curly_braces(message) if q else message 
+        if not f:
             self.logger.info(message, stacklevel=self.stacklevel)
         else:
             self.logger.info(f"{self.asterisk}{message}{self.asterisk}", stacklevel=self.stacklevel)
 
-    def debug(self, message, f: bool=False):
-        if not f: # f is for formatting.
+    def debug(self, message, f: bool=False, q: bool=True):
+        """
+        f is for formatting with self.asterisk.\n
+        q is for automatically putting single quotes around f-string curly brackets
+        """
+        message = _single_quote_fstring_curly_braces(message) if q else message 
+        if not f: 
             self.logger.debug(message, stacklevel=self.stacklevel)
         else:
             self.logger.debug(f"{self.asterisk}{message}{self.asterisk}", stacklevel=self.stacklevel)
 
-    def warning(self, message):
+    def warning(self, message, f: bool=False, q: bool=True):
+        """
+        f is for formatting with self.asterisk.\n
+        q is for automatically putting single quotes around f-string curly brackets
+        NOTE f is not implemented for this method. It is only there to prevent programmer errors.
+        """
+        message = _single_quote_fstring_curly_braces(message) if q else message 
         self.logger.warning(message, stacklevel=self.stacklevel)
 
-    def error(self, message):
+    def error(self, message, f: bool=False, q: bool=True):
+        """
+        f is for formatting with self.asterisk.\n
+        q is for automatically putting single quotes around f-string curly brackets
+        NOTE f is not implemented for this method. It is only there to prevent programmer errors.
+        """
+        message = _single_quote_fstring_curly_braces(message) if q else message 
         self.logger.error(message, stacklevel=self.stacklevel)
 
-    def critical(self, message):
+    def critical(self, message, f: bool=False, q: bool=True):
+        """
+        f is for formatting with self.asterisk.\n
+        q is for automatically putting single quotes around f-string curly brackets
+        NOTE f is not implemented for this method. It is only there to prevent programmer errors.
+        """
+        message = _single_quote_fstring_curly_braces(message) if q else message 
         self.logger.critical(message, stacklevel=self.stacklevel)
 
-    def exception(self, message):
+    def exception(self, message, f: bool=False, q: bool=True):
+        """
+        f is for formatting with self.asterisk.\n
+        q is for automatically putting single quotes around f-string curly brackets
+        NOTE f is not implemented for this method. It is only there to prevent programmer errors.
+        """
+        message = _single_quote_fstring_curly_braces(message) if q else message 
         self.logger.exception(message, stacklevel=self.stacklevel)
 
 ###############################

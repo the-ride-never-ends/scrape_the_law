@@ -75,6 +75,7 @@ async def main():
     logger.debug(f"main urls_df:\n{urls_df.head()}")
     logger.info("Step 3 Complete.")
 
+
     next_step(step=4)
     # Step 4. Filter out URLs that are obviously bad or wrong.
     # NOTE This step will be less and less necessary as queries get more refined.
