@@ -57,7 +57,8 @@ class AsyncScraper:
         self.target_class: str = self.site_dict['target_class']
         self.robots_txt_url: str = robots_txt_url or self.site_dict['robots_txt']
 
-    def type_check_site_dict(self, child_class_name, robots_txt_url: str=None) -> None:
+
+    def type_check_site_dict(self, child_class_name: str, robots_txt_url: str=None) -> None:
         """
         Check if we have a site dictionary for the child class.
         """
@@ -70,6 +71,7 @@ class AsyncScraper:
                     logger.warning(f"LEGAL_WEBSITE_DICT robots.txt entry missing for {child_class_name}. Defaulting to input robots_txt_url...")
         else:
             raise ValueError(f"LEGAL_WEBSITE_DICT entry missing for {child_class_name}..")
+
 
     #### START CLASS STARTUP AND EXIT METHODS ####
     async def async_get_robot_rules(self, robots_txt_url) -> None:
@@ -315,7 +317,7 @@ class AsyncScraper:
         unprocessed_urls = await self._filter_urls(urls, db)
 
         # Scrape the URL and return its URLs and text.
-        logger.info(f"Getting URLs from General Code...")
+        logger.info(f"Getting URLs from {self.source}...")
         # Create generator that creates a list of dictionaries for each item return of async_scrape.
         dict_generator: AsyncGenerator = (
             {
@@ -338,6 +340,9 @@ class AsyncScraper:
 
         # Get rid of duplicate URLs
         site_df = site_df.drop_duplicates(subset=['href'])
+
+        # Append the source.
+        site_df['source'] = self.source
 
         return site_df
 

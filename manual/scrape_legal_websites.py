@@ -40,7 +40,7 @@ logger = Logger(logger_name=__name__)
 from utils.shared.next_step import next_step
 from utils.manual.scrape_legal_websites_utils.get_robots_txt_url import get_robots_txt_url
 from utils.manual.scrape_legal_websites_utils.get_locations import get_locations
-from utils.manual.scrape_legal_websites_utils.connect_scraped_urls_to_locations import connect_scraped_urls_to_locations
+from utils.manual.scrape_legal_websites_utils.match_urls_to_locations import match_urls_to_locations
 
 
 from manual.scraper_base_class.AsyncScraper import AsyncScraper
@@ -229,8 +229,8 @@ async def scrape_site(db: MySqlDatabase,
         # Scrape each domain and return the URLs and their associated text.
         sites_df: pd.DataFrame = await scraper_instance.scrape(locations_df, urls, db)
 
-        # Check the URLs and text against the locations in locations_df.
-        results: pd.DataFrame  = connect_scraped_urls_to_locations(locations_df, sites_df)
+        # Match the URLs and text with the locations in locations_df.
+        results: pd.DataFrame  = match_urls_to_locations(locations_df, sites_df)
 
     logger.info(f"scraper {scraper_name} has completed its scrape. It returned {len(results)} URLs. Adding to site_df_list list...")
     site_df_list.append(results)

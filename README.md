@@ -4,7 +4,7 @@
 1. Problem definition
 2. High-level architecture
 3. Data structures
-4. Algorithms - TODO
+4. Algorithms
 5. Function/method signatures - TODO
 6. Error handling - TODO
 7. Testing strategy - TODO
@@ -189,21 +189,165 @@ Outputs: A MySQL database of all local legal codes in the US related to the inpu
 
 # 3. Data Structures
 
-- Uses Pandas dataframes for handling data and manipulation.
-- Input/output variables defined in MySQL database schemas.
-- Key configs defined in a private and public config yaml.
+## 1. In-Memory Data Structures:
+   - Pandas DataFrames:
+      - Primary structure for moving and manipulating data.
+   - Python base types
+      - Sets, Queues, Dictionaries, etc.
+## 2. Database Structures
+   - Input/out variables are defined here.
+   - See Datbase Schema in SQLSCHEMA.md
+## 4. File Structures
+   - YAML config files, "config.yaml" and "private_config.yaml"
+   - Log files: Structured plaintext files, with option to output JSON.
+
+# 4. Algorithms
+
+# 4.1 Search Query Generation
+- Input:
+   - Datapoint (e.g. "sales tax")
+   - Location information (GNIS id, place name, state code, domain name)
+   - Source URL (Municode, American Legal, or General Code, domain name)
+- Process:
+  1. Sanitize and validate input datapoint.
+      - Remove special characters, normalize spacing.
+      - Logic for including synonyms or related terms (e.g. sales tax vs sales and use tax) if applicable.
+  2. Retrieve location information from 'locations' table in MySQL database.
+      - Source URLs are pre-generated using commonly observed patterns.
+  3. Construct search query using datapoint, source URL, and location.
+      - Optimize each query for Google's search engine as default.
+      - Ex: 'site:https://codelibrary.amlegal.com/codes/kingcoveak/latest/kingcove_ak/ "sales tax" OR "sales and use tax"'
+  4. Generate query hash for efficient storage and retrieval.
+- Output: Formatted search query and associated metadata.
+
+# 4.2 Web Search
+- Input:
+   - Search queries from Search Query Generation
+   - location information (GNIS id, place name, state code, domain name)
+   - A specific search engine (e.g. Google Search) or an API for it.
+- Process:
+   1. Check if a query has already been run within the last year.
+   2. If it has not been run in the past year but has been run before, check the number of results it returned.
+   3. Run the query through the chosen search engine it was not run in the last year and returned results OR if it hasn't been run before.
+   4. Count the number of results.
+   5. If the query produced results, save the URLs. Otherwise, just note that it produced no results.
+   6. Generate url hash for efficient storage and retrieval.
+- Output: Search result URLs and associated metadata (time queried, number of results).
+
+# 4.3 Web Scraping
+- Input: Search results URLs
+- Process:
+   1. Check if URL is already archived.
+   2. If not archived or if the archive is not from the current year, submit URL to Internet Archive.
+      - Rate limit of 1 URL upload per second.
+   3. Retrieve content from Internet Archive.
+      - Check if a specific URL path needs to have elements loaded first. If it does, wait for them to load.
+      - Rate limit of 1 URL download per second.
+   4. Handle different input formats (HTML, PDF, etc.).
+      - Directly download HTML, PDF, and doc files.
+      - Note other file types (e.g. php, csv, etc.)
+   5. Extract raw content.
+   6. Store content metadata in 'doc_metadata' table on MySQL database.
+   7. Store raw content in 'doc_content' table on MySQL database if it's under a certain size, otherwise stream it in futher steps.
+- Output: Raw content and associated metadata
+
+# 4.4 Content Extraction and Cleaning
+- Input: Raw content from various document formats
+- Process:
+  1. Detect document format.
+  2. Extract text using appropriate method for each format.
+      - For HTML, process with Beautiful Soup or other HTML processors.
+      - For PDF, use Jinja to convert it if it's not flat, otherwise use OCR.
+  3. Remove HTML tags, scripts, and other non-content elements.
+  4. Normalize text (e.g., consistent line breaks, character encoding)
+  5. Identify and extract relevant sections related to the datapoint
+  6. Apply any specific cleaning rules for legal text
+- Output: Cleaned and normalized text content
+
+# 4.5 Update Detection
+- Input: Existing content and newly scraped content
+- Process:
+  1. Compare checksums of existing and new content.
+  2. If checksums differ, perform detailed comparison.
+  3. Identify added, modified, and deleted sections.
+  4. Generate change log.
+  5. Update database with new content and change information.
+- Output: Updated content, change log, and update notifications.
 
 
 
 
+## 4.1.1 Specific details for Search Query Generation:
 
+1. Query formats for different search engines:
+- Google search syntax (e.g., use of quotation marks, site: operator)
+- Bing search syntax (e.g., filetype: operator)
+- DuckDuckGo syntax (e.g., using bangs for site-specific searches)
+- Handling special characters in queries
+- Constructing Boolean queries (AND, OR, NOT operators)
+- Using advanced search operators (inurl:, intitle:, etc.)
 
+2. Handling synonyms or related terms:
+- Maintaining a thesaurus of legal terms and common synonyms
+- Implementing fuzzy matching for similar terms
+- Using word embeddings to find semantically related terms
+- Handling acronyms and their full forms (e.g., "sales tax" vs "ST")
+- Considering regional variations in terminology
 
+3. Incorporating location-specific information:
+- Formatting city names (e.g., "New York City" vs "NYC")
+- Handling hyphenated city names
+- Including state abbreviations and full names
+- Using zip codes or county names for more specific searches
+- Handling special administrative divisions (e.g., boroughs, parishes)
+- Incorporating landmark names or colloquial area names
 
+4. Avoiding search engine detection and blocking:
+- Implementing dynamic IP rotation
+- Using proxy servers or VPNs
+- Randomizing user agents
+- Adding delays between queries (with random intervals)
+- Mimicking human search patterns (e.g., occasional misspellings, varied query lengths)
+- Distributing queries across multiple search engines
+- Implementing CAPTCHA solving capabilities
 
+5. Query construction and optimization:
+- Prioritizing keywords based on relevance
+- Balancing query specificity and recall
+- Handling long-tail queries for niche legal topics
+- Implementing query expansion techniques
+- Using domain-specific search operators (e.g., site:.gov for government websites)
+- Constructing queries to target specific document types (e.g., "filetype:pdf")
 
+6. Query storage and management:
+- Generating unique identifiers for each query
+- Storing query history for auditing and optimization
+- Implementing a caching mechanism for frequent queries
+- Managing query quotas for different search engines
+- Tracking query performance metrics (e.g., number of relevant results)
 
+7. Error handling and edge cases:
+- Handling queries with no results
+- Dealing with misspelled location names or datapoints
+- Managing queries that exceed maximum length limits
+- Handling special characters or non-ASCII input
+- Implementing fallback strategies for failed queries
 
+8. Compliance and ethical considerations:
+- Respecting search engine terms of service
+- Implementing appropriate delays between queries
+- Avoiding overloading smaller municipal websites
+- Considering fair use and copyright implications of queries
 
+9. Performance optimization:
+- Implementing parallel query generation for multiple locations
+- Using efficient data structures for storing and retrieving query components
+- Optimizing string operations for query construction
+- Implementing batch processing for large-scale query generation
 
+10. Integration with other system components:
+- Interfacing with the database for retrieving location data
+- Passing generated queries to the web scraping module
+- Providing feedback to the input processing module for query refinement
+- Integrating with logging and monitoring systems
 
