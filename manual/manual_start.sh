@@ -35,7 +35,7 @@ fi
 echo "*** BEGIN PROGRAM ***"
 
 # Run the Python script with the provided file name
-python scrape_legal_websites.py
+#python scrape_legal_websites.py
 
 
 # "$PYTHON_FILE"

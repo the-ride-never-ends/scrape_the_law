@@ -1,0 +1,57 @@
+SYSTEM:
+  SKIP_STEPS: True
+  CONCURRENCY_LIMIT: 2
+  FILENAME_PREFIX: "scrape_the_law"
+  WAIT_TIME: 5
+  ROUTE: "NA"
+  DATAPOINT: "sales tax"
+  DEFAULT_LOG_LEVEL: 10 # CRITICAL = 50, FATAL = CRITICAL, ERROR = 40, WARNING = 30, WARN = WARNING, INFO = 20, DEBUG = 10, NOTSET = 0
+  FORCE_DEFAULT_LOG_LEVEL_FOR_WHOLE_PROGRAM: False # Whether we want to force the whole program to use the default log level, or whether to do it on a file-by-file basis.
+FILENAMES:
+  INPUT_FILENAME: "input.csv"
+ARCHIVE:
+  WAYBACKUP: # This is the program the scrapes the Wayback machine
+    REQUIRED:
+      URL: ""
+      CURRENT: True
+      FULL: False
+      SAVE: False
+    OPTIONAL:
+      LIST: True
+      EXPLICIT: "--explicit"
+      OUTPUT: "--output"
+      RANGE: "--range"
+      START: 2024010112000
+      END: 2024123112000
+      FILETYPE: ".html"
+    BEHAVIOR_MANIPULATION:
+      CSV: True
+      SKIP: False
+      NO_REDIRECT: False
+      VERBOSITY: "trace"
+      LOG: True
+      RETRY: 1
+      WORKERS: 1
+      DELAY: 1
+      LIMIT: "--limit"
+    CDX:
+      CDX_BACKUP: "--cdxbackup"
+      CDX_INJECT: "--cdxinject"
+      AUTO: False
+SEARCH: # NOTE These will likely change as the years wear on.
+  PARAMETERS:
+    USE_API_FOR_SEARCH: False
+    NUM_RESULTS: 10
+    SEARCH_ENGINE: "google"
+  GOOGLE:
+    GOOGLE_AUTOFILL_SUGGESTIONS_HTML_TAG: '#gb'
+    GOOGLE_SEARCH_RESULT_TAG: '[jsname="UWckNb"]'
+    GOOGLE_CONCURRENCY_LIMIT: 2
+  SITE_URLS:
+    MUNICODE_URL: "https://library.municode.com/"
+    AMERICAN_LEGAL_URL: "https://codelibrary.amlegal.com/codes/"
+    GENERAL_CODE_URL: "https://ecode360.com/"
+    CODE_PUBLISHING_CO_URL: "https://www.codepublishing.com/"
+PLAYWRIGHT:
+  HEADLESS: True
+  SLOW_MO: 100

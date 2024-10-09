@@ -23,7 +23,6 @@ def _remove_non_places(text: str):
 
 def _is_place_in_text(place_name: str, class_code:str,  text: str) -> bool:
     """
-    A series of Regexes
     NOTE Already narrowed to a single state.
     """
     # Define county and county equivalents.
