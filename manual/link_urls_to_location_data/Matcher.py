@@ -28,19 +28,25 @@ Dependencies:
 Note: This module relies on a custom Logger class and a config module
 for output folder specification.
 """
-
-# Rest of the code remains unchanged
 import os
 import re
 import time
 from typing import Any, NamedTuple
 
+
 import pandas as pd
+
+
+from pathlib import Path
+import sys
+parent_dir = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(parent_dir))
+print(parent_dir)
 
 from config import OUTPUT_FOLDER
 from logger import Logger
-
 logger = Logger(logger_name=__name__, stacklevel=2)
+
 
 class Matcher:
     def __init__(self, sources_df: pd.DataFrame, locations_df: pd.DataFrame):

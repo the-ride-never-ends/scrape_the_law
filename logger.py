@@ -1,12 +1,43 @@
+"""
+Module for the custom logging class.
+
+Includes:
+1. A Logger class that creates loggers with dynamic log folder generation and routing capabilities.
+2. A specialized prompt logger for use within LLM engines.
+3. Utility functions for managing log files and generating unique IDs.
+4. Configuration handling for log levels and global settings.
+
+The module sets up logging based on a configuration file (config.yaml) or falls back to default settings.
+It supports various log levels (DEBUG, INFO, WARNING, ERROR, CRITICAL) and provides methods to log
+messages with different severities. The Logger class can be instantiated with custom names, batch IDs,
+and log levels, making it flexible for different parts of an application.
+
+Key features:
+- Dynamic log file and folder creation
+- Configurable log levels
+- Special handling for prompt logging in LLM contexts
+- Automatic formatting of log messages
+- Support for both file and console logging
+
+Usage:
+    from logger import Logger
+    logger = Logger(logger_name="my_app")
+    logger.info("Application started")
+    logger.debug("Debug information")
+    logger.error("An error occurred")
+
+Note: This module requires the 'yaml' package for configuration file parsing.
+"""
 from datetime import datetime
 import logging
 import os
 import re
+import time
 import uuid
 
 import yaml
 
-from utils.logger.delete_empty_log_files import delete_empty_log_files
+from utils.logger.delete_empty_log_files import delete_empty_log_files, delete_zone_identifier_files
 
 def make_id():
     return str(uuid.uuid4())
@@ -21,11 +52,14 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 config_path = os.path.join(script_dir, './config.yaml')
 try:
     delete_empty_log_files(debug_log_folder)
+    delete_zone_identifier_files(base_path)
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
     DEFAULT_LOG_LEVEL = config['SYSTEM']['DEFAULT_LOG_LEVEL']
     FORCE_DEFAULT_LOG_LEVEL_FOR_WHOLE_PROGRAM: bool = config['SYSTEM']['FORCE_DEFAULT_LOG_LEVEL_FOR_WHOLE_PROGRAM']
     print(f"DEFAULT_LOG_LEVEL set to '{DEFAULT_LOG_LEVEL}'\nFORCE_DEFAULT_LOG_LEVEL_FOR_WHOLE_PROGRAM set to {FORCE_DEFAULT_LOG_LEVEL_FOR_WHOLE_PROGRAM}")
+except ModuleNotFoundError as e:
+    print("")
 except Exception as e:
     # Automatically run the entire program in debug mode if we lack configs.
     DEFAULT_LOG_LEVEL = logging.DEBUG
@@ -33,20 +67,21 @@ except Exception as e:
     print(f"Could not get debug level from config.yaml due to '{e}'.\nDefault LOG_LEVEL set to '{DEFAULT_LOG_LEVEL}'\nDefault FORCE_DEFAULT_LOG_LEVEL set to '{FORCE_DEFAULT_LOG_LEVEL_FOR_WHOLE_PROGRAM}'")
 
 # Get the program's name
-PROGRAM_NAME = os.path.dirname(__file__) 
+PROGRAM_NAME = os.path.dirname(__file__)
 
+# TODO FIX THIS FUNCTION. IT DOESN'T WORK!!!!
 def _single_quote_fstring_curly_braces(msg: str) -> str:
     if isinstance(msg, str) and msg.startswith('f"'):
         def replacer(match):
             full_match = match.group(0)
             content = match.group(1)
-            
+
             # Check if the curly brace is preceded by "\n" or ":"
             if match.start() > 0 and msg[match.start()-2:match.start()] in ("\n{", ": {"):
                 return full_match
-            
+
             return f"{{{content!r}}}"
-        
+
         pattern = r'\{([^}]+?)\}'
         return re.sub(pattern, replacer, msg)
     return msg
@@ -177,65 +212,76 @@ class Logger:
             self.logger.addHandler(file_handler)
             self.logger.addHandler(console_handler)
 
-    def info(self, message, f: bool=False, q: bool=True):
+    def info(self, message, f: bool=False, q: bool=True, t: float=None, off: bool=False):
         """
         f is for formatting with self.asterisk.\n
-        q is for automatically putting single quotes around f-string curly brackets
+        q is for automatically putting single quotes around f-string curly brackets.
+        t is for pausing the program by a specified number of seconds after the message has been printed to console.
+        off turns off the logger for this message.
         """
-        message = _single_quote_fstring_curly_braces(message) if q else message 
-        if not f:
-            self.logger.info(message, stacklevel=self.stacklevel)
-        else:
-            self.logger.info(f"{self.asterisk}{message}{self.asterisk}", stacklevel=self.stacklevel)
+        message = _single_quote_fstring_curly_braces(message) if q else message
+        if not off:
+            if not f:
+                self.logger.info(message, stacklevel=self.stacklevel)
+            else:
+                self.logger.info(f"{self.asterisk}{message}{self.asterisk}", stacklevel=self.stacklevel)
+            if t:
+                time.sleep(t)
 
-    def debug(self, message, f: bool=False, q: bool=True):
+    def debug(self, message, f: bool=False, q: bool=True, t: float=None, off: bool=False):
         """
         f is for formatting with self.asterisk.\n
-        q is for automatically putting single quotes around f-string curly brackets
+        q is for automatically putting single quotes around f-string curly brackets.
+        t is for pausing the program by a specified number of seconds after the message has been printed to console.
+        off turns off the logger for this message.
         """
-        message = _single_quote_fstring_curly_braces(message) if q else message 
-        if not f: 
-            self.logger.debug(message, stacklevel=self.stacklevel)
-        else:
-            self.logger.debug(f"{self.asterisk}{message}{self.asterisk}", stacklevel=self.stacklevel)
+        message = _single_quote_fstring_curly_braces(message) if q else message
+        if not off:
+            if not f:
+                self.logger.debug(message, stacklevel=self.stacklevel)
+            else:
+                self.logger.debug(f"{self.asterisk}{message}{self.asterisk}", stacklevel=self.stacklevel)
+            if t:
+                time.sleep(t)
 
-    def warning(self, message, f: bool=False, q: bool=True):
+    def warning(self, message, f: bool=False, q: bool=True, t: float=None, off: bool=False):
         """
         f is for formatting with self.asterisk.\n
         q is for automatically putting single quotes around f-string curly brackets
-        NOTE f is not implemented for this method. It is only there to prevent programmer errors.
+        NOTE f, t, and off are not implemented for this method. They are only there to prevent programmer errors.
         """
-        message = _single_quote_fstring_curly_braces(message) if q else message 
+        message = _single_quote_fstring_curly_braces(message) if q else message
         self.logger.warning(message, stacklevel=self.stacklevel)
 
-    def error(self, message, f: bool=False, q: bool=True):
+    def error(self, message, f: bool=False, q: bool=True, t: float=None, off: bool=False):
         """
         f is for formatting with self.asterisk.\n
         q is for automatically putting single quotes around f-string curly brackets
-        NOTE f is not implemented for this method. It is only there to prevent programmer errors.
+        NOTE f, t, and off are not implemented for this method. They are only there to prevent programmer errors.
         """
-        message = _single_quote_fstring_curly_braces(message) if q else message 
+        message = _single_quote_fstring_curly_braces(message) if q else message
         self.logger.error(message, stacklevel=self.stacklevel)
 
-    def critical(self, message, f: bool=False, q: bool=True):
+    def critical(self, message, f: bool=False, q: bool=True, t: float=None, off: bool=False):
         """
         f is for formatting with self.asterisk.\n
         q is for automatically putting single quotes around f-string curly brackets
-        NOTE f is not implemented for this method. It is only there to prevent programmer errors.
+        NOTE f, t, and off are not implemented for this method. They are only there to prevent programmer errors.
         """
-        message = _single_quote_fstring_curly_braces(message) if q else message 
+        message = _single_quote_fstring_curly_braces(message) if q else message
         self.logger.critical(message, stacklevel=self.stacklevel)
 
-    def exception(self, message, f: bool=False, q: bool=True):
+    def exception(self, message, f: bool=False, q: bool=True, t: float=None, off: bool=False):
         """
         f is for formatting with self.asterisk.\n
         q is for automatically putting single quotes around f-string curly brackets
-        NOTE f is not implemented for this method. It is only there to prevent programmer errors.
+        NOTE f, t, and off are not implemented for this method. They are only there to prevent programmer errors.
         """
-        message = _single_quote_fstring_curly_braces(message) if q else message 
+        message = _single_quote_fstring_curly_braces(message) if q else message
         self.logger.exception(message, stacklevel=self.stacklevel)
 
 ###############################
 
 # Create singletons of the loggers.
 #logger = Logger()
+

@@ -2,13 +2,18 @@ import asyncio
 import sys
 
 
+import pandas as pd
+
+
 from input import InputProcessor
 from search import SearchEngine
+from sources import Sources
 from query import SearchQueryGenerator
 from archive import SaveToInternetArchive
 from scrape import ScrapeInternetArchive
 from filter import FilterUrls
 from clean import Cleaner
+from metadata import Meta
 
 from utils.shared.next_step import next_step
 
@@ -21,7 +26,7 @@ logger = Logger(logger_name=__name__)
 
 async def main():
 
-    logger.info("Step 1. Get the input data from the database based on our datapoint.")
+    next_step("Step 1. Get the input data from the database based on our datapoint.")
     processor = InputProcessor(datapoint=DATAPOINT, rand_seed=RAND_SEED)
     locations_df = await processor.get_initial_dataframe()
 
@@ -42,71 +47,99 @@ async def main():
     # sample_locations_df = locations_df.sample(n=30, random_state=RAND_SEED)
     # logger.debug(f"Randomly sampled 30 locations:\n{sample_locations_df}")
 
-    next_step(step=2)
-    logger.info("Step 2: Make queries based on the input cities.")
-    # Since we haven't made the query maker class, we'll just use an example.
-    common_terms = [
-            "law", "code", "ordinance", "regulation", "statute",
-            "municipal code", "city code", "county code", "local law"
-        ]
+    next_step("Step 2: Make queries based on the input cities.")
+    skip = input("Skip step 3? y/n: ")
+    if "n" or "N" in skip:
+        common_terms = [
+                "law", "code", "ordinance", "regulation", "statute",
+                "municipal code", "city code", "county code", "local law"
+            ]
+        sources_df = await Sources().get_search_urls_from_sources()
+
+        generator = SearchQueryGenerator(DATAPOINT, common_terms=common_terms, search_engine=SEARCH_ENGINE)
+        queries_df = await generator.make_queries(locations_df, sources_df)
+        logger.debug(f"main queries_df:\n{queries_df.head()}")
+        logger.info("Step 2 Complete.")
+        # Output should look like below
+        # 2024-09-21 22:43:34,897 - __main___logger - DEBUG - main.py: 56 - main queries_df:
+        #       gnis                                            queries          source
+        # 0  2409449  site:https://library.municode.com/tx/childress...        municode
+        # 1  2390602  site:https://ecode360.com/ City of Hurricane W...    general_code
+        # 2  2412174  site:https://codelibrary.amlegal.com/codes/wal...  american_legal
+        # 3   885195           site:https://demarestnj.org/ "sales tax"    place_domain
+        # 4  2411145  site:https://library.municode.com/ca/monterey/...        municode
 
 
-    generator = SearchQueryGenerator(DATAPOINT, common_terms=common_terms, search_engine=SEARCH_ENGINE)
-    queries_df = await generator.make_queries(locations_df)
-    logger.debug(f"main queries_df:\n{queries_df.head()}")
-    logger.info("Step 2 Complete.")
-    # Output should look like below
-    # 2024-09-21 22:43:34,897 - __main___logger - DEBUG - main.py: 56 - main queries_df:
-    #       gnis                                            queries          source
-    # 0  2409449  site:https://library.municode.com/tx/childress...        municode
-    # 1  2390602  site:https://ecode360.com/ City of Hurricane W...    general_code
-    # 2  2412174  site:https://codelibrary.amlegal.com/codes/wal...  american_legal
-    # 3   885195           site:https://demarestnj.org/ "sales tax"    place_domain
-    # 4  2411145  site:https://library.municode.com/ca/monterey/...        municode
+    next_step("Step 3. Search these up on Google and get the URLs.")
+    skip = input("Skip step 3? y/n: ")
+    if "n" or "N" in skip:
+        # NOTE. We might have to use the Google Search API here. Google will probably get wise to this eventually.
+        # This will also be pretty slow.
+        SKIP_SEARCH = False
+        search: SearchEngine = SearchEngine().start_engine(SEARCH_ENGINE, USE_API_FOR_SEARCH, headless=HEADLESS, slow_mo=SLOW_MO)
+        urls_df = await search.results(queries_df, skip_seach=SKIP_SEARCH)
+        logger.debug(f"main urls_df:\n{urls_df.head()}")
+        logger.info("Step 3 Complete.")
+    else:
+        logger.info("Step 3 skipped.")
 
 
-    next_step(step=3)
-    # Step 3. Search these up on Google and get the URLs.
-    # NOTE. We might have to use the Google Search API here. Google will probably get wise to this eventually.
-    # This will also be pretty slow.
-    SKIP_SEARCH = False
-    search: SearchEngine = SearchEngine().start_engine(SEARCH_ENGINE, USE_API_FOR_SEARCH, headless=HEADLESS, slow_mo=SLOW_MO)
-    urls_df = await search.results(queries_df, skip_seach=SKIP_SEARCH)
-    logger.debug(f"main urls_df:\n{urls_df.head()}")
-    logger.info("Step 3 Complete.")
+    next_step("Step 4. Filter out URLs from search that are obviously bad or wrong.")
+    skip = input("Skip step 4? y/n: ")
+    if "n" or "N" in skip:
+        # NOTE This step will be less and less necessary as queries get more refined.
+        url_filter: FilterUrls = FilterUrls()
+        filtered_urls_df = url_filter.strain(urls_df)
+        get_filtered_urls_from_db = False
+    else:
+        logger.info("Step 4 skipped.")
+        get_filtered_urls_from_db = True
 
 
-    next_step(step=4)
-    # Step 4. Filter out URLs that are obviously bad or wrong.
-    # NOTE This step will be less and less necessary as queries get more refined.
-    url_filter: FilterUrls = FilterUrls()
-    filtered_urls_df = url_filter.strain(urls_df)
+    next_step("Step 5. Check if these links are in the Wayback Machine. If they aren't save them.", stop=True)
+    async with MySqlDatabase(database="socialtoolkit") as db:
+        if get_filtered_urls_from_db:
+            filtered_urls_df = db.async_query_to_dataframe("""
+            SELECT DISTINCT url_hash, url, gnis FROM urls
+            """)
+
+        db: MySqlDatabase
+        ia_saver: SaveToInternetArchive = SaveToInternetArchive()
+        ia_urls_df: pd.DataFrame = await ia_saver.check(filtered_urls_df, db)
+        ia_urls_df: pd.DataFrame = await ia_saver.save(ia_urls_df, db)
 
 
-    next_step(step=5, stop=True)
-    # Step 5. Check if these links are in the Wayback Machine. If they aren't save them.
-    async with await MySqlDatabase as db:
-        ia_saver: SaveToInternetArchive = SaveToInternetArchive(db)
-        ia_links_df = await ia_saver.save(filtered_urls_df)
-
-
-    next_step(step=6)
-    # Step 6. Scrape the results from the Wayback Machine using the Waybackup program.
-    async with await MySqlDatabase as db:
+        next_step("Step 6. Scrape the saved urls from the Wayback Machine.")
         scraper = ScrapeInternetArchive(db)
-        text_df = scraper.scrape(ia_links_df)
+        text_df = scraper.scrape(ia_urls_df)
 
 
-    next_step(step=7)
-    # Step 7. Clean the text and save it to the database
+        next_step("Step 7. Get metadata for the text.")
+        # Metadata:
+        ### Field ###
+        # url_hash
+        # gnis: gnis id
+        # doc_type: pdf, xlsx, etc.
+        # title: What the document's title is, if available.
+        # doc_creation_date: When the document was created, if available
+        # saved_in_database: Whether or not the document is in the database
+        # other_metadata
+        meta = Meta()
+        metadata_df = meta.data(text_df)
+        db.async_insert_by_batch(metadata_df)
 
-    async with await MySqlDatabase as db:
+
+        next_step("Step 8. Clean the text and save it to the database")
         clean = Cleaner(db)
-        text_df = clean.clean(ia_links_df)
+        text_df: pd.DataFrame = clean.clean(text_df)
+        text_df.to_dict('records') # -> list[dict]
+        db.async_insert_by_batch(
+            """
+            INSERT INTO doc_metatadata
+            """
+        )
 
 
-    next_step(step=8)
-    # Step 8. Get metadata from the text: 
 
     sys.exit(0)
 

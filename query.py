@@ -159,8 +159,13 @@ class SearchQueryGenerator:
         # Return the query and source as a tuple
         return query, source
 
+    def make_queries_from_sources(self, db: MySqlDatabase):
+        pass
 
-    async def make_queries(self, df: pd.DataFrame, source=None, set_queries: set=None) -> pd.DataFrame:
+
+
+
+    async def make_queries(self, locations_df: pd.DataFrame, sources_df: pd.DataFrame, source=None, set_queries: set=None) -> pd.DataFrame:
         """
         Construct unique search engine queries to find document URLs for given places in the USA.
         Supports different query construction methods for various websites, location types (places vs counties) and
@@ -168,7 +173,8 @@ class SearchQueryGenerator:
         - NOTE: These query strings are currently tuned for Google. Bing and others will have to be done separately.
 
         Args:
-            places_df: DataFrame containing place information.
+            locations_df: DataFrame containing place information.
+            sources_df: DataFrame containing URLs.
             datapoint: The type of data being queried. Defaults to DATAPOINT constant.
             source: The specific source to filter queries for. Defaults to "municode".
             search_engine: The search engine to construct queries for. Defaults to "google".
@@ -210,30 +216,38 @@ class SearchQueryGenerator:
         else:
             assert len(set_queries[0]) == 3, f"tuples in set_queries are len {len(set_queries[0])}, not 3"
 
-        # Initialize data as a set.
-        # This will prevent any duplicate queries that might be generated.
+        # Initialize data as a set to prevent duplicate queries.
         data = set()
 
         # Create a list of query construction functions.
         # Each function spits out a unique query specifically tuned for that website.
         # NOTE We want the query url to be as specific as possible to reduce strain on the websites and avoid detection.
         function_list = [
-            self.make_municode_query,
+            self.make_municode_query, # NOTE Now that we got the places that are actually on these sites, we don't need to construct ten million queries. Nice!
             self.make_american_legal_query,
             self.make_general_code_query,
             self.make_code_publishing_co_query,
             self.make_domain_name_query
         ]
 
-        logger.info(f"Starting construct_queries for-loop. Input URL count: {len(df)}")
-        for i, row in enumerate(df.itertuples(), start=1):
-            logger.debug(f"Processing row {i} of {len(df)}...")
+        # Filter out locations where we already got links.
+        len_l_df_before = len(locations_df)
+        locations_df = locations_df[
+                            ~locations_df['gnis'].isin(sources_df['gnis'])
+                        ]
+        len_l_df_after = len(locations_df)
+        logger.info(f"Filtered out {len_l_df_before - len_l_df_after} locations out of {len_l_df_before} based on presence in sources_df.")
+
+
+        logger.info(f"Starting construct_queries for-loop. Input URL count: {len_l_df_after}")
+        for i, row in enumerate(locations_df.itertuples(), start=1):
+            logger.debug(f"Processing row {i} of {len_l_df_after}...")
 
             skip_to_next_row = False
             for func in function_list:
                 # Counties and Places get separate routes.
                 # TODO Create county paths for these functions
-                county = False if "H" not in row.class_code else True
+                # county = False if "H" not in row.class_code else True
 
                 try: # Make the query strings
                     query, tuple_source = func(row)

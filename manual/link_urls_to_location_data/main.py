@@ -1,41 +1,42 @@
 """
-Simplified version of scrape_the_law
+Link place URLs from legal websites to ID information from table 'locations'
 """
-
-
 import asyncio
-import csv
 import os
 import re
-import sys
 import time
 
 
 import pandas as pd
 from selenium import webdriver
 
-
-from utils.shared.next_step import next_step
-from utils.shared.sanitize_filename import sanitize_filename
-from utils.shared.return_s_percent import return_s_percent
-
-
-from utils.main.make_urls import make_urls
-from utils.main.get_urls import get_urls
-from utils.main.save_to_csv import save_to_csv
-from utils.main.save_urls_to_csv import save_urls_to_csv
-from utils.main.merge_csv_files import merge_csv_files
-from utils.main.load_from_csv import load_from_csv
-from utils.main.make_csv_file_path_with_cwd import make_csv_file_path_with_cwd
-from utils.main.pivot_df_from_long_to_wide import pivot_df_from_long_to_wide
-
+from pathlib import Path
+import sys
+parent_dir = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(parent_dir))
 
 from Matcher import Matcher
 from database import MySqlDatabase
 from config import OUTPUT_FOLDER
 from logger import Logger
-
 logger = Logger(logger_name=__name__)
+
+
+
+from utils.shared.next_step import next_step
+from utils.shared.return_s_percent import return_s_percent
+
+
+from utils.manual.link_urls_to_location_data.main.make_urls import make_urls
+from utils.manual.link_urls_to_location_data.main.get_urls import get_urls
+from utils.manual.link_urls_to_location_data.main.save_to_csv import save_to_csv
+from utils.manual.link_urls_to_location_data.main.save_urls_to_csv import save_urls_to_csv
+from utils.manual.link_urls_to_location_data.main.merge_csv_files import merge_csv_files
+from utils.manual.link_urls_to_location_data.main.load_from_csv import load_from_csv
+from utils.manual.link_urls_to_location_data.main.make_csv_file_path_with_cwd import make_csv_file_path_with_cwd
+from utils.manual.link_urls_to_location_data.main.pivot_df_from_long_to_wide import pivot_df_from_long_to_wide
+
+
 
 
 am_legal_file = os.path.join(os.getcwd(), "american_legal_results.csv")
@@ -140,7 +141,7 @@ async def main():
     logger.info("Made American legal URLs.")
 
 
-    next_step("Step 2. Scrape American Legal URLs and save to csv.")
+    next_step("Step 2. Scrape American Legal URLs and save to csv.", stop=True)
     file = make_csv_file_path_with_cwd(source)
     if not os.path.exists(am_legal_file):
         am_legal_results = await get_urls(am_legal_urls, source=source)

@@ -4,13 +4,13 @@
 echo "STARTING PROGRAM..."
 
 # Activate the virtual environment
-source venv/bin/activate
+source ../../venv/bin/activate
 
 # Echo to indicate the start of the Python script
 echo "*** BEGIN PROGRAM ***"
 
 # Run the Python script
-python main.py # main.py
+python3 main.py # main.py
 
 # Echo to indicate the end of the Python script
 echo "*** END PROGRAM ***"

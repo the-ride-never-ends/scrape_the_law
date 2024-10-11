@@ -1,8 +1,16 @@
 
+from logger import Logger
+logger = Logger(logger_name=__name__)
 
-
+from config import INPUT_FILENAME, VERBOSITY, START, OUTPUT_FOLDER, DELAY, WAIT_TIME, DATABASE_NAME, ROUTE, INTERNET_ARCHIVE_API_KEY
+from database import MySqlDatabase
 
 class ScrapeInternetArchive:
-    pass
+
+    def __init__(self):
+        self.db = None
+
+    def scrape(self):
+        pass
 
 
