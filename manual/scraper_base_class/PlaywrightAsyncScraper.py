@@ -30,7 +30,7 @@ from logger import Logger
 logger = Logger(logger_name=__name__)
 
 
-class AsyncScraper:
+class PlaywrightAsyncScraper:
 
     def __init__(self,
                  pw_instance: AsyncPlaywright,
@@ -100,7 +100,7 @@ class AsyncScraper:
 
 
     @classmethod
-    async def async_start(cls, pw_instance, robots_txt_url, user_agent, **launch_kwargs) -> 'AsyncScraper':
+    async def async_start(cls, pw_instance, robots_txt_url, user_agent, **launch_kwargs) -> 'PlaywrightAsyncScraper':
         """
         Factory method for asynchronously starting the class.
         """
@@ -114,7 +114,7 @@ class AsyncScraper:
         await self._async_close_browser()
 
 
-    async def __aenter__(self) -> 'AsyncScraper':
+    async def __aenter__(self) -> 'PlaywrightAsyncScraper':
         await self._async_load_browser()
         await self.async_get_robot_rules(self.robots_txt_url)
         return self

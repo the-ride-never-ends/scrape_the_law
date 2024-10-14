@@ -8,7 +8,7 @@ from selenium import webdriver
 
 
 from .get_municode_urls import get_municode_urls
-from .get_urls_with_selenium import get_urls_with_selenium
+from ....shared.get_urls_with_selenium import get_urls_with_selenium
 
 from config import LEGAL_WEBSITE_DICT
 from logger import Logger

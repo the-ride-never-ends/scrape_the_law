@@ -43,7 +43,7 @@ from utils.manual.scrape_legal_websites_utils.get_locations import get_locations
 from utils.manual.scrape_legal_websites_utils.match_urls_to_locations import match_urls_to_locations
 
 
-from manual.scraper_base_class.AsyncScraper import AsyncScraper
+from manual.scraper_base_class.PlaywrightAsyncScraper import AsyncScraper
 
 # state_urls_df = pd.DataFrame.from_records(state_url_list, columns=["state_code", "state_url"])
 # locations_df = locations_df.merge(state_urls_df, on="state_code", how="inner")

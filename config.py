@@ -162,6 +162,7 @@ try:
     # PRIVATE PATH FOLDERS
     path = "PRIVATE_FOLDER_PATHS"
     OUTPUT_FOLDER: str = config(path, 'OUTPUT_FOLDER') or os.path.join(script_dir, "output")
+    CUSTOM_MODULES_FOLDER: str = config(path, 'CUSTOM_MODULES_FOLDER') or ""
 
     logger.info("YAML configs loaded.")
 

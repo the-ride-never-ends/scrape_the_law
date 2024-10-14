@@ -215,7 +215,7 @@ class Logger:
     def info(self, message, f: bool=False, q: bool=True, t: float=None, off: bool=False):
         """
         f is for formatting with self.asterisk.\n
-        q is for automatically putting single quotes around f-string curly brackets.
+        q is for automatically putting single quotes around f-string curly brackets.\n
         t is for pausing the program by a specified number of seconds after the message has been printed to console.
         off turns off the logger for this message.
         """
@@ -231,7 +231,7 @@ class Logger:
     def debug(self, message, f: bool=False, q: bool=True, t: float=None, off: bool=False):
         """
         f is for formatting with self.asterisk.\n
-        q is for automatically putting single quotes around f-string curly brackets.
+        q is for automatically putting single quotes around f-string curly brackets.\n
         t is for pausing the program by a specified number of seconds after the message has been printed to console.
         off turns off the logger for this message.
         """

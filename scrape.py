@@ -8,7 +8,7 @@ from database import MySqlDatabase
 class ScrapeInternetArchive:
 
     def __init__(self):
-        self.db = None
+        self.db: MySqlDatabase = None
 
     def scrape(self):
         pass

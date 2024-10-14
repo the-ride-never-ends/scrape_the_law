@@ -31,8 +31,6 @@ from utils.archive.read_domain_csv import read_domain_csv
 # https://github.com/bitdruid/python-wayback-machine-downloader
 
 
-
-
 # Path to the CSV file containing URLs
 csv_file_path = f"./{INPUT_FILENAME}"
 
