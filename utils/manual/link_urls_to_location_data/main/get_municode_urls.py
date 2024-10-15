@@ -9,7 +9,7 @@ from selenium import webdriver
 
 from utils.shared.sanitize_filename import sanitize_filename
 from .load_from_csv import load_from_csv
-from .save_to_csv import save_to_csv
+from ....shared.save_to_csv import save_to_csv
 
 from logger import Logger
 

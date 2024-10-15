@@ -29,7 +29,7 @@ from utils.shared.return_s_percent import return_s_percent
 
 from utils.manual.link_urls_to_location_data.main.make_urls import make_urls
 from utils.manual.link_urls_to_location_data.main.get_urls import get_urls
-from utils.manual.link_urls_to_location_data.main.save_to_csv import save_to_csv
+from utils.shared.save_to_csv import save_to_csv
 from utils.manual.link_urls_to_location_data.main.save_urls_to_csv import save_urls_to_csv
 from utils.manual.link_urls_to_location_data.main.merge_csv_files import merge_csv_files
 from utils.manual.link_urls_to_location_data.main.load_from_csv import load_from_csv

@@ -756,6 +756,18 @@ class MySqlDatabase:
             return
 
 
+    def execute_sql_command(self,
+                            command: LiteralString,
+                            params: ( tuple[Any,...] | dict[str,Any] | list[tuple[Any,...]] | list[dict[str,Any]] ) = None,
+                            args: dict=None,
+                            unbuffered:bool=False,
+                            return_dict:bool=False,
+                            size: int=None,
+                            ) -> list[tuple[Any,...]] | list[dict[str,Any]]:
+        logger.error("execute_sql_command for MySqlDatabase has not been implemented. Sorry!")
+        raise NotImplementedError("execute_sql_command for MySqlDatabase has not been implemented. Sorry!")
+
+
     async def async_query_to_dataframe(self,
                                     query: str,
                                     params: tuple = None,
@@ -800,6 +812,34 @@ class MySqlDatabase:
         results = self.execute_sql_command(query, params=params, unbuffered=unbuffered, args=args, return_dict=True)
         return pd.DataFrame.from_dict(results)
 
+    def dataframe_to_query(self) -> None:
+        logger.error("dataframe_to_query for MySqlDatabase has not been implemented. Sorry!")
+        raise NotImplementedError("dataframe_to_query for MySqlDatabase has not been implemented. Sorry!")
+
+    async def async_dataframe_to_insert(self,
+                                  df: pd.DataFrame,
+                                  command: str,
+                                  args: dict = None,
+                                  batch=False
+                                ) -> None:
+        """
+        Insert a pandas dataframe into a MySQL database.
+
+        Args:
+            df: A pandas dataframe that we want to insert.
+            command: SQL command to execute.
+            args: Variables for safe string formatting.
+            unbuffered: If True, uses unbuffered query.
+        """
+        # Convert the dataframe to a list of tuples
+        list_of_tuples = df.to_records(index=False).tolist()
+
+        # Insert them into the database
+        if not batch:
+            await self.async_execute_sql_command(list_of_tuples, command, params=list_of_tuples, args=args, return_dict=True)
+        else:
+            await self.async_insert_by_batch(list_of_tuples)
+        return 
 
 
 def _type_check_async_insert_by_batch(results: list[dict] | list[tuple],
@@ -868,7 +908,7 @@ def _type_check_async_insert_by_batch(results: list[dict] | list[tuple],
             update = ", ".join(update_list)
             default_statement = """
             "INSERT INTO {table} ({columns}) VALUES ({placeholders}) 
-            ON DUPLICATE KEY UPDATE
+            ON DUPLICATE KEY UPDATE 
             {update};
             """
         else:

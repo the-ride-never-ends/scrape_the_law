@@ -5,7 +5,7 @@ import time
 import traceback
 
 import abc
-from typing import Any, Callable
+from typing import Any, Callable, NamedTuple
 
 import pandas as pd
 
@@ -18,17 +18,15 @@ from selenium.webdriver.support import expected_conditions as EC
 
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import (
-    WebDriverException, 
+    InvalidArgumentException,
     NoSuchElementException,
-    TimeoutException, 
     StaleElementReferenceException, 
-    NoSuchElementException
+    TimeoutException,
+    WebDriverException
 )
-
-
 from utils.shared.sanitize_filename import sanitize_filename
 from ..manual.link_urls_to_location_data.main.load_from_csv import load_from_csv
-from ..manual.link_urls_to_location_data.main.save_to_csv import save_to_csv
+from .save_to_csv import save_to_csv
 
 from config import LEGAL_WEBSITE_DICT
 from logger import Logger
@@ -40,11 +38,12 @@ class GetElementsWithPlaywright:
 
 
 class GetElementsWithSelenium:
-    def __init__(self, robots_txt: int=1):
+    def __init__(self, wait_in_seconds: int=1):
         self.driver = webdriver.Chrome()
-        self.robots_txt = robots_txt
+        self.wait_in_seconds = wait_in_seconds
+        self.page = None
 
-    def _close_webpage(self):
+    def close_webpage(self):
         return self.driver.close()
     
     def _quit_driver(self):
@@ -54,15 +53,16 @@ class GetElementsWithSelenium:
         return self
 
     @classmethod
-    def enter(cls, robots_txt):
+    def enter(cls, wait_in_seconds):
         """
         Factory method to start Selenium
         """
-        instance = cls(robots_txt)
+        instance = cls(wait_in_seconds)
         return instance
 
     def __exit__(self):
-        self._close_webpage()
+        if self.page:
+            self.close_webpage()
         self._quit_driver()
         return
 
@@ -70,27 +70,48 @@ class GetElementsWithSelenium:
         """
         Manually close the webpage and webdriver.
         """
-        self._close_webpage()
+        if self.page:
+            self.close_webpage()
         self._quit_driver()
         return
+    
+    def refresh_page(self) -> None:
+        """
+        Refresh the web page currently in the driver.
+        """
+        self.driver.refresh()
 
-    def make_page(self, url: str) -> webdriver.Chrome:
+    def make_page(self, url: str) -> None:
         """
         Navigate to the specified URL using the given Chrome webdriver.
 
         Args:
             url (str): The URL to navigate to.
-            driver (webdriver.Chrome): The Chrome webdriver instance.
-
-        Returns:
-            webdriver.Chrome: The Chrome webdriver after navigation.
+        Raises:
+            WebDriverException: If there's an issue with the WebDriver while navigating.
+            TimeoutException: If the page load takes too long.
+            InvalidArgumentException: If the URL is not valid.
+            Exception: For any other unexpected errors making the page.
         """
-        logger.info(f"Getting URL {url}...")
-        self.driver.get(url)
-        logger.info(f"URL ok.")
-        return
+        try:
+            logger.info(f"Getting URL {url}...")
+            self.driver.get(url)
+            logger.info(f"URL ok.")
+        except TimeoutException:
+            logger.error(f"Timeout occurred while loading the page: {url}")
+            traceback.print_exc()
+        except InvalidArgumentException:
+            logger.error(f"Invalid URL provided: {url}")
+            traceback.print_exc()
+        except WebDriverException as e:
+            logger.error(f"WebDriver exception occurred getting URL {url}: {e}")
+            traceback.print_exc()
+        except Exception as e:
+            logger.error(f"An unexpected error occurred while navigating to {url}: {e}")
+            traceback.print_exc()
 
-    def wait_for_and_then_element(self, x_path: str, wait_time: int = 10, poll_frequency: float = 0.5) -> list[WebElement]:
+
+    def wait_for_and_then_return_element(self, x_path: str, wait_time: int = 10, poll_frequency: float = 0.5) -> list[WebElement]:
         """
         Wait for elements to be present and interactable on the page, then return them.
 
@@ -119,18 +140,15 @@ class GetElementsWithSelenium:
             return elements
         except TimeoutException:
             logger.error(f"Timeout waiting for elements with XPath: {x_path}")
-            traceback.print_exc()
         except StaleElementReferenceException:
             logger.warning(f"Stale element reference for XPath: {x_path}. Retrying...")
-            traceback.print_exc()
             return self.wait_for_element(x_path, wait_time, poll_frequency)
         except NoSuchElementException:
             logger.error(f"No such element found with XPath: {x_path}")
-            traceback.print_exc()
         except Exception as e:
             logger.error(f"Unexpected error waiting for elements with XPath {x_path}: {e}")
+        finally:
             traceback.print_exc()
-
 
     def find_elements_by_xpath(self, url: str, xpath: str, first_elem: bool=True) -> WebElement|list[WebElement]|None:
         """
@@ -151,30 +169,24 @@ class GetElementsWithSelenium:
             selenium.common.exceptions.NoSuchElementException: If no elements are found and first_elem is True.
             selenium.common.exceptions.WebDriverException: For other Selenium-related errors.
         """
-        if first_elem:
-            logger.info(f"Searching for first element along x-path '{xpath}'")
-            try:
+        logger.info(f"Searching for {'first element' if first_elem else 'all elements'} along x-path '{xpath}'")
+        try:
+            if first_elem:
                 elements: WebElement = self.driver.find_element(by=By.XPATH, value=xpath)
-            except NoSuchElementException:
-                logger.exception(f"Element not found along x-path for url '{url}'\nxpath:{xpath}")
-            except WebDriverException as e:
-                logger.exception(f"Unknown webdriver exception finding element: {e}")
-        else:
-            try:
-                logger.info(f"Searching for all elements along x-path '{xpath}'")
+            else:
                 elements: list[WebElement] = self.driver.find_elements(by=By.XPATH, value=xpath)
-            except NoSuchElementException:
-                logger.exception(f"Elements not found along x-path for url '{url}'\nxpath:{xpath}")
-                traceback.print_exc()
-            except WebDriverException as e:
-                logger.exception(f"Unknown webdriver exception finding elements: {e}")
-                traceback.print_exc()
-
-        if len(elements) == 0:
-            logger.warning(f"No elements found for URL {url}. Check the x-path. Returning...")
-            return
-        else:
-            return elements
+            if len(elements) == 0:
+                logger.warning(f"No elements found for URL {url}. Check the x-path. Returning...")
+                return None
+            else:
+                return elements
+        except NoSuchElementException:
+            logger.exception(f"Element{'s' if not first_elem else ''} not found along x-path for url '{url}'\nxpath:{xpath}")
+        except WebDriverException as e:
+            logger.exception(f"Unknown webdriver exception finding element{'s' if not first_elem else ''}: {e}")
+        finally:
+            traceback.print_exc()
+            return None
 
 
     def press_buttons(self, xpath: str, first_button: bool = True, delay: float = 0.5) -> None:
@@ -206,82 +218,10 @@ class GetElementsWithSelenium:
             traceback.print_exc()
 
 
-    def apply_dict(self, input_dict: dict[dict[str, Callable]]) -> Any:
-        """
-        Apply a dictionary of functions and function inputs in succession.
-
-        Args:
-            input_dict (dict[dict[str, Callable]]): A dictionary where each key is a step name,
-                and each value is another dictionary containing:
-                - 'func': The function to be called
-                - 'args': A tuple of positional arguments for the function
-                - 'kwargs': A dictionary of keyword arguments for the function
-        Returns:
-            Any: The result of applying all functions in the input dictionary
-
-        Raises:
-            KeyError: If the input dictionary is not properly formatted.
-            TypeError: If the provided 'func' is not callable.
-
-        Example:
-            >>> def add(num_1, num_2, num_3, num_kwarg=1):
-            >>>     return num_1 + num_2 + num_3 + num_kwarg
-            >>> input_dict = {
-            >>>     "step": {
-            >>>         "func": add,
-            >>>         "args": (1, 2, 3),
-            >>>         "kwargs": {'num_kwarg': 1}
-            >>>     }
-            >>> }
-            >>> return apply_dict(input_dict)
-            7
-        """
-        result = None
-        for key, value in input_dict.items():
-            logger.info(f"Applying function {key} with args {value["args"]} and kwargs{value["kwargs"]}...")
-            logger.info(f"Functions\n{key}")
-            for key, value in value.items():
-                func = value["func"]
-                args = value["args"]
-                kwargs = value["kwargs"]
-                try:
-                    result = func(result, *args, **kwargs)
-                except KeyError:
-                    logger.error("input_dict is not formated correctly.")
-                except TypeError:
-                    logger.error(f"input_dict function '{func}' is not callable")
-                except Exception as e:
-                    logger.exception(f"Unknown error: {e}")
-        return result
-
-
-
 class GetMunicodeElements(GetElementsWithSelenium):
 
     def __init__(self, driver, *args, **kwargs):
         super().__init__(driver, *args, **kwargs)
-        # self.driver = driver
-        # self.instance = None
-
-        # if isinstance(driver, selenium.webdriver):
-        #     self.instance = GetElementsWithSelenium(driver, *args, **kwargs)
-        # else:
-        #     self.instance = GetElementsWithPlaywright(driver, *args, **kwargs)
-
-    # # called when an attribute is not found:
-    # def __getattr__(self, name):
-    #     # assume it is implemented by self.instance
-    #     return self.instance.__getattribute__(name)
-
-    # # called when a length is not found:
-    # def __len__(self, name):
-    #     # assume it is implemented by self.instance
-    #     return self.instance.__len__(name)
-
-    # # called when a getitem is not found:
-    # def __getitem__(self, name):
-    #     # assume it is implemented by self.instance
-    #     return self.instance.__getitem__(name)
 
 
     def _get_current_code_version(self, url: str) -> str:
@@ -294,21 +234,19 @@ class GetMunicodeElements(GetElementsWithSelenium):
         return result.text.strip()
 
 
-    def _get_all_code_versions(self, url: str) -> str:
+    def _get_all_code_versions(self, url: str) -> list[str]:
         """
         Get the current and past versions of the code.
         """
+        # Initialize xpaths
         version_button_xpath = '//*[@id="codebankToggle"]/button/'
         version_text_paths = "//mcc-codebank//ul/li//button/text()"
 
         # Press the button that shows the code archives pop-up
         self.press_buttons(url, xpath=version_button_xpath)
-        # parent: WebElement = self.driver.find_element(By.ID, "codebank")
 
         # Get all the dates in the pop-up.
-        # parent = self.driver.find_element(By.XPATH, "//mcc-codebank")
-        # buttons = parent.find_elements(By.XPATH, ".//ul/li//button/")
-        buttons = self.wait_for_and_then_element(
+        buttons = self.wait_for_and_then_return_element(
             version_text_paths, wait_time=10, poll_frequency=0.5
         )
         version_list = [
@@ -318,18 +256,18 @@ class GetMunicodeElements(GetElementsWithSelenium):
         return version_list
 
 
-    def _get_code_urls(self, url: str, input_list: list) -> list[tuple[str, str, bool]]:
+    def _get_code_urls(self, url: str, input_list: list, wait_time: int=5) -> list[dict[str, bool]]:
         """
-        Get the table of contents for a code on Municode.
+        Get the table of contents (toc) for a code on Municode.
         This is what we want at the end of the day.
-        NOTE The table of contents are recursive.
+        NOTE Municode's toc are recursive, so we need to 'walk' through the toc node tree to get all the URLs.
         Example X-path: //*[@id="genToc_AGHIMUCO"]
         """
         # Define x-paths
         x_path = "//input[starts-with(@id, 'genToc_')]"
         x_path_button = x_path + "/button"
 
-        # Get all the current table of contents elements
+        # Get all the current toc elements
         elements: list[WebElement] = self.find_elements_by_xpath(url, x_path, first_elem=False)
         logger.info(f"Got table of contents elements for URL {url}. Checking...")
 
@@ -341,30 +279,43 @@ class GetMunicodeElements(GetElementsWithSelenium):
              "has_children": bool("::node.HasChildren" in element.get_attribute("ng-if"))
             } for element in elements
         ]
-        logger.info(f"Found {len(urls)} elements for URL '{url}'")
-        logger.info(f"Found {len(urls)} elements for URL '{url}'")
+        logger.info(f"Found {len(urls)} elements for URL '{url}'. Appending to input_list...")
+        logger.debug(f"urls\n{urls}")
+        input_list.append(urls)
 
-        # If it has subnodes, click on them and run the function again.
+        # If it has subnodes, click on them, wait for them to load, and run the function again.
+        # Else, skip it.
         for url in urls:
             if url["has_children"] is True:
+                logger.info(f"URL '{url}' has child nodes. Pressing the button then trying again.")
                 self.press_buttons(x_path_button)
-                self._get_code_urls(url)
+                time.sleep(wait_time)
+                _, input_list = self._get_code_urls(url, input_list)
             else:
                 continue
-        return urls
+        return urls, input_list
 
 
-    def get_municode_elements(self, url: str, wait_in_seconds: int) -> str:
+    def get_municode_elements(self, row: NamedTuple, wait_in_seconds: int) -> list[dict]:
         """
         Extract the code versions and table of contents from a city's Municode page.
         NOTE This function is the primary purpose of this class.
         """
         # Check to make sure the URL is a municode one, then initialize the dictionary.
         assert "municode" in url, f"URL '{url}' is not for municode."
+        url = row.url
         output_dict = {}
+        start = time.time()
+
+        url_filename = sanitize_filename(url)
+        url_file_path = os.path.join(os.getcwd(), f"{url_filename}.csv")
+
+        if os.path.exists(url_file_path):
+            logger.info(f"Got URL '{url}' already. Loading csv...")
+            output_dict = load_from_csv(url_file_path)
+            return output_dict
 
         # Open the webpage.
-        self.driver.refresh()
         self.make_page(url)
 
         # Get the date the code was last updated.
@@ -377,20 +328,37 @@ class GetMunicodeElements(GetElementsWithSelenium):
 
         # Get the URLs from the table of contents.
         # NOTE The tables are recursive, so this won't get all the buried URLs. 
-        # However, URLs with nodes link to table of contents that have all the URLs we need on them anyways, so we just need to scrape that in turn.
         input_list = []
-        urls = self._get_code_urls(url, input_list)
-        output_dict["table_of_contents_urls"] = urls
-        for url in urls:
-            if url['has_children']:
-                self._get_code_urls(url)
-        
+        _, input_list = self._get_code_urls(url, input_list)
+        output_dict["table_of_contents_urls"] = input_list
+
+        # Wait per the notes of robots.txt
+        # NOTE Since code URLs are processed successively, we can subtract off the time it took to get all the pages elements
+        # from the wait time specified in robots.txt. This should speed things up (?).
+        end = time.time()
+        elapsed_time = end - start
+        logger.info(f"All elements from Municode URL for gnis '{row.gnis}'")
+        wait_in_seconds = wait_in_seconds - elapsed_time
+        if wait_in_seconds > 0:
+            time.sleep(wait_in_seconds)
+
+        # Export output_dict as a CSV file for safe-keeping.
+        from utils.shared.save_to_csv import save_to_csv
+        save_to_csv(output_dict)
+
+        return output_dict
 
 
-async def get_urls_with_selenium(df: pd.DataFrame):
+async def get_sidebar_urls_from_municode_with_selenium(df: pd.DataFrame, wait_in_seconds: int):
 
-    for row in df.itertuples():
-        _get_urls_with_selenium(row.url)
+    output_list = []
+    with GetMunicodeElements(wait_in_seconds) as municode:
+        output_list: list[dict] = [
+            municode.get_municode_elements(row.url) for row in df.intertuples()
+        ]
+    
+
+
 
 async def _get_urls_with_selenium(url: str, 
                                 driver: webdriver.Chrome,
