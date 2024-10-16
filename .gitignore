@@ -11,4 +11,5 @@ tests/
 *.csv
 *.html
 *.zip
+*.ipynb
 SQLSCHEMA.md

@@ -97,14 +97,14 @@ async def main():
 
         # Filter out URLs that are already in table urls.
         sources_df['url_hash'] = sources_df.apply(make_sha256_hash(sources_df['gnis'], sources_df['url']))
-        sources_df = sources_df[~sources_df['url_hash'].isin(url_hashes_df['url_hash'])]
+        sources_df: pd.DataFrame = sources_df[~sources_df['url_hash'].isin(url_hashes_df['url_hash'])]
         logger.info(f"sources_df\n{sources_df.head()}",f=True)
 
 
         next_step("Step 2. Scrape the Municode URLs for table of contents links and code versions", stop=True)
-        sources_df.name = "municode_sources"
         urls_df: pd.DataFrame = get_sidebar_urls_from_municode_with_selenium(sources_df, wait_in_seconds)
         urls_df['query_hash'] = "not_found_through_search"
+        logger.info(f"urls_df\n{urls_df.head()}",f=True)
 
 
         next_step("Step 3. Insert the URLs into the database.")

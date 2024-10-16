@@ -1,5 +1,12 @@
 import time
-from typing import Any
+from typing import Any, TypeVar, overload, NamedTuple
+
+import requests
+from requests import (
+    HTTPError,
+    RequestException
+)
+import aiohttp
 
 import pandas as pd
 from playwright.sync_api import (
@@ -15,82 +22,112 @@ from utils.manual.scrape_legal_websites_utils.fetch_robots_txt import fetch_robo
 from utils.manual.scrape_legal_websites_utils.parse_robots_txt import parse_robots_txt 
 from utils.manual.scrape_legal_websites_utils.extract_urls_using_javascript import extract_urls_using_javascript
 from utils.manual.scrape_legal_websites_utils.can_fetch import can_fetch
+from utils.shared.decorators.try_except import try_except
 
 from config import LEGAL_WEBSITE_DICT
 
 from logger import Logger
 logger = Logger(logger_name=__name__)
 
+pd.DataFrame
 
+AbstractPage = TypeVar('AbstracPage')
+AbstractBrowser= TypeVar('AbstractBrowser')
+AbstractScraper = TypeVar('AbstractScraper')
+AbstractInstanceOrDriver = TypeVar('AbstractInstanceOrDriver')
 
-class Scraper(ABC):
+from urllib.robotparser import RobotFileParser
+from urllib.error import URLError
+from urllib.parse import urljoin
+
+class AbstractScraper(ABC):
     """
-    Use Playwright to scrape a webpage of URLs.
+    Abstract class for a JS-friendly webscraper.
+    Designed for 5 child classes: Sync Playwright, Async Playwright, Selenium, Requests, and Aiohttp.
 
     Parameters:
-        pw_instance: A synchronous Playwright instance.
+        instance_or_driver: An instance or driver
         robot_txt_url: URL path to a website's robots.txt page.
-        current_agent: The chosen user agent in robots.txt. Defaults to '*'
+        user_agent: The chosen user agent in robots.txt. Defaults to '*'
         **launch_kwargs:
-            Keyword arguments to be passed to
-            `playwright.chromium.launch`. For example, you can pass
-            ``headless=False, slow_mo=50`` for a visualization of the
-            search.
+            Keyword arguments to be passed to an instance or driver
+            For example, you can pass ``headless=False, slow_mo=50`` 
+            for a visualization of a search engine search to `playwright.chromium.launch`.
     """
     def __init__(self, 
-                 pw_instance: Playwright, 
-                 robot_txt_url: str, 
-                 current_agent: str="*", 
+                 domain: str,
+                 instance_or_driver: AbstractInstanceOrDriver = None,
+                 user_agent: str="*", 
                  **launch_kwargs):
         self.launch_kwargs = launch_kwargs
-        self.legal_website_dict: dict = LEGAL_WEBSITE_DICT
-        self.pw_instance: Playwright = pw_instance
-        self.current_agent: str = current_agent
-        self.robot_txt_url: str = robot_txt_url
-        self.browser: PlaywrightBrowser = None
-        self.robot_rules: dict[str,dict[str,Any]] = {}
-        self.source: str = None
+        self.instance_or_driver: AbstractInstanceOrDriver = instance_or_driver
+        self.domain: str = domain
+        self.user_agent: str = user_agent
+        self.rp: RobotFileParser = RobotFileParser()
+        self.browser: AbstractBrowser = None
+        self.crawl_delay: int = None
+        self.rrate: NamedTuple = None
+
+        if not instance_or_driver:
+            raise ValueError("Driver or Instance missing from scraper keyword arguments")
 
     #### START CLASS STARTUP AND EXIT METHODS ####
 
+    @try_except(exception=[URLError], retries=2, raise_exception=True)
+    def get_robot_rules(self):
+        """
+        Get the site's robots.txt file and assign it to the class' applicable attributes
+        See: https://docs.python.org/3/library/urllib.robotparser.html
+        """
+        # Construct the URL to the robots.txt file
+        robots_url = urljoin(self.domain, 'robots.txt')
+        self.rp.set_url(robots_url)
 
-    def __enter__(self) -> 'Scraper':
-        self._load_browser()
+        # Read the robots.txt file from the server
+        self.rp.read()
+
+        # Set the request rate.
+        self.rrate = self.rp.request_rate(self.user_agent)
+
+        # Set the crawl delay
+        self.crawl_delay = int(self.rp.crawl_delay(self.user_agent))
+        return
+
+    @abstractmethod
+    def __enter__(self) -> AbstractScraper:
         self.get_robot_rules(self.robot_txt_url)
-        return self
 
-
+    @abstractmethod
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        self._close_browser()
+        pass
 
 
     @classmethod
-    def start(cls, pw_instance, current_agent, robot_txt_url, **launch_kwargs) -> 'Scraper':
-        instance = cls(pw_instance, robot_txt_url, current_agent=current_agent, **launch_kwargs)
-        instance._load_browser()
+    def start(cls, domain, instance_or_driver, user_agent, **launch_kwargs) -> AbstractScraper:
+        instance = cls(domain, instance_or_driver=instance_or_driver, user_agent=user_agent, **launch_kwargs)
         instance.get_robot_rules(instance.robot_txt_url)
-        return instance
-
 
     def close(self) -> None:
         self._close_browser()
 
-
     def _load_browser(self) -> None:
-        """Launch a chromium instance and load a page"""
-        self.browser = self.pw_instance.chromium.launch(**self.launch_kwargs)
+        """
+        Launch a browser.
+        """
+        pass
 
-
+    @abstractmethod
     def _close_browser(self) -> None:
-        """Close browser instance and reset internal attributes"""
-        if self.browser:
-            self.browser.close()
-            self.browser = None
+        """
+        Close browser instance and reset internal attributes
+        """
+        pass
+
     #### END CLASS STARTUP AND EXIT METHODS ####
 
 
     #### START PAGE PROCESSING METHODS ####
-    def create_page(self) -> PlaywrightPage:
+    def create_page(self) -> AbstractPage:
         context = self.browser.new_context()
         page = context.new_page()
         return page
@@ -138,14 +175,3 @@ class Scraper(ABC):
         else:
             time.sleep(delay)
             return self._fetch_urls_from_page(url)
-
-
-    # def scrape(self, url: str) -> dict[str]|dict[None]:
-    #     try:
-    #         return self._respectful_fetch(self, url)
-    #     except PlaywrightTimeoutError as e:
-    #         logger.info(f"url '{url}' timed out.")
-    #         logger.debug(e)
-    #         return {}
-
-
