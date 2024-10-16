@@ -7,6 +7,12 @@ from typing import Callable
 
 import pandas as pd
 
+# Get the top level directory and put it in the path.
+# Otherwise, we get a ModuleNotFoundError
+from pathlib import Path
+import sys
+parent_dir = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(parent_dir))
 
 from database import MySqlDatabase
 from config import CUSTOM_MODULES_FOLDER, OUTPUT_FOLDER, LEGAL_WEBSITE_DICT
@@ -72,7 +78,7 @@ sidebar_list = {
 #     output_df = pd.DataFrame.from_records(results)
 
 
-
+DEBUG = True
 
 async def main():
 
@@ -94,16 +100,22 @@ async def main():
             WHERE url LIKE '%municode%';
             """
         )
+        logger.debug(f"url_hashes_df\n{url_hashes_df.head()}",f=True)
 
         # Filter out URLs that are already in table urls.
-        sources_df['url_hash'] = sources_df.apply(make_sha256_hash(sources_df['gnis'], sources_df['url']))
+        len_begin = len(sources_df)
+        sources_df['url_hash'] = sources_df.apply(lambda row: make_sha256_hash(row['gnis'], row['url']), axis=1)
         sources_df: pd.DataFrame = sources_df[~sources_df['url_hash'].isin(url_hashes_df['url_hash'])]
+        logger.info(f"Filtered out {len_begin - len(sources_df)} Municode URLs from 'sources' that are already in table 'urls'")
         logger.info(f"sources_df\n{sources_df.head()}",f=True)
 
 
         next_step("Step 2. Scrape the Municode URLs for table of contents links and code versions", stop=True)
+        if DEBUG:
+            logger.debug("DEBUG mode. Only getting the first 5 rows")
+            sources_df = sources_df.head(5)
+            logger.debug(f"sources_df\n{sources_df.head()}")
         urls_df: pd.DataFrame = get_sidebar_urls_from_municode_with_selenium(sources_df, wait_in_seconds)
-        urls_df['query_hash'] = "not_found_through_search"
         logger.info(f"urls_df\n{urls_df.head()}",f=True)
 
 
@@ -111,12 +123,13 @@ async def main():
         args = {
             "columns": get_column_names(urls_df),
             "placeholders": get_num_placeholders(len(urls_df)),
-            # "update": make_update_on_duplicate_key_clause([""])
         }
-        db.dataframe_to_insert(
+        await db.async_dataframe_to_insert(
             """
             INSERT INTO urls ({columns}) VALUES ({placeholders}) 
-            """
+            """,
+            df=urls_df,
+            args=args
         )
 
 

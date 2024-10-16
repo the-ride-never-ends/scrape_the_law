@@ -817,8 +817,8 @@ class MySqlDatabase:
         raise NotImplementedError("dataframe_to_query for MySqlDatabase has not been implemented. Sorry!")
 
     async def async_dataframe_to_insert(self,
-                                  df: pd.DataFrame,
                                   command: str,
+                                  df: pd.DataFrame=None,
                                   args: dict = None,
                                   batch=False
                                 ) -> None:
@@ -831,6 +831,7 @@ class MySqlDatabase:
             args: Variables for safe string formatting.
             unbuffered: If True, uses unbuffered query.
         """
+        assert df
         # Convert the dataframe to a list of tuples
         list_of_tuples = df.to_records(index=False).tolist()
 
