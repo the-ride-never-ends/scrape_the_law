@@ -1,10 +1,10 @@
 from functools import wraps
 import time
-from typing import Callable
+from typing import Any, Callable
 
 from logger import Logger
 
-def get_exec_time(func: Callable):
+def get_exec_time(func: Callable) -> Any:
     """
     Decorator to calculate how long a function takes to execute.
 
@@ -15,23 +15,23 @@ def get_exec_time(func: Callable):
     >>>     print(math.factorial(num))
     >>> factorial(10)
     """
-    def decorator(func: Callable):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
 
-            # Define the logger.
-            logger = Logger(logger_name=func.__module__)
+    @wraps(func)
+    def wrapper(*args, **kwargs):
 
-            # Log start time.
-            begin = time.time()
-            
-            # Execute the function.
-            result = func(*args, **kwargs)
+        # Define the logger.
+        logger = Logger(logger_name=func.__module__)
 
-            # Log end time.
-            end = time.time()
-            logger.info(f"Total execution time for '{func.__name__}':  {end - begin}")
-            return result
-        return wrapper
-    return decorator
+        # Log start time.
+        begin = time.time()
+        
+        # Execute the function.
+        result = func(*args, **kwargs)
+
+        # Log end time.
+        end = time.time()
+        logger.info(f"Total execution time for '{func.__name__}':  {end - begin}")
+        return result
+    return wrapper
+
 

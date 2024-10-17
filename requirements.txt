@@ -9,6 +9,7 @@ html2text
 internetarchive 
 lxml
 matplotlib
+multipledispatch
 mysql-connector-python
 networkx
 nltk

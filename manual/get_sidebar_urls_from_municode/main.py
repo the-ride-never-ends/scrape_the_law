@@ -109,8 +109,7 @@ async def main():
         logger.info(f"Filtered out {len_begin - len(sources_df)} Municode URLs from 'sources' that are already in table 'urls'")
         logger.info(f"sources_df\n{sources_df.head()}",f=True)
 
-
-        next_step("Step 2. Scrape the Municode URLs for table of contents links and code versions", stop=True)
+        next_step("Step 2. Scrape the Municode URLs for table of contents links and code versions")
         if DEBUG:
             logger.debug("DEBUG mode. Only getting the first 5 rows")
             sources_df = sources_df.head(5)

@@ -26,6 +26,7 @@ from ..manual.link_urls_to_location_data.main.load_from_csv import load_from_csv
 from .save_to_csv import save_to_csv
 from utils.shared.decorators.try_except import try_except
 from utils.shared.decorators.adjust_wait_time_for_execution import adjust_wait_time_for_execution
+from utils.shared.decorators.get_exec_time import get_exec_time
 
 from config import LEGAL_WEBSITE_DICT, OUTPUT_FOLDER
 from logger import Logger
@@ -33,7 +34,9 @@ logger = Logger(logger_name=__name__)
 
 output_folder = os.path.join(OUTPUT_FOLDER, "get_sidebar_urls_from_municode")
 if not os.path.exists(output_folder):
+    print(f"Creating output folder: {output_folder}")
     os.mkdir(output_folder)
+
 
 
 class GetElementsWithPlaywright:
@@ -76,14 +79,25 @@ class GetElementsWithSelenium:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.exit()
         return False
+    
+    def try_except_decorator_exit(self):
+        """
+        Function to be called by the try_except decorator to permit graceful shutdowns.
+        """
+        self.exit()
+        return
 
     def exit(self):
         """
         Close the webpage and webdriver.
         """
         if self.page:
+            logger.info("Trying to close webpage...")
             self.close_webpage()
+            logger.info("Webpage closed successfully.")
+        logger.info("Trying to quit webdriver...")
         self._quit_driver()
+        logger.info("Webdriver quit successfully.")
         return
 
     @try_except
@@ -92,6 +106,41 @@ class GetElementsWithSelenium:
         Refresh the web page currently in the driver.
         """
         self.driver.refresh()
+
+    @get_exec_time
+    @try_except(exception=[WebDriverException, InvalidArgumentException, TimeoutException], raise_exception=True)
+    def wait_to_fully_load(self, implicit_wait: int=5, page_load_timeout: int=10):
+        logger.info("Waiting for page to full load...")
+
+
+        # Wait for Angular to finish loading
+        angular_js_code = """
+        'return (window.angular !== undefined) && 
+        (angular.element(document).injector() !== undefined) && 
+        (angular.element(document).injector().get("$http").pendingRequests.length === 0)'
+        """
+        WebDriverWait(self.driver, page_load_timeout).until(
+            lambda driver: driver.execute_script(angular_js_code)
+        )
+        logger.info("Angular finished loading.")
+
+        # Wait for the Table of Contents button to be clickable
+        toc_button = """
+        //button[contains(@class, 'btn-success') and contains(., 'View what')]
+        """
+        button = WebDriverWait(self.driver, page_load_timeout).until(
+            EC.presence_of_element_located((By.CLASS_NAME, toc_button))
+        )
+        logger.info(f"toc_button found on page '{button.text}'.")
+
+        # Additional wait for any JavaScript to finish (adjust time as needed)
+        #self.driver.implicitly_wait(implicit_wait)
+
+        # Execute JavaScript to check if page is fully loaded
+        logger.info("Executing JavaScript command 'return document.readtState;'")
+        is_ready = self.driver.execute_script("return document.readyState;")
+        logger.info(f"JavaScript command successfully executed\nPage ready state: {is_ready}")
+
 
     @try_except(exception=[WebDriverException, InvalidArgumentException, TimeoutException])
     def make_page(self, url: str) -> None:
@@ -109,6 +158,7 @@ class GetElementsWithSelenium:
         logger.info(f"Getting URL {url}...")
         self.driver.get(url)
         logger.info(f"URL ok.")
+
 
     @try_except(exception=[WebDriverException, 
                            StaleElementReferenceException, 
@@ -335,7 +385,7 @@ class GetMunicodeSidebarElements(GetElementsWithSelenium):
         return version_list
 
 
-    def _scrape_toc(self, base_url, wait_time) -> list[dict]:
+    def _scrape_toc(self, base_url: str, wait_time: int) -> list[dict]:
         """
         Scrape a Municode URL's Table of Contents.
         """
@@ -344,9 +394,13 @@ class GetMunicodeSidebarElements(GetElementsWithSelenium):
         self.queue.append((self.driver.current_url, initial_xpath))
         all_data = []
 
+        element.get_attribute('innerHTML')
         while self.queue:
             # Get the current url and its xpath from the queue
             current_url, xpath = self.queue.popleft()
+
+            # Push the sidebar button.
+            # NOTE This does not appear when going to the site in a regular Chrome browser.
 
             # Get all the elements currently in the sidebar.
             elements = WebDriverWait(self.driver, wait_time).until(
@@ -400,7 +454,9 @@ class GetMunicodeSidebarElements(GetElementsWithSelenium):
     # from the wait time specified in robots.txt. This should speed things up (?).
     @adjust_wait_time_for_execution(wait_in_seconds=LEGAL_WEBSITE_DICT["municode"]["wait_in_seconds"])
     def get_municode_sidebar_elements(self, 
-                                      row: NamedTuple
+                                      i: int,
+                                      row: NamedTuple,
+                                      len_df: int,
                                       ) -> dict:
         """
         Extract the code versions and table of contents from a city's Municode page.
@@ -424,9 +480,11 @@ class GetMunicodeSidebarElements(GetElementsWithSelenium):
                 'table_of_contents_urls': ['www.municode_example69.com',''www.municode_example420.com'],
             }
         """
+        logger.info(f"Processing URL {i} of {len_df}")
         # Check to make sure the URL is a municode one, then initialize the dictionary.
         assert "municode" in row.url, f"URL '{row.url}' is not for municode."
         input_url = row.url
+        wait_time = 10
 
         # Skip the webpage if we already got it.
         output_dict = self._skip_if_we_have_url_already(input_url)
@@ -438,9 +496,25 @@ class GetMunicodeSidebarElements(GetElementsWithSelenium):
         # Open the webpage.
         self.make_page(input_url)
 
+        # Wait for the webpage to fully load.
+        self.wait_to_fully_load(implicit_wait=15, class_name="btn btn-raised btn-primary")
+        time.sleep(15)
+
+        self.driver.save_screenshot(os.path.join(output_folder, f"{row.gnis}_screenshot.png"))
+
+        # Get the html of the opening page.
+        html_content = self.driver.page_source
+
+        # Write the HTML content to a file
+        _path = os.path.join(output_folder, f"{row.gnis}_opening_webpage.html")
+        with open(_path, "w", encoding="utf-8") as file:
+            file.write(html_content)
+            print(f"HTML content from {input_url} has been saved to webpage.html")
+        raise # TODO Remove this line after debug.
+
         # Get the URLs from the table of contents.
         # NOTE The tables are recursive, so this won't get all the buried URLs. 
-        toc_urls = self._scrape_toc(input_url)
+        toc_urls = self._scrape_toc(input_url, wait_time=wait_time)
         output_dict["table_of_contents_urls"] = toc_urls
 
         # Get the date the code was last updated.
@@ -515,7 +589,6 @@ def save_code_versions_to_csv(output_list: list[dict]) -> None:
     >>>     'table_of_contents_urls': ['www.municode_example69.com',''www.municode_example420.com'],
     >>> },...]
     """
-    input_url = output_list[0]['input_url']
 
     # Turn the list of dicts into a dataframe.
     code_versions_df = pd.DataFrame.from_records(output_list)
@@ -524,12 +597,10 @@ def save_code_versions_to_csv(output_list: list[dict]) -> None:
     code_versions_df.drop(['url_hash','table_of_contents_urls'], axis=1, inplace=True)
 
     # Save the dataframe to the output folder.
-    output_file = os.path.join(output_folder, sanitize_filename(input_url))
+    output_file = os.path.join(output_folder, sanitize_filename(output_list[0]['input_url']))
     save_to_csv(code_versions_df, output_file)
 
     return
-
-
 
 
 
@@ -539,23 +610,26 @@ def get_sidebar_urls_from_municode_with_selenium(df: pd.DataFrame, wait_in_secon
     """
 
     # Initialize webdriver.
-    options = {} # Empty for the moment.
+    logger.info("Initializing webdriver...")
+    options = webdriver.ChromeOptions() # Define options for the webdriver.
+    #options.add_argument("--headless")  # Run in headless mode (optional). Off for the moment.
     driver = webdriver.Chrome(options=options)
     logger.info("Webdriver initialized.")
 
     # Get the sidebar URLs and text for each Municode URL
     # NOTE Adding the 'if row else None' is like adding 'continue' to a regular for-loop.
+    len_df = len(df)
     with GetMunicodeSidebarElements(wait_in_seconds=wait_in_seconds, driver=driver) as municode:
 
-        logger.info("Starting get_municode_sidebar_elements loop.")
+        logger.info(f"Starting get_municode_sidebar_elements loop. Processing {len(df)} URLs...")
         # Get the side bar elements for each Municode URL.
         list_of_lists_of_dicts: list[dict] = [ 
-            municode.get_municode_sidebar_elements(row.url) if row else None for row in df.itertuples()
+            municode.get_municode_sidebar_elements(i, row, len_df) if row else None for i, row in enumerate(df.itertuples())
         ]
 
-        logger.info("get_municode_sidebar_elements loop complete. Flattening...")
-        # Flatten the list of lists of dictionaries into just a list of dictionaries.
-        output_list = [item for sublist in list_of_lists_of_dicts for item in sublist]
+    logger.info("get_municode_sidebar_elements loop complete. Flattening...")
+    # Flatten the list of lists of dictionaries into just a list of dictionaries.
+    output_list = [item for sublist in list_of_lists_of_dicts for item in sublist]
     
     logger.info("get_sidebar_urls_from_municode_with_selenium function complete. Making dataframes and saving...")
 
