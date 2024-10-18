@@ -19,7 +19,7 @@ from utils.shared.make_id import make_id
 from utils.shared.sanitize_filename import sanitize_filename
 from utils.shared.safe_format import safe_format
 
-from utils.shared.limiter import Limiter
+from utils.shared.Limiter import Limiter
 limiter  = Limiter(GOOGLE_CONCURRENCY_LIMIT)
 
 from .google_search_utils.navigate_to_google import navigate_to_google
@@ -87,10 +87,6 @@ class PlaywrightGoogleLinkSearch:
 
         if log_level == 10: # Trace debugging chunk
             context = await self._browser.new_context()
-            await context.tracing.start(screenshots=True, snapshots=True, sources=True)
-            await context.tracing.start_chunk()
-            page: PlaywrightPage = await self._browser.new_page()
-            await context.tracing.stop_chunk(path=os.path.join(DEBUG_FILEPATH, "_search_new_page.zip"))
             await navigate_to_google(page, context=context)
             await perform_google_search(page, query, context=context)
             return await extract_links(page, query)

@@ -30,7 +30,7 @@ log_level = 10
 logger = Logger(logger_name=__name__,log_level=log_level)
 
 
-from utils.shared.limiter import Limiter
+from utils.shared.Limiter import Limiter
 CONCURRENCY_LIMIT = 2
 limiter = Limiter(CONCURRENCY_LIMIT)
 

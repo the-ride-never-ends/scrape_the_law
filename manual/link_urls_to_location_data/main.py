@@ -32,7 +32,7 @@ from utils.manual.link_urls_to_location_data.main.get_urls import get_urls
 from utils.shared.save_to_csv import save_to_csv
 from utils.manual.link_urls_to_location_data.main.save_urls_to_csv import save_urls_to_csv
 from utils.manual.link_urls_to_location_data.main.merge_csv_files import merge_csv_files
-from utils.manual.link_urls_to_location_data.main.load_from_csv import load_from_csv
+from utils.shared.load_from_csv import load_from_csv
 from utils.manual.link_urls_to_location_data.main.make_csv_file_path_with_cwd import make_csv_file_path_with_cwd
 from utils.manual.link_urls_to_location_data.main.pivot_df_from_long_to_wide import pivot_df_from_long_to_wide
 

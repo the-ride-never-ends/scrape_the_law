@@ -7,7 +7,7 @@ from selenium.common.exceptions import WebDriverException
 from selenium import webdriver
 
 
-from .get_municode_urls import get_municode_urls
+from .get_municode_urls_from_state_landing_page import get_municode_urls_from_state_landing_page
 from ....shared.get_urls_with_selenium import get_urls_with_selenium
 
 from config import LEGAL_WEBSITE_DICT
@@ -23,7 +23,7 @@ async def get_urls(urls: str, source: str=None, driver: webdriver.Chrome=None) -
     if source == "municode":
         for url in urls:
             try:
-                result = await get_municode_urls(url, driver, wait_in_seconds)
+                result = await get_municode_urls_from_state_landing_page(url, driver, wait_in_seconds)
                 results.append(result)
             except WebDriverException as e:
                 logger.error(f"Selenium error retrieving {url}: {e}")

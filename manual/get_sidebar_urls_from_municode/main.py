@@ -26,6 +26,10 @@ from utils.shared.make_sha256_hash import make_sha256_hash
 from utils.database.get_column_names import get_column_names
 from utils.database.get_num_placeholders import get_num_placeholders
 
+from scraper.site_specific_classes.municode.code_sidebars.GetMunicodeSidebarElements import GetMunicodeSidebarElements
+
+
+
 
 def copy_file_to_current_folder(source_folder, filename):
     source_path = os.path.join(source_folder, filename)
@@ -83,6 +87,7 @@ DEBUG = True
 async def main():
 
     wait_in_seconds = LEGAL_WEBSITE_DICT['municode']['wait_in_seconds']
+    domain = "https://municode.com/"
 
     next_step("Step 1. Get municode URLs from database")
     async with MySqlDatabase(database="socialtoolkit") as db:
@@ -109,12 +114,15 @@ async def main():
         logger.info(f"Filtered out {len_begin - len(sources_df)} Municode URLs from 'sources' that are already in table 'urls'")
         logger.info(f"sources_df\n{sources_df.head()}",f=True)
 
+
         next_step("Step 2. Scrape the Municode URLs for table of contents links and code versions")
         if DEBUG:
             logger.debug("DEBUG mode. Only getting the first 5 rows")
             sources_df = sources_df.head(5)
             logger.debug(f"sources_df\n{sources_df.head()}")
-        urls_df: pd.DataFrame = get_sidebar_urls_from_municode_with_selenium(sources_df, wait_in_seconds)
+
+        from scraper.site_specific_classes.municode.code_sidebars.GetMunicodeSidebarElements import get_sidebar_urls_from_municode_with_playwright
+        urls_df: pd.DataFrame = get_sidebar_urls_from_municode_with_playwright(sources_df, wait_in_seconds)
         logger.info(f"urls_df\n{urls_df.head()}",f=True)
 
 

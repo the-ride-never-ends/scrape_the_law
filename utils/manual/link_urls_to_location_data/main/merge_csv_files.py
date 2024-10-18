@@ -2,7 +2,7 @@ import os
 
 from .make_csv_file_path_with_cwd import make_csv_file_path_with_cwd
 from ....shared.save_to_csv import save_to_csv
-from .load_from_csv import load_from_csv
+from ....shared.load_from_csv import load_from_csv
 
 
 from config import LEGAL_WEBSITE_DICT

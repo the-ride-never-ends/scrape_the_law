@@ -26,6 +26,8 @@ pywaybackup
 pyyaml
 pdf2image
 pdftotext
+pytest
+pytest-playwright
 pytesseract
 python-slugify
 requests
