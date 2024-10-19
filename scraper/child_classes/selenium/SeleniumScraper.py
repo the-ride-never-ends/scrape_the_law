@@ -23,7 +23,7 @@ from logger import Logger
 logger = Logger(logger_name=__name__)
 
 
-class ScrapeWithSelenium:
+class SeleniumScraper:
 
     def __init__(self, driver: webdriver.Chrome=None, wait_in_seconds: int=1, ):
         self.driver = driver

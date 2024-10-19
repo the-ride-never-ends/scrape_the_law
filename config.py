@@ -7,9 +7,10 @@ logger = Logger(logger_name=__name__)
 
 
 # Define hard-coded constants
-INPUT_FOLDER = script_dir = os.path.dirname(os.path.realpath(__file__))
+INPUT_FOLDER = PROJECT_ROOT = script_dir = os.path.dirname(os.path.realpath(__file__))
 YEAR_IN_DAYS: int = 365
 DEBUG_FILEPATH: str = os.path.join(script_dir, "debug_logs")
+
 
 # Dictionary of tax types and related terms
 TAX_TERMS: dict[str, list[str]] = {
@@ -58,6 +59,38 @@ LEGAL_WEBSITE_DICT = {
         "source": "general_code",
     },
 }
+
+
+# def find_project_root(current_path: str=None, marker: str='.project_root'):
+#     """
+#     Finds the root directory of a project by searching upward for a directory containing a marker file.
+
+#     Args:
+#         current_path (str, optional): The starting path from which to search upward. Defaults to the path of this file.
+#         marker (str, optional): The name of the marker file to look for in the directory tree. Defaults to '.project_root'.
+
+#     Returns:
+#         str: The absolute path of the directory containing the marker.
+
+#     Raises:
+#         FileNotFoundError: If the project root with the specified marker file is not found.
+#     """
+#     if current_path is None:
+#         # Use the path of the currently executing file, which works when this script is run as a file
+#         current_path = __file__
+
+#     current_dir = os.path.abspath(os.path.dirname(current_path))
+#     while True:
+#         if os.path.exists(os.path.join(current_dir, marker)):
+#             return current_dir
+#         parent_dir = os.path.dirname(current_dir)
+#         if parent_dir == current_dir:
+#             raise FileNotFoundError(f"Project root not found. Create a '{marker}' file in the project root.")
+#         current_dir = parent_dir
+
+
+
+
 
 
 # Get YAML config variables

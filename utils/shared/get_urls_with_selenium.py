@@ -37,13 +37,13 @@ if not os.path.exists(output_folder):
     os.mkdir(output_folder)
 
 
-from scraper.child_classes.selenium.ScrapeWithSelenium import ScrapeWithSelenium
+from scraper.child_classes.selenium.SeleniumScraper import SeleniumScraper
 
 
 
 from collections import deque
 
-class GetMunicodeSidebarElements(ScrapeWithSelenium):
+class GetMunicodeSidebarElements(SeleniumScraper):
     """
     Get the sidebar elements from a Municode URL page.
     """
@@ -311,7 +311,7 @@ def save_code_versions_to_csv(output_list: list[dict]) -> None:
 
     return
 
-https://library.municode.com/
+# https://library.municode.com/
 
 def get_sidebar_urls_from_municode_with_selenium(df: pd.DataFrame, wait_in_seconds: int) -> pd.DataFrame:
     """

@@ -38,6 +38,7 @@ QUERY_PATTERN = re.compile(r"^(SELECT|SHOW|WITH|EXPLAIN)\b", re.IGNORECASE)
 
 class MySqlDatabase:
     """
+    TODO Update docstring for MySqlDatabase
     Interact directly with a MySQL server via SQL commands and files.\n
     Supports synchronous and asynchronous queries (e.g. SELECT) and alteration commands (e.g. UPDATE, DELETE, INSERT, ALTER, etc).\n
     Can also run SQL commands directly and load them in from .sql files.
@@ -325,6 +326,9 @@ class MySqlDatabase:
             ConnectionError: If there's any sort of error closing the pool.
         """
         try:
+            logger.debug(f"Clearing all connections from async connection pool...")
+            self.pool.clear()
+            logger.debug(f"Connections cleared successfully.")
             logger.debug(f"Attempting to close async connection pool...")
             self.pool.close()
             logger.debug(f"Async connection pool closed. Waiting for full closure...")
@@ -511,6 +515,7 @@ class MySqlDatabase:
         # Execute the SQL statement.
         try:
             async with connection.cursor(cursor_class) as cursor:
+                cursor: aiomysql.Cursor
                 single_tuple = True if is_tuple and len(params) == 1 else False
                 if is_query: # Query Database Route
                     logger.info(f"Querying database with '{command}'...")

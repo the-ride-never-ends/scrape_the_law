@@ -21,12 +21,13 @@ logger = Logger(logger_name=__name__)
 
 from utils.shared.next_step import next_step
 from utils.shared.get_urls_with_selenium import get_sidebar_urls_from_municode_with_selenium
+from scraper.sites.municode.code_sidebars.GetMunicodeSidebarElements import get_sidebar_urls_from_municode_with_playwright
 from utils.shared.make_sha256_hash import make_sha256_hash
 
 from utils.database.get_column_names import get_column_names
 from utils.database.get_num_placeholders import get_num_placeholders
 
-from scraper.site_specific_classes.municode.code_sidebars.GetMunicodeSidebarElements import GetMunicodeSidebarElements
+from scraper.sites.municode.code_sidebars.GetMunicodeSidebarElements import GetMunicodeSidebarElements
 
 
 
@@ -81,13 +82,13 @@ sidebar_list = {
 #             logger.error(f"Selenium error retrieving {row.url}: {e}")
 #     output_df = pd.DataFrame.from_records(results)
 
+wait_in_seconds = LEGAL_WEBSITE_DICT['municode']['wait_in_seconds']
+domain = "https://municode.com/"
 
 DEBUG = True
 
 async def main():
 
-    wait_in_seconds = LEGAL_WEBSITE_DICT['municode']['wait_in_seconds']
-    domain = "https://municode.com/"
 
     next_step("Step 1. Get municode URLs from database")
     async with MySqlDatabase(database="socialtoolkit") as db:
@@ -121,8 +122,8 @@ async def main():
             sources_df = sources_df.head(5)
             logger.debug(f"sources_df\n{sources_df.head()}")
 
-        from scraper.site_specific_classes.municode.code_sidebars.GetMunicodeSidebarElements import get_sidebar_urls_from_municode_with_playwright
-        urls_df: pd.DataFrame = get_sidebar_urls_from_municode_with_playwright(sources_df, wait_in_seconds)
+
+        urls_df: pd.DataFrame = await get_sidebar_urls_from_municode_with_playwright(sources_df)
         logger.info(f"urls_df\n{urls_df.head()}",f=True)
 
 

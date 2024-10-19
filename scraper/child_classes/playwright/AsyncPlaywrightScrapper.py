@@ -8,22 +8,6 @@ from urllib.robotparser import RobotFileParser
 from urllib.error import URLError
 from urllib.parse import urljoin
 
-
-import requests
-from requests import (
-    HTTPError,
-    RequestException
-)
-import aiohttp
-
-
-from playwright.sync_api import (
-    Playwright,
-    Browser as PlaywrightBrowser,
-    Page as PlaywrightPage,
-    TimeoutError as AsyncPlaywrightTimeoutError,
-)
-
 from abc import ABC, abstractmethod
 
 from utils.manual.scrape_legal_websites_utils.fetch_robots_txt import fetch_robots_txt
@@ -34,16 +18,15 @@ from utils.manual.scrape_legal_websites_utils.can_fetch import can_fetch
 
 from utils.shared.safe_format import safe_format
 from utils.shared.sanitize_filename import sanitize_filename
-from utils.shared.decorators.try_except import try_except
+from utils.shared.decorators.try_except import try_except, async_try_except
 
-from config import LEGAL_WEBSITE_DICT, OUTPUT_FOLDER
+from config import LEGAL_WEBSITE_DICT, OUTPUT_FOLDER, PROJECT_ROOT
 
 from logger import Logger
 logger = Logger(logger_name=__name__)
 
 # These are imported primarilty for typehinting.
 from playwright.async_api import (
-    async_playwright,
     PlaywrightContextManager as AsyncPlaywrightContextManager,
     BrowserContext as AsyncPlaywrightBroswerContext,
     Playwright as AsyncPlaywright,
@@ -52,6 +35,9 @@ from playwright.async_api import (
     Error as AsyncPlaywrightError,
     TimeoutError as AsyncPlaywrightTimeoutError,
 )
+
+import aiohttp
+import pandas as pd
 
 class AsyncPlaywrightScrapper:
     """
@@ -90,33 +76,90 @@ class AsyncPlaywrightScrapper:
         self.sanitized_filename = sanitize_filename(self.domain)
 
         # Get the robots.txt properties and assign them.
-        self.rp: RobotFileParser = self._get_robot_rules()
-        self.request_rate: float = float(self.rp.request_rate(self.user_agent))
-        self.crawl_delay: int = int(self.rp.crawl_delay(self.user_agent))
+        self.rp: RobotFileParser = None
+        self.request_rate: float = None
+        self.crawl_delay: int = None
 
         self.browser: AsyncPlaywrightBrowser = None
         self.context: AsyncPlaywrightBroswerContext = None,
         self.page: AsyncPlaywrightPage = None
 
 
-    # Define class enter and exit methods.
-    @try_except(exception=[URLError], retries=2, raise_exception=True)
-    def _get_robot_rules(self):
-        """
-        Get the site's robots.txt file and read it.
-        See: https://docs.python.org/3/library/urllib.robotparser.html
-        """
-        # Instantiate the RobotFileParser class.
-        _rp = RobotFileParser()
-        # Fetch the robots.txt file and parse it.
-        _rp.set_url(urljoin(self.domain, 'robots.txt'))
-        # Read the robots.txt file from the server
-        logger.debug(f"Getting robots.txt for '{self.domain}'...")
-        rp_ = _rp.read()
-        logger.debug("Got robots.txt")
-        return rp_
+    # # Define class enter and exit methods.
+    # @try_except(exception=[URLError], retries=2, raise_exception=True)
+    # def _get_robot_rules(self):
+    #     """
+    #     Get the site's robots.txt file and read it.
+    #     See: https://docs.python.org/3/library/urllib.robotparser.html
+    #     """
+    #     # Instantiate the RobotFileParser class.
+    #     _rp = RobotFileParser()
+    #     # Fetch the robots.txt file and parse it.
+    #     robots_url = urljoin(self.domain, 'robots.txt')
+    #     logger.debug(f"robots_url: {robots_url}")
 
+    #     _rp.set_url(robots_url)
+    #     # Read the robots.txt file from the server
+    #     logger.debug(f"Getting robots.txt for '{self.domain}'...")
+    #     rp_ = _rp.read()
+    #     logger.debug("Got robots.txt")
+    #     return rp_
 
+    async def _get_robot_rules(self):
+        """
+        Get the site's robots.txt file and read it asynchronously with a timeout.
+        TODO Make a database of robots.txt files. This might be a good idea for scraping.
+        """
+        robots_url = urljoin(self.domain, 'robots.txt')
+
+        # Check if we already got the robots.txt file for this website
+        domain_name = self.domain.split('//')[1].split('/')[0].split('.')[0] # TODO Make this robust.
+        robots_txt_filepath = os.path.join(PROJECT_ROOT, "scraper", "sites", domain_name, f"{domain_name}_robots.txt")
+
+        self.rp = RobotFileParser(robots_url)
+
+        # If we already got the robots.txt file, load it in.
+        if os.path.exists(robots_txt_filepath):
+            logger.info(f"Using cached robots.txt file for '{self.domain}'...")
+            with open(robots_txt_filepath, 'r') as f:
+                content = f.read()
+                self.rp.parse(content.splitlines())
+    
+        else: # Get the robots.txt file from the server if we don't have it.
+            async with aiohttp.ClientSession() as session:
+                try:
+                    logger.info(f"Getting robots.txt from '{robots_url}'...")
+                    async with session.get(robots_url, timeout=10) as response:  # 10 seconds timeout
+                        if response.status == 200:
+                            logger.info("robots.txt respons ok")
+                            content = await response.text()
+                            self.rp.parse(content.splitlines())
+                        else:
+                            logger.warning(f"Failed to fetch robots.txt: HTTP {response.status}")
+                            return None
+                except asyncio.TimeoutError:
+                    logger.warning("Timeout while fetching robots.txt")
+                    return None
+                except aiohttp.ClientError as e:
+                    logger.warning(f"Error fetching robots.txt: {e}")
+                    return None
+            logger.info("Got robots.txt")
+            logger.debug(f"robots.txt for Municode\n{content}",f=True)
+
+        # Save the robots.txt file to disk.
+        if not os.path.exists(robots_txt_filepath):
+            with open(robots_txt_filepath, 'w') as f:
+                f.write(content)
+
+        # Set the request rate and crawl delay from the robots.txt file.
+        self.request_rate: float = self.rp.request_rate(self.user_agent) or 0
+        logger.info(f"request_rate set to {self.request_rate}")
+        self.crawl_delay: int = int(self.rp.crawl_delay(self.user_agent))
+        logger.info(f"crawl_delay set to {self.crawl_delay}")
+
+        return
+
+    @async_try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError], raise_exception=True)
     async def _load_browser(self):
         """
         Launch a chromium browser instance.
@@ -128,13 +171,13 @@ class AsyncPlaywrightScrapper:
 
 
     # Define the context manager methods
-    @try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError], raise_exception=True)
     @classmethod
-    async def start(cls, domain, pw_instance: AsyncPlaywright, user_agent, **kwargs) -> 'AsyncPlaywrightScrapper':
+    async def start(cls, domain, pw_instance, *args, **kwargs) -> 'AsyncPlaywrightScrapper':
         """
         Factory method to start the scraper.
         """
-        instance = cls(domain, pw_instance, user_agent, **kwargs)
+        instance = cls(domain, pw_instance, *args, **kwargs)
+        await instance._get_robot_rules()
         await instance._load_browser()
         return instance
 
@@ -270,7 +313,7 @@ class AsyncPlaywrightScrapper:
 
 
 
-    @try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError], raise_exception=True)
+    @async_try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError], raise_exception=True)
     async def move_mouse_cursor_to_hover_over(self, selector: str, *args, **kwargs) -> Coroutine[Any, Any, None]:
         """
         Move a "mouse" cursor over a specified element.
@@ -278,7 +321,7 @@ class AsyncPlaywrightScrapper:
         return await self.page.locator(selector, *args, **kwargs).hover()
 
 
-    @try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError], raise_exception=True)
+    @async_try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError], raise_exception=True)
     async def click_on(self, selector: str, *args, **kwargs) -> Coroutine[Any, Any, None]:
         """
         Click on a specified element.
@@ -286,7 +329,7 @@ class AsyncPlaywrightScrapper:
         return await self.page.locator(selector, *args, **kwargs).click()
 
 
-    @try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError])
+    @async_try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError])
     async def take_screenshot(self,
                               filename: str,
                               full_page: bool=False,
@@ -340,8 +383,8 @@ class AsyncPlaywrightScrapper:
         return
 
 
-    @try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError], raise_exception=True)
-    async def evaluate_js(self, javascript: str, js_kwargs: dict) -> Coroutine[Any]:
+    @async_try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError], raise_exception=True)
+    async def evaluate_js(self, javascript: str, js_kwargs: dict) -> Coroutine:
         """
         Evaluate JavaScript code in a Playwright Page instance.
 
@@ -366,7 +409,7 @@ class AsyncPlaywrightScrapper:
                 self.open_new_context()
                 await self.context.tracing.start(screenshots=True, snapshots=True, sources=True)
                 await self.context.tracing.start_chunk()
-                await self.open_new_page
+                await self.open_new_page()
                 try:
                     result = await func(*args, **kwargs)
                 finally:

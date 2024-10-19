@@ -7,7 +7,9 @@ from playwright.async_api import (
     async_playwright,
     ElementHandle,
     expect,
-    Locator
+    Locator,
+    Error as AsyncPlaywrightError,
+    TimeoutError as AsyncPlaywrightTimeoutError
 )
 
 
@@ -18,6 +20,7 @@ from utils.shared.make_sha256_hash import make_sha256_hash
 from utils.shared.sanitize_filename import sanitize_filename
 from utils.shared.decorators.adjust_wait_time_for_execution import adjust_wait_time_for_execution
 from utils.shared.load_from_csv import load_from_csv
+from utils.shared.decorators.try_except import try_except
 
 from config import *
 
@@ -39,8 +42,13 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
     Also, fuck multiple libraries.
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self,
+                domain: str,
+                pw_instance,
+                *args,
+                user_agent: str="*",
+                **kwargs):
+        super().__init__(domain, pw_instance, *args, user_agent=user_agent, **kwargs)
         self.xpath_dict = {
             "current_version": '//*[@id="codebankToggle"]/button/text()',
             "version_button": '//*[@id="codebankToggle"]/button/',
@@ -59,11 +67,11 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
         toc_button_locator = await self.page.get_by_text("Browse table of contents")
         expect(toc_button_locator).to_be_visible()
 
-                #         <div class="col-sm-6 hidden-md hidden-lg hidden-xl" style="margin-top: 8px;">
-                #     <button type="button" class="btn btn-raised btn-primary" ng-click="$root.zoneMgrSvc.toggleVisibleZone()">
-                #         <i class="fa fa-list-ul"></i> Browse table of contents
-                #     </button>
-                # </div>
+        #         <div class="col-sm-6 hidden-md hidden-lg hidden-xl" style="margin-top: 8px;">
+        #     <button type="button" class="btn btn-raised btn-primary" ng-click="$root.zoneMgrSvc.toggleVisibleZone()">
+        #         <i class="fa fa-list-ul"></i> Browse table of contents
+        #     </button>
+        # </div>
 
     async def scrape_version_and_menu(self):
         """
@@ -100,60 +108,6 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
             logger.info(f"version {i}: {version}")
         
         return 
-
-
-
-
-
-    # def _get_current_code_version(self, selector: str) -> str:
-    #     """
-    #     Get the date for the current version of the municipal code.
-    #     """
-
-    #     # Wait for the button to be visible
-    #     button_selector = 'button:has(span.text-xs.text-muted):has(i.fa.fa-caret-down)'
-    #     self.page.wait_for_selector(button_selector)
-
-    #     # Initialize HTML targets and JavaScript command.
-    #     version_date_id = 'span.text-sm.text-muted'
-    #     args = {"version_date_id": version_date_id}
-    #     js = '() => document.querySelector("{version_date_id}").textContent'
-
-    #     # Wait for the element to be visible
-    #     self.page.wait_for_selector(version_date_id)
-
-    #     # Get the code with JavaScript
-    #     version_date: str = self.evaluate_js(js, js_kwargs=args)
-
-    #     logger.debug(f'version_date: {version_date}')
-    #     return version_date.strip()
-
-
-    # async def _get_all_code_versions(self, url: str) -> list[str]:
-    #     """
-    #     Get the dates for current and past versions of the municipal code.
-    #     NOTE: You need to click on each individual button to get the link itself.
-    #     """
-    #     version_date_button_selector = 'span.text-sm.text-muted'
-
-    #     version_date = self._get_current_code_version()
-
-
-    #     # Press the button that shows the code archives pop-up
-    #     version_button = None
-    #     await self.click_on(version_button)
-    #     self.press_buttons(url, xpath=self.xpath_dict['version_button'])
-
-    #     # Get all the dates in the pop-up.
-    #     buttons = self.wait_for_and_then_return_elements(
-    #         self.xpath_dict['version_text_paths'], wait_time=10, poll_frequency=0.5
-    #     )
-    #     version_list = [
-    #         button.text.strip() for button in buttons
-    #     ]
-    #     logger.debug(f'version_list\n{version_list}',f=True)
-    #     return version_list
-
 
     async def _scrape_toc(self, base_url: str, wait_time: int) -> list[dict]:
         """
@@ -238,6 +192,7 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
     # Decorator to wait per Municode's robots.txt
     # NOTE Since code URLs are processed successively, we can subtract off the time it took to get all the pages elements
     # from the wait time specified in robots.txt. This should speed things up (?).
+    @try_except(exception=[AsyncPlaywrightError])
     @adjust_wait_time_for_execution(wait_in_seconds=LEGAL_WEBSITE_DICT["municode"]["wait_in_seconds"])
     async def get_municode_sidebar_elements(self, 
                                       i: int,
@@ -284,7 +239,7 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
         }
 
         await self.navigate_to(input_url)
-        logger.info("Navigated to ")
+        logger.info("Navigated to input_url")
 
         self.take_screenshot(input_url, full_page=True, open_image_after_save=True)
         time.sleep(30)
@@ -336,7 +291,7 @@ import pandas as pd
 
 
 
-async def get_sidebar_urls_from_municode_with_playwright(df: pd.DataFrame, wait_in_seconds: int) -> pd.DataFrame:
+async def get_sidebar_urls_from_municode_with_playwright(sources_df: pd.DataFrame) -> pd.DataFrame:
     """
     Get href and text of sidebar elements in a Municode city code URL.
     """
@@ -353,21 +308,22 @@ async def get_sidebar_urls_from_municode_with_playwright(df: pd.DataFrame, wait_
 
 
     # Get the sidebar URLs and text for each Municode URL
-    with async_playwright() as pw_instance:
+    async with async_playwright() as pw_instance:
         logger.info("Playwright instance initialized successfully.")
 
         # We use a factory method to instantiate the class to avoid context manager fuckery.
-        municode: GetMunicodeSidebarElements = await GetMunicodeSidebarElements().start(domain, pw_instance, user_agent='*', **pw_options)
+        # TODO MAKE CODE NOT CURSED.
+        municode: GetMunicodeSidebarElements = await GetMunicodeSidebarElements(domain, pw_instance, user_agent='*', **pw_options).start(domain, pw_instance, user_agent='*', **pw_options)
         logger.info("GetMunicodeSidebarElements initialized successfully")
 
-        logger.info(f"Starting get_municode_sidebar_elements loop. Processing {len(df)} URLs...")
+        logger.info(f"Starting get_municode_sidebar_elements loop. Processing {len(sources_df)} URLs...")
 
         # Go through each URL.
         # NOTE This will take forever, but we can't afford to piss off Municode. 
         # Just 385 randomly chosen ones should be enough for a statistically significant sample size.
         # We also only need to do this once.
         list_of_lists_of_dicts: list[dict] = [ # NOTE Adding the 'if row else None' is like adding 'continue' to a regular for-loop.
-            await municode.get_municode_sidebar_elements(i, row, len(df)) if row else None for i, row in enumerate(df.itertuples(), start=1)
+            await municode.get_municode_sidebar_elements(i, row, len(sources_df)) if row else None for i, row in enumerate(sources_df.itertuples(), start=1)
         ]
 
         await municode.exit()
@@ -378,9 +334,9 @@ async def get_sidebar_urls_from_municode_with_playwright(df: pd.DataFrame, wait_
     output_list = [item for sublist in list_of_lists_of_dicts for item in sublist]
     
     logger.info("get_sidebar_urls_from_municode_with_selenium function complete. Making dataframes and saving...")
-
+    save_code_versions_to_csv(output_list) # We save first to prevent pandas fuck-upery.
     urls_df = make_urls_df(output_list)
-    save_code_versions_to_csv(output_list)
+
 
     return urls_df
 
@@ -456,3 +412,51 @@ def save_code_versions_to_csv(output_list: list[dict]) -> None:
 
 
 
+    # def _get_current_code_version(self, selector: str) -> str:
+    #     """
+    #     Get the date for the current version of the municipal code.
+    #     """
+
+    #     # Wait for the button to be visible
+    #     button_selector = 'button:has(span.text-xs.text-muted):has(i.fa.fa-caret-down)'
+    #     self.page.wait_for_selector(button_selector)
+
+    #     # Initialize HTML targets and JavaScript command.
+    #     version_date_id = 'span.text-sm.text-muted'
+    #     args = {"version_date_id": version_date_id}
+    #     js = '() => document.querySelector("{version_date_id}").textContent'
+
+    #     # Wait for the element to be visible
+    #     self.page.wait_for_selector(version_date_id)
+
+    #     # Get the code with JavaScript
+    #     version_date: str = self.evaluate_js(js, js_kwargs=args)
+
+    #     logger.debug(f'version_date: {version_date}')
+    #     return version_date.strip()
+
+
+    # async def _get_all_code_versions(self, url: str) -> list[str]:
+    #     """
+    #     Get the dates for current and past versions of the municipal code.
+    #     NOTE: You need to click on each individual button to get the link itself.
+    #     """
+    #     version_date_button_selector = 'span.text-sm.text-muted'
+
+    #     version_date = self._get_current_code_version()
+
+
+    #     # Press the button that shows the code archives pop-up
+    #     version_button = None
+    #     await self.click_on(version_button)
+    #     self.press_buttons(url, xpath=self.xpath_dict['version_button'])
+
+    #     # Get all the dates in the pop-up.
+    #     buttons = self.wait_for_and_then_return_elements(
+    #         self.xpath_dict['version_text_paths'], wait_time=10, poll_frequency=0.5
+    #     )
+    #     version_list = [
+    #         button.text.strip() for button in buttons
+    #     ]
+    #     logger.debug(f'version_list\n{version_list}',f=True)
+    #     return version_list
