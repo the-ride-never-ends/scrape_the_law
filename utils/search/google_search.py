@@ -19,7 +19,7 @@ from utils.shared.make_id import make_id
 from utils.shared.sanitize_filename import sanitize_filename
 from utils.shared.safe_format import safe_format
 
-from utils.shared.Limiter import Limiter
+from utils.shared.limiter_utils.Limiter import Limiter
 limiter  = Limiter(GOOGLE_CONCURRENCY_LIMIT)
 
 from .google_search_utils.navigate_to_google import navigate_to_google
