@@ -12,5 +12,9 @@ tests/
 *.html
 *.zip
 *.ipynb
+*.jpeg
+*.png
+*.gif
+*.jpg
 SQLSCHEMA.md
 HOMEWORK.md

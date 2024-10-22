@@ -1,3 +1,4 @@
+import asyncio
 from collections import deque
 import time
 from typing import NamedTuple
@@ -18,9 +19,10 @@ from scraper.child_classes.playwright.AsyncPlaywrightScrapper import AsyncPlaywr
 
 from utils.shared.make_sha256_hash import make_sha256_hash
 from utils.shared.sanitize_filename import sanitize_filename
-from utils.shared.decorators.adjust_wait_time_for_execution import adjust_wait_time_for_execution
+from utils.shared.decorators.adjust_wait_time_for_execution import adjust_wait_time_for_execution, async_adjust_wait_time_for_execution
 from utils.shared.load_from_csv import load_from_csv
-from utils.shared.decorators.try_except import try_except
+from utils.shared.save_to_csv import save_to_csv
+from utils.shared.decorators.try_except import try_except, async_try_except
 
 from config import *
 
@@ -73,7 +75,92 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
         #     </button>
         # </div>
 
-    async def scrape_version_and_menu(self):
+    async def _choose_browse_when_given_choice(self):
+        """
+        Choose to browse the table of contents if given the choice between that and Municode's documents page.
+        """
+        pass
+
+    # NOTE Fragile function. May break
+    async def select_codebank_button(self):
+        # Define the selector for the button
+        button_selector = '#codebankToggle button[data-original-title="CodeBank"]'
+
+        # Wait for the button to be visible
+        await self.page.wait_for_selector(button_selector, state='visible')
+
+        # Get the button
+        codebank_button = await self.page.query_selector(button_selector)
+
+        if codebank_button:
+            # Click the button
+            await codebank_button.click()
+            logger.info("CodeBank button clicked successfully")
+        else:
+            logger.warning("CodeBank button not found")
+
+        return codebank_button
+
+
+    async def get_code_version_button_texts(self, max_retries: int=3, retry_delay: int=1) -> list[str]:
+        counter = 0
+        for attempt in range(max_retries):
+            try:
+
+                logger.debug(f"Attempt {attempt + 1} of {max_retries} to get button texts")
+                
+                # Wait for the container first
+                await self.page.wait_for_selector("#codebank", timeout=5000)
+                
+                # Wait a brief moment for Angular rendering
+                await asyncio.sleep(0.5)
+                
+                # Try different selectors
+                buttons = await self.page.locator("#codebank button").all()
+                if not buttons:
+                    buttons = await self.page.locator(".timeline-entry button").all()
+                if not buttons:
+                    buttons = await self.page.locator(".card-body button").all()
+                    
+                if buttons:
+                    logger.debug(f"Found {len(buttons)} buttons on attempt {attempt + 1}")
+                    
+                    versions = []
+                    for button in buttons:
+                        try:
+                            # Wait for each button to be stable
+                            await button.wait_for(state="attached", timeout=1000)
+                            text = await button.text_content()
+                            if text and text.strip():
+                                versions.append(text.strip())
+                        except Exception as e:
+                            logger.warning(f"Failed to get text from button: {e}")
+                            continue
+                    
+                    if versions:
+                        logger.info(f"Successfully got {len(versions)} version texts")
+                        return versions
+                        
+                logger.warning(f"No valid versions found on attempt {attempt + 1}")
+                await asyncio.sleep(retry_delay)
+
+            except TimeoutError as e:
+                counter += 1
+                logger.warning(f"Timeout on attempt {attempt + 1}: {e}")
+                await asyncio.sleep(retry_delay)
+            except Exception as e:
+                counter += 1
+                logger.error(f"Unexpected error on attempt {attempt + 1}: {e}")
+                await asyncio.sleep(retry_delay)
+        
+        # If we get here, all retries failed
+        logger.exception(f"Failed to get button texts after {max_retries} attempts. Returning...")
+        return
+
+
+
+    #@async_try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError])
+    async def scrape_code_version_popup_menu(self, gnis: int):
         """
         Scrape a code version pop-up menu
         """
@@ -81,33 +168,53 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
         # Define variables
         js_kwargs = {}
         js_kwargs['codebank_label'] = codebank_label = 'CodeBank' # 'span.text-sm text-muted'
-        codebank_button = f'button:has({codebank_label}):has(i.fa.fa-caret-down)'
+        # NOTE Brute force time baby!
+        codebank_button = '#codebankToggle button[data-original-title="CodeBank"]'
 
-        # Wait for the codebank button to be visible
-        await self.page.wait_for_selector(codebank_button)
+        # '#codebankToggle button[data-intro="Switch between old and current versions."]' # f'button:has({codebank_label}):has(i.fa fa-caret-down)'
 
-        # Get the text of the codebank button
-        # This should also be the current version date.
-        current_version = self.page.get_by_role('button').locator("CodeBank").text_content
+        logger.info("Waiting for the codebank button to be visible...")
+        await self.page.wait_for_selector(codebank_button, state='visible')
+
+        logger.info("Codebank button is visible. Getting current version from it...") # CSS selector ftw???
+        current_version = await self.page.locator(codebank_button).text_content()
+        #codebank > ul > li:nth-child(1) > div.timeline-entry > div > div
         logger.debug(f"current_version: {current_version}")
 
-        # Click the codebank to open the popup menu
+        # Hover over and click the codebank to open the popup menu
+        logger.info(f"Got current code version '{current_version}'. Hovering over and clicking Codebank button...")
+        await self.move_mouse_cursor_to_hover_over(codebank_button)
         await self.page.click(codebank_button)
         
         # Wait for the popup menu to appear
-        popup_selector = 'aria-label.List of previous versions of code' # NOTE'.popup-menu' is a CSS selector!
-        await self.page.wait_for_selector(popup_selector)
+        logger.info("Codebank button was hovered over and clicked successfully. Waiting for popup menu...")
+        popup_selector = 'List of previous versions of code'
 
+        # 'aria-label.List of previous versions of code' # NOTE'.popup-menu' is a CSS selector! Also, since the aria-label is hidden, you need to use state='hidden' in order to get it.
+        await self.page.wait_for_selector(popup_selector, state='hidden')
+        #codebank > ul > li:nth-child(1) > div.timeline-entry > div > div > button
         # Go into the CodeBank list and get the button texts.
         # These should be all the past version dates.
-        prev_code_locator: Locator = self.page.get_by_label("List of previous versions of code")
-        all_code_versions = [
-            button.text_content for button in prev_code_locator.get_by_role('button').all()
-        ]
-        for i, version in enumerate(all_code_versions, start=1):
-            logger.info(f"version {i}: {version}")
-        
+        logger.info("Popup menu is visible. Getting previous code versions...")
+
+        # NOTE: This is a CSS selector!
+        # 1. First, wait for the timeline to be actually present and visible
+        try:
+            await self.page.wait_for_selector("ul.timeline", timeout=5000)
+            logger.debug("Timeline UL found")
+        except Exception as e:
+            logger.error(f"Timeline UL not found: {e}")
+            raise
+
+        # 2. Then, get all the buttons inside the timeline
+        versions = await self.get_code_version_button_texts()
+
+        # Save the versions to a CSV
+        df = pd.DataFrame(versions, columns=['version'])
+        df.to_csv(os.path.join(self.output_dir, f'all_code_versions_{gnis}.csv'), index=False, quoting=1)
+
         return 
+
 
     async def _scrape_toc(self, base_url: str, wait_time: int) -> list[dict]:
         """
@@ -193,7 +300,7 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
     # NOTE Since code URLs are processed successively, we can subtract off the time it took to get all the pages elements
     # from the wait time specified in robots.txt. This should speed things up (?).
     @try_except(exception=[AsyncPlaywrightError])
-    @adjust_wait_time_for_execution(wait_in_seconds=LEGAL_WEBSITE_DICT["municode"]["wait_in_seconds"])
+    #@async_adjust_wait_time_for_execution(wait_in_seconds=LEGAL_WEBSITE_DICT["municode"]["wait_in_seconds"])
     async def get_municode_sidebar_elements(self, 
                                       i: int,
                                       row: NamedTuple,
@@ -225,7 +332,6 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
         # Check to make sure the URL is a municode one, then initialize the dictionary.
         assert "municode" in row.url, f"URL '{row.url}' is not for municode."
         input_url = row.url
-        wait_time = 10
 
         # Skip the webpage if we already got it.
         output_dict = self._skip_if_we_have_url_already(input_url)
@@ -238,15 +344,35 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
             'gnis': row.gnis
         }
 
-        await self.navigate_to(input_url)
+        await self.navigate_to(input_url, idx=i)
         logger.info("Navigated to input_url")
 
-        self.take_screenshot(input_url, full_page=True, open_image_after_save=True)
-        time.sleep(30)
+        # Screenshot the initial page.
+        await self.take_screenshot(
+            input_url, 
+            prefix="navigate_to",
+            full_page=True, 
+            open_image_after_save=True
+        )
+
+        # Get the html of the opening page and write it to a file.
+        await self.save_page_html_content_to_output_dir(f"{row.gnis}_opening_webpage.html")
+
+        # Get the current code version and all code versions.
+        await self.scrape_code_version_popup_menu(gnis=row.gnis)
+
+        # Screenshot the page after running scrape_code_version_popup_menu.
+        await self.take_screenshot(
+            input_url,
+            prefix="scrape_code_version_popup_menu",
+            full_page=True, 
+            open_image_after_save=True
+        )
+        # Get the html of the opening page and write it to a file.
+        await self.save_page_html_content_to_output_dir(f"{row.gnis}_scrape_code_version_popup_menu.html")
+
 
         return
-
-        # self.scrape_version_and_menu()
 
 
         # toc_button = """
@@ -256,14 +382,9 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
 
         # # Wait for the webpage to fully load, based on the button element.
 
-        # # Get the html of the opening page.
-        # html_content = self.driver.page_source
 
-        # # Write the HTML content to a file
-        # _path = os.path.join(output_folder, f"{row.gnis}_opening_webpage.html")
-        # with open(_path, "w", encoding="utf-8") as file:
-        #     file.write(html_content)
-        #     print(f"HTML content from {input_url} has been saved to webpage.html")
+
+
         # raise # TODO Remove this line after debug.
 
         # # Get the URLs from the table of contents.
@@ -289,8 +410,6 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
 import pandas as pd
 
 
-
-
 async def get_sidebar_urls_from_municode_with_playwright(sources_df: pd.DataFrame) -> pd.DataFrame:
     """
     Get href and text of sidebar elements in a Municode city code URL.
@@ -306,14 +425,14 @@ async def get_sidebar_urls_from_municode_with_playwright(sources_df: pd.DataFram
     domain = "https://municode.com/"
     from scraper.child_classes.playwright.AsyncPlaywrightScrapper import AsyncPlaywrightScrapper
 
-
     # Get the sidebar URLs and text for each Municode URL
     async with async_playwright() as pw_instance:
         logger.info("Playwright instance initialized successfully.")
 
         # We use a factory method to instantiate the class to avoid context manager fuckery.
-        # TODO MAKE CODE NOT CURSED.
+        # TODO MAKE START CODE NOT CURSED.
         municode: GetMunicodeSidebarElements = await GetMunicodeSidebarElements(domain, pw_instance, user_agent='*', **pw_options).start(domain, pw_instance, user_agent='*', **pw_options)
+        assert municode.browser is not None, "Browser is None."
         logger.info("GetMunicodeSidebarElements initialized successfully")
 
         logger.info(f"Starting get_municode_sidebar_elements loop. Processing {len(sources_df)} URLs...")
@@ -322,8 +441,10 @@ async def get_sidebar_urls_from_municode_with_playwright(sources_df: pd.DataFram
         # NOTE This will take forever, but we can't afford to piss off Municode. 
         # Just 385 randomly chosen ones should be enough for a statistically significant sample size.
         # We also only need to do this once.
-        list_of_lists_of_dicts: list[dict] = [ # NOTE Adding the 'if row else None' is like adding 'continue' to a regular for-loop.
-            await municode.get_municode_sidebar_elements(i, row, len(sources_df)) if row else None for i, row in enumerate(sources_df.itertuples(), start=1)
+        list_of_lists_of_dicts: list[dict] = [ 
+            await municode.get_municode_sidebar_elements(
+                i, row, len(sources_df) # NOTE Adding the 'if row else None' is like adding 'continue' to a regular for-loop.
+                ) if row else None for i, row in enumerate(sources_df.itertuples(), start=1)
         ]
 
         await municode.exit()

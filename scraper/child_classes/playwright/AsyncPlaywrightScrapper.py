@@ -6,7 +6,7 @@ import time
 from typing import Any, Coroutine, TypeVar, NamedTuple
 from urllib.robotparser import RobotFileParser
 from urllib.error import URLError
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit, urlunsplit
 
 from abc import ABC, abstractmethod
 
@@ -74,6 +74,11 @@ class AsyncPlaywrightScrapper:
         self.domain: str = domain
         self.user_agent: str = user_agent
         self.sanitized_filename = sanitize_filename(self.domain)
+        self.output_dir = os.path.join(OUTPUT_FOLDER, self.sanitized_filename)
+
+        # Create the output directory if it doesn't exist.
+        if not os.path.exists(self.output_dir):
+            os.mkdir(os.path.dirname(self.output_dir))
 
         # Get the robots.txt properties and assign them.
         self.rp: RobotFileParser = None
@@ -84,28 +89,9 @@ class AsyncPlaywrightScrapper:
         self.context: AsyncPlaywrightBroswerContext = None,
         self.page: AsyncPlaywrightPage = None
 
+    # Define class enter and exit methods.
 
-    # # Define class enter and exit methods.
-    # @try_except(exception=[URLError], retries=2, raise_exception=True)
-    # def _get_robot_rules(self):
-    #     """
-    #     Get the site's robots.txt file and read it.
-    #     See: https://docs.python.org/3/library/urllib.robotparser.html
-    #     """
-    #     # Instantiate the RobotFileParser class.
-    #     _rp = RobotFileParser()
-    #     # Fetch the robots.txt file and parse it.
-    #     robots_url = urljoin(self.domain, 'robots.txt')
-    #     logger.debug(f"robots_url: {robots_url}")
-
-    #     _rp.set_url(robots_url)
-    #     # Read the robots.txt file from the server
-    #     logger.debug(f"Getting robots.txt for '{self.domain}'...")
-    #     rp_ = _rp.read()
-    #     logger.debug("Got robots.txt")
-    #     return rp_
-
-    async def _get_robot_rules(self):
+    async def _get_robot_rules(self) -> None:
         """
         Get the site's robots.txt file and read it asynchronously with a timeout.
         TODO Make a database of robots.txt files. This might be a good idea for scraping.
@@ -160,13 +146,13 @@ class AsyncPlaywrightScrapper:
         return
 
     @async_try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError], raise_exception=True)
-    async def _load_browser(self):
+    async def _load_browser(self) -> None:
         """
         Launch a chromium browser instance.
         """
         logger.debug("Launching Playwright Chromium instance...")
-        await self.pw_instance.chromium.launch(**self.launch_kwargs)
-        logger.debug("Playwright Chromium instance launched successfully.")
+        self.browser = await self.pw_instance.chromium.launch(**self.launch_kwargs)
+        logger.debug(f"Playwright Chromium brwoser instance launched successfully.\nkwargs:{self.launch_kwargs}",f=True)
         return
 
 
@@ -176,6 +162,7 @@ class AsyncPlaywrightScrapper:
         """
         Factory method to start the scraper.
         """
+        logger.debug("Starting AsyncPlaywrightScrapper via factory method...")
         instance = cls(domain, pw_instance, *args, **kwargs)
         await instance._get_robot_rules()
         await instance._load_browser()
@@ -194,6 +181,7 @@ class AsyncPlaywrightScrapper:
 
 
     async def __aenter__(self) -> 'AsyncPlaywrightScrapper':
+        await self._get_robot_rules()
         return await self._load_browser()
 
 
@@ -231,11 +219,11 @@ class AsyncPlaywrightScrapper:
         """
         if self.context:
             if self.page:
-                raise AttributeError("'page' attribute is already initialized.")
-            else:
-                await self.context.new_page(**kwargs)
-                logger.debug("Page instance created successfully")
-                return
+                logger.info("self.page already assigned. Overwriting...")
+                # raise AttributeError("'page' attribute is already initialized.")
+            self.page = await self.context.new_page(**kwargs)
+            logger.debug("Page instance created successfully.")
+            return
         else:
             raise AttributeError("'context' attribute is missing or not initialized.")
 
@@ -275,8 +263,9 @@ class AsyncPlaywrightScrapper:
     # Orchestrated functions.
     # These function's put all the small bits together.
 
+    # NOTE THIS FUNCTION WORKS
     @try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError])
-    async def navigate_to(self, url: str, **kwargs) -> Coroutine:
+    async def navigate_to(self, url: str, idx: int=None, **kwargs) -> Coroutine:
         """
         Open a specified webpage and wait for any dynamic elements to load.
         This method respects robots.txt rules (e.g. not scrape disallowed URLs, respects crawl delays).
@@ -300,9 +289,10 @@ class AsyncPlaywrightScrapper:
 
         # Wait per the robots.txt crawl delay.
         if self.crawl_delay > 0:
-            logger.info(f"Sleeping for {self.crawl_delay} seconds to respect robots.txt crawl delay")
-            await asyncio.sleep(self.crawl_delay)
-        
+            if idx > 1:
+                logger.info(f"Sleeping for {self.crawl_delay} seconds to respect robots.txt crawl delay")
+                await asyncio.sleep(self.crawl_delay)
+
         # Open a new context and page.
         await self.open_new_context()
         await self.open_new_page()
@@ -310,7 +300,6 @@ class AsyncPlaywrightScrapper:
         # Go to the URL and wait for it to fully load.
         await self.page.goto(url, **kwargs)
         return await self.wait_till_idle()
-
 
 
     @async_try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError], raise_exception=True)
@@ -330,9 +319,22 @@ class AsyncPlaywrightScrapper:
 
 
     @async_try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError])
+    async def save_page_html_content_to_output_dir(self, filename: str) -> str:
+        """
+        Save a page's current HTML content to the output directory.
+        """
+        path = os.path.join(self.output_dir, filename)
+        page_html = await self.page.content()
+        with open(path, "w", encoding="utf-8") as file:
+            file.write(page_html)
+            logger.debug(f"HTML content has been saved to '{filename}'")
+
+
+    @async_try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError])
     async def take_screenshot(self,
                               filename: str,
                               full_page: bool=False,
+                              prefix: str=None,
                               element: str=None,
                               open_image_after_save: bool=False,
                               locator_kwargs: dict=None,
@@ -361,26 +363,54 @@ class AsyncPlaywrightScrapper:
             AsyncPlaywrightError: Any unknown Playwright error occurs.
         """
         # Coerce the filename to jpg if it's an unsupported image type.
-        if not filename.endswith('.png'|'.jpg'|'.jpeg'):
-            filename = f"{os.path.splitext(filename)[0]}.jpg"
-            logger.warning(f"'take_screenshot' method was given an invalid picture type. Filename is now '{filename}'")
+        # NOTE This will also work with URLs, since it feeds the filename into the santize_filename function.
+        if not filename.lower().endswith(('.png', '.jpeg')):
+            logger.debug(f"filename argument: {filename}")
 
-        filepath = os.path.join(OUTPUT_FOLDER, sanitize_filename(self.domain), )
-        # Create the output folder if it doesn't exist.
-        if not os.path.exists(filepath):
-            os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        filepath = os.path.join(filepath, filename)
+            if filename.lower().startswith(('http://', 'https://')):
+                logger.warning(f"'take_screenshot' method was given a URL as a filename. Coercing to valid filename...")
+                # Extract the filename from the URL
+                filename = f"{urlsplit(filename).path.split('/')[-1]}.jpeg"
+            else:
+                logger.warning(f"'take_screenshot' method was given an invalid picture type. Coercing to jpeg...")
+                #Split off the extension and add .jpg
+                filename = f"{os.path.splitext(filename)[0]}.jpeg"
+            
+        if prefix:
+            filename = f"{prefix}_{filename}"
+            logger.info(f"Filename prefix '{prefix}' added to '{filename}'")
+        logger.debug(f"filename: {filename}")
+        filepath = os.path.join(self.output_dir, filename)
 
         # Take the screenshot.
         if element:
-            await self.page.locator(element, **locator_kwargs).screenshot(path=filepath, full_page=full_page, **kwargs)
+            await self.page.locator(element, **locator_kwargs).screenshot(path=filepath, type="jpeg", full_page=full_page, **kwargs)
         else:
-            await self.page.screenshot(path=filepath, full_page=full_page, **kwargs)
+            await self.page.screenshot(path=filepath, type="jpeg", full_page=full_page, **kwargs)
 
-        # Open the image after it's saved.
-        if not open_image_after_save: # Normal usage: explorer.exe image.png NOTE This will only work for WSL.
-            subprocess.call(["mnt/c/Windows/explorer.exe", filepath], shell=True)
+        # Open the image using IrfanView 64 after it's saved if requested.
+        # NOTE this will only work for WSL, since IrfanView 64 is a Windows-only application.
+        # TODO This doesn't work! Fix it eventually!
+        # if open_image_after_save: # Normal usage: i_view64.exe image.png
+        #     subprocess.call(["'/mnt/c/Program Files/IrfanView/i_view64.exe' ", filepath], shell=True)
         return
+
+
+    def make_filepath_dir_for_domain(self) -> str:
+        """
+        Define and return a filepath for a given domain in the output folder.
+        If the directory doesn't exist, make it.
+        """
+        assert OUTPUT_FOLDER and self.domain, "OUTPUT_FOLDER and self.domain must be defined."
+
+        # Define the filepath.
+        filepath = os.path.join(OUTPUT_FOLDER, sanitize_filename(self.domain))
+
+        # Create the output folder if it doesn't exist.
+        if not os.path.exists(filepath):
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+        return filepath
 
 
     @async_try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError], raise_exception=True)

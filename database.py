@@ -327,7 +327,7 @@ class MySqlDatabase:
         """
         try:
             logger.debug(f"Clearing all connections from async connection pool...")
-            self.pool.clear()
+            await self.pool.clear()
             logger.debug(f"Connections cleared successfully.")
             logger.debug(f"Attempting to close async connection pool...")
             self.pool.close()

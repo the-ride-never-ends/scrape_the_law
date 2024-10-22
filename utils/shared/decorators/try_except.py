@@ -254,10 +254,10 @@ from logger import Logger
 
 
 def async_try_except(exception: list=[Exception],
-               raise_exception: bool=False,
-               retries: int=0,
-               logger: Logger=None,
-               ) -> Callable:
+                    raise_exception: bool=False,
+                    retries: int=0,
+                    logger: Logger=None,
+                    ) -> Callable:
     """
     A decorator that wraps a coroutine in a try-except block with optional retries and exception raising.
 
@@ -297,6 +297,7 @@ def async_try_except(exception: list=[Exception],
             nonlocal logger
             logger = logger or Logger(logger_name=func.__module__, stacklevel=3)
             attempts = 0
+            finally_e = None
 
             # Since we don't want any uncaught exceptions
             # We add in Exception to the input exception list 
@@ -354,7 +355,8 @@ def async_try_except(exception: list=[Exception],
                     if exit_context: # Handle the call to __aexit__ if the method has it
                         exception_info = sys.exc_info()
                         await exit_context(exception_info[0], exception_info[1], exception_info[2])
-                    raise finally_e
+                    if finally_e:
+                        raise finally_e
                 else:
                     pass
         return wrapper
@@ -477,7 +479,8 @@ def try_except(exception: list=[Exception],
                     if exit_context: # Handle the call to __exit__ if the method has it
                         exception_info = sys.exc_info()
                         exit_context(exception_info[0], exception_info[1], exception_info[2])
-                    raise finally_e
+                    if finally_e:
+                        raise finally_e
                 else:
                     pass
         return wrapper
