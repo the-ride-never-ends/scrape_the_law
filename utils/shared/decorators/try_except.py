@@ -323,15 +323,15 @@ def async_try_except(exception: list=[Exception],
                         return await func(*args, **kwargs)
                     except exception_tuple as e:
                         # Define error variables
-                        finally_e: Exception = e
                         error_name: str = e.__class__.__name__
                         func_name = func.__name__
                         error_message = f"{error_name} exception in '{func_name}'\n{e}"
                         retry_message = f"Retrying ({attempts}/{retries})..."
 
-                        # If no retries are specified, log the error.
+                        # If no retries are specified, log the error and set the finally_e variable to the Exception.
                         if retries <= 0: 
                             logger.exception(error_message)
+                            finally_e: Exception = e
                             break
                         else:
                             # On first attempt, print the error and retry message
@@ -343,22 +343,21 @@ def async_try_except(exception: list=[Exception],
                             elif attempts > 0 and attempts < retries: 
                                 print(retry_message)
 
-                            # On the final attempt, log the error.
+                            # On the final attempt, log the error and set the finally_e variable to the Exception.
                             else: 
                                 print(f"Function '{func_name}' errored after {attempts + 1} retries.")
                                 logger.exception(f"{error_message}\nretries: {attempts + 1}")
+                                finally_e: Exception = e
                                 break
                             attempts += 1
             finally:
                 # Raise the exception if requested.
                 if raise_exception:
-                    if exit_context: # Handle the call to __aexit__ if the method has it
-                        exception_info = sys.exc_info()
-                        await exit_context(exception_info[0], exception_info[1], exception_info[2])
-                    if finally_e:
+                    if finally_e: # Should only trigger if no retries were specified or if all of them are exhauseted.
+                        if exit_context: # Handle the call to __aexit__ if the method has it
+                            exception_info = sys.exc_info()
+                            await exit_context(exception_info[0], exception_info[1], exception_info[2])
                         raise finally_e
-                else:
-                    pass
         return wrapper
     return decorator
 
@@ -447,7 +446,6 @@ def try_except(exception: list=[Exception],
                         return func(*args, **kwargs)
                     except exception_tuple as e:
                         # Define error variables
-                        finally_e: Exception = e
                         error_name: str = e.__class__.__name__
                         func_name = func.__name__
                         error_message = f"{error_name} exception in '{func_name}'\n{e}"
@@ -456,6 +454,7 @@ def try_except(exception: list=[Exception],
                         # If no retries are specified, log the error and raise it if requested.
                         if retries <= 0: 
                             logger.exception(error_message)
+                            finally_e: Exception = e
                             break
                         else:
                             # On first attempt, print the error and retry message
@@ -471,15 +470,16 @@ def try_except(exception: list=[Exception],
                             else: 
                                 print(f"Function '{func_name}' errored after {attempts + 1} retries.")
                                 logger.exception(f"{error_message}\nretries: {attempts + 1}")
+                                finally_e: Exception = e
                                 break
                             attempts += 1
             finally:
                 # Raise the exception if requested.
                 if raise_exception:
-                    if exit_context: # Handle the call to __exit__ if the method has it
-                        exception_info = sys.exc_info()
-                        exit_context(exception_info[0], exception_info[1], exception_info[2])
                     if finally_e:
+                        if exit_context: # Handle the call to __exit__ if the method has it
+                            exception_info = sys.exc_info()
+                            exit_context(exception_info[0], exception_info[1], exception_info[2])
                         raise finally_e
                 else:
                     pass

@@ -3,6 +3,7 @@ from collections import deque
 import time
 from typing import NamedTuple
 
+import pandas as pd
 
 from playwright.async_api import (
     async_playwright,
@@ -58,7 +59,8 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
             'toc': "//input[starts-with(@id, 'genToc_')]" # NOTE toc = Table of Contents
         }
         self.queue = deque()
-        self.output_folder = output_folder
+        self.output_folder:str = output_folder
+        self.place_name:str = None
 
     def test(self):
         self.page.set_content
@@ -81,25 +83,26 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
         """
         pass
 
-    # NOTE Fragile function. May break
-    async def select_codebank_button(self):
-        # Define the selector for the button
+
+    async def is_regular_municode_page(self) -> bool:
+        # Define the selector for the button.
+        # As the all 'regular' pages on Municode have a sidebar, 
+        # we can use the presence of the sidebar to determine if we're on a 'regular' page.
         button_selector = '#codebankToggle button[data-original-title="CodeBank"]'
 
-        # Wait for the button to be visible
-        await self.page.wait_for_selector(button_selector, state='visible')
-
-        # Get the button
-        codebank_button = await self.page.query_selector(button_selector)
-
-        if codebank_button:
-            # Click the button
-            await codebank_button.click()
-            logger.info("CodeBank button clicked successfully")
-        else:
-            logger.warning("CodeBank button not found")
-
-        return codebank_button
+        # Wait 5 seconds for the button to be visible
+        try:
+            await self.page.wait_for_selector(button_selector, state='visible', timeout=5000)
+            logger.info("Codebank button visible.")
+            return True
+        except:
+            logger.info("CodeBank button not visible. ")
+            self.take_screenshot(
+                self.page.url,
+                prefix="is_regular_municode_page",
+                full_page=True, 
+            )
+            return False
 
 
     async def get_code_version_button_texts(self, max_retries: int=3, retry_delay: int=1) -> list[str]:
@@ -160,7 +163,7 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
 
 
     #@async_try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError])
-    async def scrape_code_version_popup_menu(self, gnis: int):
+    async def scrape_code_version_popup_menu(self, place_id: str):
         """
         Scrape a code version pop-up menu
         """
@@ -177,9 +180,9 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
         await self.page.wait_for_selector(codebank_button, state='visible')
 
         logger.info("Codebank button is visible. Getting current version from it...") # CSS selector ftw???
-        current_version = await self.page.locator(codebank_button).text_content()
-        #codebank > ul > li:nth-child(1) > div.timeline-entry > div > div
+        current_version = await self.page.locator(codebank_button).text_content() #codebank > ul > li:nth-child(1) > div.timeline-entry > div > div
         logger.debug(f"current_version: {current_version}")
+
 
         # Hover over and click the codebank to open the popup menu
         logger.info(f"Got current code version '{current_version}'. Hovering over and clicking Codebank button...")
@@ -199,7 +202,7 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
 
         # NOTE: This is a CSS selector!
         # 1. First, wait for the timeline to be actually present and visible
-        try:
+        try: 
             await self.page.wait_for_selector("ul.timeline", timeout=5000)
             logger.debug("Timeline UL found")
         except Exception as e:
@@ -209,9 +212,10 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
         # 2. Then, get all the buttons inside the timeline
         versions = await self.get_code_version_button_texts()
 
-        # Save the versions to a CSV
-        df = pd.DataFrame(versions, columns=['version'])
-        df.to_csv(os.path.join(self.output_dir, f'all_code_versions_{gnis}.csv'), index=False, quoting=1)
+        if versions:
+            # Save the versions to a CSV
+            df = pd.DataFrame(versions, columns=['version'])
+            df.to_csv(os.path.join(self.output_dir, f'all_code_versions_{place_id}.csv'), index=False, quoting=1)
 
         return 
 
@@ -272,8 +276,7 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
         return all_data
 
 
-
-    def extract_data(self, node: ElementHandle) -> dict:
+    def extract_heading_and_href_from_toc_node(self, node: ElementHandle) -> dict:
         """
         Extract and return the heading and href data from a toc node
         """
@@ -295,6 +298,9 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
         else:
             return None
 
+
+    async def get_page_version(self) -> bool:
+        return self.is_regular_municode_page()
 
     # Decorator to wait per Municode's robots.txt
     # NOTE Since code URLs are processed successively, we can subtract off the time it took to get all the pages elements
@@ -329,9 +335,12 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
             }
         """
         logger.info(f"Processing URL {i} of {len_df}...")
+
         # Check to make sure the URL is a municode one, then initialize the dictionary.
         assert "municode" in row.url, f"URL '{row.url}' is not for municode."
         input_url = row.url
+        self.place_name = place_name = row.place_name.lower().replace(" ", "_")
+        place_id = f"{place_name}_{row.gnis}"
 
         # Skip the webpage if we already got it.
         output_dict = self._skip_if_we_have_url_already(input_url)
@@ -344,70 +353,243 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
             'gnis': row.gnis
         }
 
+        # Go to the webpage
         await self.navigate_to(input_url, idx=i)
         logger.info("Navigated to input_url")
 
         # Screenshot the initial page.
         await self.take_screenshot(
-            input_url, 
+            place_id, 
             prefix="navigate_to",
             full_page=True, 
             open_image_after_save=True
         )
 
-        # Get the html of the opening page and write it to a file.
-        await self.save_page_html_content_to_output_dir(f"{row.gnis}_opening_webpage.html")
+        await self.save_page_html_content_to_output_dir(f"{place_id}_opening_webpage.html")
 
-        # Get the current code version and all code versions.
-        await self.scrape_code_version_popup_menu(gnis=row.gnis)
+        # See what version of the page we're on.
+        regular_page = await self.is_regular_municode_page()
+
+        # Get the current code version and all code versions if we're on a regular page.
+        if regular_page: # We assume that all regular Municode pages have a version number sidebar element.
+            prefix = "scrape_code_version_popup_menu"
+            await self.scrape_code_version_popup_menu(place_id)
+            # Close the version menu
+            await self.click_on_version_sidebar_closer()
+        else:
+            logger.info(f"{place_name}, gnis {row.gnis} does not have a regular municode page. Skipping...")
+            prefix = "is_not_regular_municode_page"
 
         # Screenshot the page after running scrape_code_version_popup_menu.
         await self.take_screenshot(
             input_url,
-            prefix="scrape_code_version_popup_menu",
+            prefix=prefix,
             full_page=True, 
             open_image_after_save=True
         )
         # Get the html of the opening page and write it to a file.
-        await self.save_page_html_content_to_output_dir(f"{row.gnis}_scrape_code_version_popup_menu.html")
+        await self.save_page_html_content_to_output_dir(f"{place_id}_{prefix}.html")
 
+        return
+
+    #@async_try_except(exception=[AsyncPlaywrightError, AsyncPlaywrightTimeoutError],raise_exception=True)
+    async def click_on_version_sidebar_closer(self):
+        """
+        Click on the 'X' button for the version menu
+
+        #toc > div.zone-body.toc-zone-body > div.toc-wrapper > div
+        #toc > div.zone-body.toc-zone-body > div.toc-wrapper > div > button
+        """
+        logger.debug("Waiting for the codebank 'X' button to be visible...")
+        codebank_button = '#toc button[class="btn btn-icon-toggle btn-default pull-right"]'
+        prefix = "click_on_version_sidebar_closer"
+
+        try: # NOTE get_by commands return a LOCATOR and thus are NOT Coroutines that need to be awaited.
+
+            num = await self.page.locator(codebank_button).count()
+            logger.info(f"Found {num} 'Close' buttons")
+
+            # button: Locator = self.page.get_by_label("Table of Contents").get_by_role("button").and_(self.page.get_by_text("Close"))
+            button: Locator = await self.page.locator(codebank_button)
+
+            await self.save_page_html_content_to_output_dir(f"{self.place_name}_{prefix}.html")
+
+            #self.page.get_by_test_id("toc").get_by_role("button", name="Close", include_hidden=True) #self.page.wait_for_selector(codebank_button, state="visible", timeout=5000)
+
+            logger.info("version menu 'X' button found")
+        except Exception as e:
+            logger.exception(f"version menu 'X' button not found: {e}")
+            raise
+
+        # # Hover over and click the X to open the popup menu
+        # logger.debug(f"Hovering over and pressing version menu 'X' button to close the version menu...")
+        # await element.hover()
+        # #await self.move_mouse_cursor_to_hover_over(codebank_button)
+        logger.debug(f"Hover over version menu 'X' button successful...\nClicking...")
+        await asyncio.sleep(1)
+        await button.click()
+
+        # logger.debug("Clicking with force=True")
+        # await asyncio.sleep(1)
+        # await button.click(force=True),
+
+        await self.save_page_html_content_to_output_dir(f"{self.place_name}_{prefix}_after_click.html")
+
+        # JavaScript click
+        logger.debug("Clicking with JS")
+        await asyncio.sleep(1)
+        await button.evaluate('element => element.click()'),
+        
+
+        # Dispatch click event
+        logger.debug("Clicking with dispatch event click")
+        await asyncio.sleep(1)
+        await button.dispatch_event('click'),
+
+        # Double click
+        logger.debug("Double Clicking")
+        await asyncio.sleep(1)
+        await button.dblclick(),
+
+        # Click with delay
+        logger.debug("Clicking with delay")
+        await asyncio.sleep(1)
+        await button.click(delay=100),
+
+        # if await self.page.get_by_role("button").and_(self.page.get_by_text("Close")).count() > 0:
+        #     logger.error(f"version menu 'X' button still visible after clicking. Clicking again...")
+        #     await self.page.get_by_role("button").and_(self.page.get_by_text("Close")).click()
+
+        logger.debug(f"Version menu 'X' button clicked successfully.\nReturning...")
 
         return
 
 
-        # toc_button = """
-        # //button[contains(@class, 'btn-success') and contains(., 'View what')]
-        # """
-        # browser_toc_button = "btn btn-raised btn-primary"
+    # async def debug_button_click(self, button: Locator):
 
-        # # Wait for the webpage to fully load, based on the button element.
+    #     # 1. Basic element checks
+    #     logger.info("=== BASIC ELEMENT CHECKS ===")
+    #     count = await button.count()
+    #     logger.info(f"Elements found: {count}")
+        
+    #     if count == 0:
+    #         logger.error("Button not found in DOM!")
+    #         return
+            
+    #     # 2. Visibility checks
+    #     logger.info("\n=== VISIBILITY CHECKS ===")
+    #     is_visible = await button.is_visible()
+    #     is_hidden = await button.is_hidden()
+    #     logger.info(f"Is visible: {is_visible}")
+    #     logger.info(f"Is hidden: {is_hidden}")
+        
+    #     # 3. Element properties
+    #     logger.info("\n=== ELEMENT PROPERTIES ===")
+    #     properties = await self.page.evaluate('''element => {
+    #         const computedStyle = window.getComputedStyle(element);
+    #         return {
+    #             display: computedStyle.display,
+    #             visibility: computedStyle.visibility,
+    #             opacity: computedStyle.opacity,
+    #             position: computedStyle.position,
+    #             zIndex: computedStyle.zIndex,
+    #             pointerEvents: computedStyle.pointerEvents,
+    #             disabled: element.disabled,
+    #             offsetWidth: element.offsetWidth,
+    #             offsetHeight: element.offsetHeight,
+    #             getBoundingClientRect: element.getBoundingClientRect()
+    #         }
+    #     }''')
+    #     logger.info(f"Element properties: {properties}")
+        
+    #     # 4. Check event listeners
+    #     logger.info("\n=== EVENT LISTENERS ===")
+    #     has_listeners = await button.evaluate('''element => {
+    #         const listeners = window.getEventListeners ? window.getEventListeners(element) : {};
+    #         return {
+    #             hasClickListener: 'click' in listeners,
+    #             totalListeners: Object.keys(listeners).length,
+    #             listenerTypes: Object.keys(listeners)
+    #         }
+    #     }''')
+    #     logger.info(f"Event listeners: {has_listeners}")
+        
+    #     # 5. Set up console monitoring
+    #     logger.info("\n=== ATTEMPTING CLICKS ===")
+    #     self.page.on('console', lambda msg: logger.debug(f'Console: {msg.text}'))
+    #     self.page.on('pageerror', lambda err: logger.error(f'Page error: {err.text}'))
+        
+    #     # 6. Try different click methods
 
+    #     click_attempts = [
+    #         # Force click
+    #         await button.click(force=True),
 
+    #         # JavaScript click
+    #         await button.evaluate('element => element.click()'),
+            
+    #         # Dispatch click event
+    #         await button.dispatch_event('click'),
 
+    #         # Double click
+    #         await button.dblclick(),
 
-        # raise # TODO Remove this line after debug.
+    #         # Click with delay
+    #         await button.click(delay=100),
 
-        # # Get the URLs from the table of contents.
-        # # NOTE The tables are recursive, so this won't get all the buried URLs. 
-        # toc_urls = self._scrape_toc(input_url, wait_time=wait_time)
-        # output_dict["table_of_contents_urls"] = toc_urls
+    #     ]
 
-        # # Get the date the code was last updated.
-        # output_dict['current_code_version'] = self._get_current_code_version(input_url)
+    #     # Try each click method
+    #     for i, click_attempt in enumerate(click_attempts, 1):
+    #         try:
+    #             logger.info(f"\nTrying click method {i}...")
+    #             await click_attempt()
+    #             logger.info(f"Click method {i} completed without errors")
 
-        # # Get all the previous dates the code was updated.
-        # # NOTE This does not grab their links, just their text.
-        # all_code_versions: list[str] = self._get_all_code_versions(input_url)
-        # output_dict['all_code_versions'] = all_code_versions
+    #             # Check if element still exists after click
+    #             post_click_count = await button.count()
+    #             logger.info(f"Element still exists after click: {post_click_count > 0}")
 
-        # logger.info(f"Found all elements from Municode URL for gnis '{row.gnis}'")
-        # # Export output_dict as a CSV file for safe-keeping.
-        # url_file_path = os.path.join(output_folder, f"{sanitize_filename(input_url)}.csv")
-        # save_to_csv(output_dict, url_file_path)
-
-        # return output_dict
-
-import pandas as pd
+    #             # Brief pause to observe any changes
+    #             await asyncio.sleep(0.5)
+                
+    #         except Exception as e:
+    #             logger.error(f"Click method {i} failed: {str(e)}")
+        
+    #     # 7. Check for overlapping elements
+    #     logger.info("\n=== CHECKING FOR OVERLAPPING ELEMENTS ===")
+    #     overlapping = None #or await self.page.evaluate('''() => {
+    #     #     const element = document.querySelector('#toc button[aria-label="Close"]');
+    #     #     if (!element) return [];
+            
+    #     #     const rect = element.getBoundingClientRect();
+    #     #     const elements = document.elementsFromPoint(
+    #     #         rect.left + rect.width/2,
+    #     #         rect.top + rect.height/2
+    #     #     );
+    #     #     return elements.map(el => ({
+    #     #         tag: el.tagName,
+    #     #         id: el.id,
+    #     #         class: el.className,
+    #     #         zIndex: window.getComputedStyle(el).zIndex
+    #     #     }));
+    #     # }''')
+    #     logger.info(f"Elements at click position: {overlapping}")
+        
+    #     # 8. Final element state
+    #     logger.info("\n=== FINAL ELEMENT STATE ===")
+    #     final_count = await button.count()
+    #     final_visible = await button.is_visible() if final_count > 0 else False
+    #     logger.info(f"Element still exists: {final_count > 0}")
+    #     logger.info(f"Element still visible: {final_visible}")
+        
+    #     return {
+    #         "found": count > 0,
+    #         "visible": is_visible,
+    #         "properties": properties,
+    #         "has_listeners": has_listeners,
+    #         "overlapping_elements": overlapping
+    #     }
 
 
 async def get_sidebar_urls_from_municode_with_playwright(sources_df: pd.DataFrame) -> pd.DataFrame:
@@ -431,7 +613,13 @@ async def get_sidebar_urls_from_municode_with_playwright(sources_df: pd.DataFram
 
         # We use a factory method to instantiate the class to avoid context manager fuckery.
         # TODO MAKE START CODE NOT CURSED.
-        municode: GetMunicodeSidebarElements = await GetMunicodeSidebarElements(domain, pw_instance, user_agent='*', **pw_options).start(domain, pw_instance, user_agent='*', **pw_options)
+        municode: GetMunicodeSidebarElements = await GetMunicodeSidebarElements(
+                                                        domain, pw_instance, 
+                                                        user_agent='*', **pw_options
+                                                        ).start(
+                                                            domain, pw_instance, 
+                                                            user_agent='*', **pw_options
+                                                        )
         assert municode.browser is not None, "Browser is None."
         logger.info("GetMunicodeSidebarElements initialized successfully")
 
