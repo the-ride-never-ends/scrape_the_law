@@ -404,65 +404,83 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
         codebank_button = '#toc button[class="btn btn-icon-toggle btn-default pull-right"]'
         prefix = "click_on_version_sidebar_closer"
 
-        try: # NOTE get_by commands return a LOCATOR and thus are NOT Coroutines that need to be awaited.
+        logger.debug("Clicking...")
+        await self.page.evaluate('''
+            let button = document.querySelector("#toc > div.zone-body.toc-zone-body > div.toc-wrapper > div > button");
+            if (button) {
+                button.click();
+            }
+            '''
+        )
+        logger.debug("Clicked???")
+        await self.save_page_html_content_to_output_dir(f"{self.place_name}_{prefix}.html")
 
-            num = await self.page.locator(codebank_button).count()
-            logger.info(f"Found {num} 'Close' buttons")
+        return 
 
-            # button: Locator = self.page.get_by_label("Table of Contents").get_by_role("button").and_(self.page.get_by_text("Close"))
-            button: Locator = await self.page.locator(codebank_button)
 
-            await self.save_page_html_content_to_output_dir(f"{self.place_name}_{prefix}.html")
 
-            #self.page.get_by_test_id("toc").get_by_role("button", name="Close", include_hidden=True) #self.page.wait_for_selector(codebank_button, state="visible", timeout=5000)
 
-            logger.info("version menu 'X' button found")
-        except Exception as e:
-            logger.exception(f"version menu 'X' button not found: {e}")
-            raise
 
-        # # Hover over and click the X to open the popup menu
-        # logger.debug(f"Hovering over and pressing version menu 'X' button to close the version menu...")
-        # await element.hover()
-        # #await self.move_mouse_cursor_to_hover_over(codebank_button)
-        logger.debug(f"Hover over version menu 'X' button successful...\nClicking...")
-        await asyncio.sleep(1)
-        await button.click()
 
-        # logger.debug("Clicking with force=True")
+        # try: # NOTE get_by commands return a LOCATOR and thus are NOT Coroutines that need to be awaited.
+
+        #     num = await self.page.locator(codebank_button).count()
+        #     logger.info(f"Found {num} 'Close' buttons")
+
+        #     # button: Locator = self.page.get_by_label("Table of Contents").get_by_role("button").and_(self.page.get_by_text("Close"))
+        #     button: Locator = await self.page.locator(codebank_button)
+
+        #     await self.save_page_html_content_to_output_dir(f"{self.place_name}_{prefix}.html")
+
+        #     #self.page.get_by_test_id("toc").get_by_role("button", name="Close", include_hidden=True) #self.page.wait_for_selector(codebank_button, state="visible", timeout=5000)
+
+        #     logger.info("version menu 'X' button found")
+        # except Exception as e:
+        #     logger.exception(f"version menu 'X' button not found: {e}")
+        #     raise
+
+        # # # Hover over and click the X to open the popup menu
+        # # logger.debug(f"Hovering over and pressing version menu 'X' button to close the version menu...")
+        # # await element.hover()
+        # # #await self.move_mouse_cursor_to_hover_over(codebank_button)
+        # logger.debug(f"Hover over version menu 'X' button successful...\nClicking...")
         # await asyncio.sleep(1)
-        # await button.click(force=True),
+        # await button.click()
 
-        await self.save_page_html_content_to_output_dir(f"{self.place_name}_{prefix}_after_click.html")
+        # # logger.debug("Clicking with force=True")
+        # # await asyncio.sleep(1)
+        # # await button.click(force=True),
 
-        # JavaScript click
-        logger.debug("Clicking with JS")
-        await asyncio.sleep(1)
-        await button.evaluate('element => element.click()'),
+        # await self.save_page_html_content_to_output_dir(f"{self.place_name}_{prefix}_after_click.html")
+
+        # # JavaScript click
+        # logger.debug("Clicking with JS")
+        # await asyncio.sleep(1)
+        # await button.evaluate('element => element.click()'),
         
 
-        # Dispatch click event
-        logger.debug("Clicking with dispatch event click")
-        await asyncio.sleep(1)
-        await button.dispatch_event('click'),
+        # # Dispatch click event
+        # logger.debug("Clicking with dispatch event click")
+        # await asyncio.sleep(1)
+        # await button.dispatch_event('click'),
 
-        # Double click
-        logger.debug("Double Clicking")
-        await asyncio.sleep(1)
-        await button.dblclick(),
+        # # Double click
+        # logger.debug("Double Clicking")
+        # await asyncio.sleep(1)
+        # await button.dblclick(),
 
-        # Click with delay
-        logger.debug("Clicking with delay")
-        await asyncio.sleep(1)
-        await button.click(delay=100),
+        # # Click with delay
+        # logger.debug("Clicking with delay")
+        # await asyncio.sleep(1)
+        # await button.click(delay=100),
 
-        # if await self.page.get_by_role("button").and_(self.page.get_by_text("Close")).count() > 0:
-        #     logger.error(f"version menu 'X' button still visible after clicking. Clicking again...")
-        #     await self.page.get_by_role("button").and_(self.page.get_by_text("Close")).click()
+        # # if await self.page.get_by_role("button").and_(self.page.get_by_text("Close")).count() > 0:
+        # #     logger.error(f"version menu 'X' button still visible after clicking. Clicking again...")
+        # #     await self.page.get_by_role("button").and_(self.page.get_by_text("Close")).click()
 
-        logger.debug(f"Version menu 'X' button clicked successfully.\nReturning...")
+        # logger.debug(f"Version menu 'X' button clicked successfully.\nReturning...")
 
-        return
+        # return
 
 
     # async def debug_button_click(self, button: Locator):
