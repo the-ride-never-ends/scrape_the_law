@@ -21,15 +21,12 @@ logger = Logger(logger_name=__name__)
 
 from utils.shared.next_step import next_step
 from utils.shared.get_urls_with_selenium import get_sidebar_urls_from_municode_with_selenium
-from scraper.sites.municode.code_sidebars.GetMunicodeSidebarElements import get_sidebar_urls_from_municode_with_playwright
+from scraper.sites.municode.library.GetMunicodeSidebarElements import get_sidebar_urls_from_municode_with_playwright
+
 from utils.shared.make_sha256_hash import make_sha256_hash
 
 from utils.database.get_column_names import get_column_names
 from utils.database.get_num_placeholders import get_num_placeholders
-
-from scraper.sites.municode.code_sidebars.GetMunicodeSidebarElements import GetMunicodeSidebarElements
-
-
 
 
 def copy_file_to_current_folder(source_folder, filename):

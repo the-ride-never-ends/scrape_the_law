@@ -351,7 +351,7 @@ class AsyncPlaywrightScrapper:
             filename (str): The name of the file to save the screenshot as.
             full_page (bool, optional): Whether to capture the full page or just the visible area. Defaults to False.
             element (str, optional): CSS selector of a specific element to capture. If None, captures the entire page. Defaults to None.
-            open_image_after_save (bool, optional): Whether to open the image after saving (only works in WSL). Defaults to False.
+            open_image_after_save (bool, optional): Whether to open the image after saving (only works in WSL). Defaults to False. Currently broken.
             locator_kwargs (dict, optional): Additional keyword arguments for the locator if an element is specified.
             **kwargs: Additional keyword arguments to pass to the screenshot method.
 
@@ -426,7 +426,8 @@ class AsyncPlaywrightScrapper:
         >>> for result in search_results:
         >>>     logger.debug(f"Link: {result['href']}, Text: {result['text']}")
         """
-        return await self.page.evaluate(safe_format(javascript, **js_kwargs))
+        formatted_javascript = safe_format(javascript, **js_kwargs)
+        return await self.page.evaluate(formatted_javascript)
 
 
     def trace_async_playwright_debug(self, context: AsyncPlaywrightBroswerContext):

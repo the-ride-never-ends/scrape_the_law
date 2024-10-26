@@ -161,7 +161,6 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
         return
 
 
-
     #@async_try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError])
     async def scrape_code_version_popup_menu(self, place_id: str):
         """
@@ -401,19 +400,36 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
         #toc > div.zone-body.toc-zone-body > div.toc-wrapper > div > button
         """
         logger.debug("Waiting for the codebank 'X' button to be visible...")
-        codebank_button = '#toc button[class="btn btn-icon-toggle btn-default pull-right"]'
+        # codebank_button = '#toc button[class="btn btn-icon-toggle btn-default pull-right"]'
+        codebank_close_button = "i.md.md-close"
         prefix = "click_on_version_sidebar_closer"
 
-        logger.debug("Clicking...")
-        await self.page.evaluate('''
-            let button = document.querySelector("#toc > div.zone-body.toc-zone-body > div.toc-wrapper > div > button");
+        await self.take_screenshot(
+            self.place_name,
+            prefix=f"{prefix}_before",
+            full_page=True,
+            open_image_after_save=True
+        )
+        await self.save_page_html_content_to_output_dir(f"{self.place_name}_{prefix}_before.html")
+
+        logger.debug(f"Clicking via JS with selector '{codebank_close_button}'...")
+        # args = {"codebank_close_button": codebank_close_button}
+        js = """
+            let button = document.querySelector("i.md.md-close");
             if (button) {
                 button.click();
             }
-            '''
+        """
+        await self.page.evaluate(js)
+        logger.debug(f"JS button clicking code for selector '{codebank_close_button}' evaluated.")
+        await self.take_screenshot(
+            self.place_name,
+            prefix=f"{prefix}_after",
+            full_page=True,
+            open_image_after_save=True
         )
-        logger.debug("Clicked???")
-        await self.save_page_html_content_to_output_dir(f"{self.place_name}_{prefix}.html")
+
+        await self.save_page_html_content_to_output_dir(f"{self.place_name}_{prefix}_after.html")
 
         return 
 
