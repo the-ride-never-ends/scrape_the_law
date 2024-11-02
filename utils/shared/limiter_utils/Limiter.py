@@ -15,7 +15,7 @@ class Limiter:
     Options for a custom stop condition and progress bar.
     """
     def __init__(self, 
-                 semaphore: int, 
+                 semaphore: int=2, 
                  stop_condition: Any = "stop_condition", # Replace with your specific stop condition
                  progress_bar: bool=True
                 ):

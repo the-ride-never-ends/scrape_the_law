@@ -19,6 +19,7 @@ from utils.manual.scrape_legal_websites_utils.can_fetch import can_fetch
 from utils.shared.safe_format import safe_format
 from utils.shared.sanitize_filename import sanitize_filename
 from utils.shared.decorators.try_except import try_except, async_try_except
+from utils.shared.make_id import make_id
 
 from config import LEGAL_WEBSITE_DICT, OUTPUT_FOLDER, PROJECT_ROOT
 
@@ -88,6 +89,7 @@ class AsyncPlaywrightScrapper:
         self.browser: AsyncPlaywrightBrowser = None
         self.context: AsyncPlaywrightBroswerContext = None,
         self.page: AsyncPlaywrightPage = None
+        self.screenshot_path = None
 
     # Define class enter and exit methods.
 
@@ -101,6 +103,7 @@ class AsyncPlaywrightScrapper:
         # Check if we already got the robots.txt file for this website
         domain_name = self.domain.split('//')[1].split('/')[0].split('.')[0] # TODO Make this robust.
         robots_txt_filepath = os.path.join(PROJECT_ROOT, "scraper", "sites", domain_name, f"{domain_name}_robots.txt")
+        e_tuple: tuple = None
 
         self.rp = RobotFileParser(robots_url)
 
@@ -117,25 +120,29 @@ class AsyncPlaywrightScrapper:
                     logger.info(f"Getting robots.txt from '{robots_url}'...")
                     async with session.get(robots_url, timeout=10) as response:  # 10 seconds timeout
                         if response.status == 200:
-                            logger.info("robots.txt respons ok")
+                            logger.info("robots.txt response ok")
                             content = await response.text()
                             self.rp.parse(content.splitlines())
                         else:
                             logger.warning(f"Failed to fetch robots.txt: HTTP {response.status}")
                             return None
-                except asyncio.TimeoutError:
-                    logger.warning("Timeout while fetching robots.txt")
-                    return None
+                except asyncio.TimeoutError as e:
+                    e_tuple = (e.__qualname__, e)
                 except aiohttp.ClientError as e:
-                    logger.warning(f"Error fetching robots.txt: {e}")
-                    return None
-            logger.info("Got robots.txt")
-            logger.debug(f"robots.txt for Municode\n{content}",f=True)
+                    e_tuple = (e.__qualname__, e)
+                finally:
+                    if e_tuple:
+                        mes = f"{e_tuple[0]} while fetching robots.txt from '{robots_url}': {e_tuple[1]}"
+                        logger.warning(mes)
+                        return None
+                    else:
+                        logger.info(f"Got robots.txt for {self.domain}")
+                        logger.debug(f"content:\n{content}",f=True)
 
-        # Save the robots.txt file to disk.
-        if not os.path.exists(robots_txt_filepath):
-            with open(robots_txt_filepath, 'w') as f:
-                f.write(content)
+            # Save the robots.txt file to disk.
+            if not os.path.exists(robots_txt_filepath):
+                with open(robots_txt_filepath, 'w') as f:
+                    f.write(content)
 
         # Set the request rate and crawl delay from the robots.txt file.
         self.request_rate: float = self.rp.request_rate(self.user_agent) or 0
@@ -346,6 +353,7 @@ class AsyncPlaywrightScrapper:
         The screenshot will be saved in a subdirectory of OUTPUT_FOLDER, named after the sanitized domain.\n
         If the specified directory doesn't exist, it will be created.\n
         NOTE: Opening the image after saving only works in Windows Subsystem for Linux (WSL).
+        TODO Fix open_image_after_save. It's busted, even for linux.
 
         Args:
             filename (str): The name of the file to save the screenshot as.
@@ -379,14 +387,15 @@ class AsyncPlaywrightScrapper:
         if prefix:
             filename = f"{prefix}_{filename}"
             logger.info(f"Filename prefix '{prefix}' added to '{filename}'")
+
         logger.debug(f"filename: {filename}")
-        filepath = os.path.join(self.output_dir, filename)
+        self.screenshot_path = self._make_filepath_dir_for_domain(filename)
 
         # Take the screenshot.
         if element:
-            await self.page.locator(element, **locator_kwargs).screenshot(path=filepath, type="jpeg", full_page=full_page, **kwargs)
+            await self.page.locator(element, **locator_kwargs).screenshot(path=self.screenshot_path, type="jpeg", full_page=full_page, **kwargs)
         else:
-            await self.page.screenshot(path=filepath, type="jpeg", full_page=full_page, **kwargs)
+            await self.page.screenshot(path=self.screenshot_path, type="jpeg", full_page=full_page, **kwargs)
 
         # Open the image using IrfanView 64 after it's saved if requested.
         # NOTE this will only work for WSL, since IrfanView 64 is a Windows-only application.
@@ -396,15 +405,17 @@ class AsyncPlaywrightScrapper:
         return
 
 
-    def make_filepath_dir_for_domain(self) -> str:
+    def _make_filepath_dir_for_domain(self, filename: str=None) -> str:
         """
         Define and return a filepath for a given domain in the output folder.
         If the directory doesn't exist, make it.
         """
-        assert OUTPUT_FOLDER and self.domain, "OUTPUT_FOLDER and self.domain must be defined."
+        assert self.output_dir and self.domain, "OUTPUT_FOLDER and self.domain must be defined."
+        # If we aren't given a filename, just sanitize the domain with a UUID at the end.
+        filename = filename or sanitize_filename(self.domain, make_id())
 
         # Define the filepath.
-        filepath = os.path.join(OUTPUT_FOLDER, sanitize_filename(self.domain))
+        filepath = os.path.join(self.output_dir, filename)
 
         # Create the output folder if it doesn't exist.
         if not os.path.exists(filepath):

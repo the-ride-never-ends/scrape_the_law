@@ -22,6 +22,7 @@
 - Languages: Python, MySQL, JavaScript
 - Inputs:
    - A string of a single, specific datapoint name (e.g. "sales tax").
+   - Examples: Effective Property Tax
 - Input validation:
    - Ensure the input is a non-empty string, containing only alphanumeric characters and spaces, maximum 100 characters.
    - Support for non-English inputs (e.g. impuestos, Steuer)
@@ -94,6 +95,7 @@ Outputs: A MySQL database of all local legal codes in the US related to the inpu
    - Version control: Maintain historical versions of laws for tracking changes.
    - Update notifications: Alert system for users when relevant laws are updated by comparing versions gathered over time.
 
+
 ## Use cases:
 1. Constructing a dataset of legal codes for extracting legal datapoint manually or via LLM.
    - Key Metric: Size of Dataset
@@ -127,6 +129,13 @@ Outputs: A MySQL database of all local legal codes in the US related to the inpu
    - Stores generated queries and their metadata in a MySQL database.
    - Provides functionality to retrieve existing queries from the database
    - **COMPLETE**
+
+4. **Scraping Module 'scrape.py'**
+   - Retrieves URLs from legal code databases (e.g. Municode, American Legal, etc.)
+   - URLs include legal code versions, legal code URLs, and city website URLs.
+   - Uses proxies and other techniques to bypass rate limiting and bot detection
+   - Stores URLs from scraped content to the MySQL database.
+   - **WIP. Also, I need proxies.**
 
 4. **Archiving Module 'archive.py'**
    - Saves search result URLs to the Internet Archive

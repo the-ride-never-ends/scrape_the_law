@@ -1,5 +1,6 @@
 from typing import Any, Callable, Coroutine
 
+import pandas as pd
 
 async def create_tasks_list(inputs: Any, func: Callable, enum: bool, *args, **kwargs) -> list[Coroutine[Any, Any, Any]]:
 

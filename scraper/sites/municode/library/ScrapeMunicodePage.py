@@ -1,5 +1,6 @@
 import asyncio
 from collections import deque
+import re
 import time
 from typing import NamedTuple
 
@@ -37,6 +38,45 @@ if not os.path.exists(output_folder):
     os.mkdir(output_folder)
 
 
+
+
+
+class ScrapeMunicodePage(AsyncPlaywrightScrapper):
+    """
+    Scrape a Municode library page
+    """
+    def __init__(self,
+                domain: str,
+                pw_instance,
+                *args,
+                user_agent: str="*",
+                **kwargs):
+        super().__init__(domain, pw_instance, *args, user_agent=user_agent, **kwargs)
+        self.xpath_dict = {
+            "current_version": '//*[@id="codebankToggle"]/button/text()',
+            "version_button": '//*[@id="codebankToggle"]/button/',
+            "version_text_paths": '//mcc-codebank//ul/li//button/text()',
+            'toc': "//input[starts-with(@id, 'genToc_')]" # NOTE toc = Table of Contents
+        }
+        self.queue = deque()
+        self.output_folder:str = output_folder
+        self.place_name:str = None
+
+
+    async def screen_shot_frontpage(self, page):
+        """
+        Take a screenshot of the frontpage
+        """
+        await self.navigate_to_url(page, self.domain)
+        await self.page.screenshot(path=os.path.join(self.output_folder, f"{self.place_name}_frontpage.png"))
+
+    async def scrape(self):
+        """
+        
+        """
+
+
+
 class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
     """
     Get the sidebar elements from a Municode URL page.
@@ -63,9 +103,12 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
         self.place_name:str = None
 
     def test(self):
-        self.page.set_content
+        self.page.set_content()
 
-    async def _get_past_front_page(self):
+    async def _get_past_front_page(self) -> bool:
+        """
+        Figure out what kind of front page we're on. If it's a regular page, return it.
+        """
         # See whether or not the ToC button is on the page.
         locator = self.page.locator("")
         toc_button_locator = await self.page.get_by_text("Browse table of contents")
@@ -82,7 +125,6 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
         Choose to browse the table of contents if given the choice between that and Municode's documents page.
         """
         pass
-
 
     async def is_regular_municode_page(self) -> bool:
         # Define the selector for the button.
@@ -162,9 +204,11 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
 
 
     #@async_try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError])
-    async def scrape_code_version_popup_menu(self, place_id: str):
+    async def scrape_code_version_popup_menu(self, place_id: str) -> None:
         """
         Scrape a code version pop-up menu
+        Returns
+            CSV file
         """
 
         # Define variables
@@ -219,71 +263,6 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
         return 
 
 
-    async def _scrape_toc(self, base_url: str, wait_time: int) -> list[dict]:
-        """
-        Scrape a Municode URL's Table of Contents.
-        """
-        # Initialize the queue
-        initial_selector = "li[ng-repeat='node in toc.topLevelNodes track by node.Id']"
-        self.queue.append((self.page.url, initial_selector))
-        all_data = []
-
-        while self.queue:
-            # Get the current url and its selector from the queue
-            current_url, selector = self.queue.popleft()
-
-            # Ensure we're on the correct page
-            if self.page.url != current_url:
-                await self.page.goto(current_url)
-
-            # Push the sidebar button.
-            # NOTE This does not appear when going to the site in a regular Chrome browser.
-            # TODO 
-            # Get all the elements currently in the sidebar.
-            # elements = WebDriverWait(self.driver, wait_time).until(
-            #     EC.presence_of_all_elements_located((By.XPATH, xpath))
-            # )
-
-            # Wait for and get all the elements currently in the sidebar
-            elements = await self.page.wait_for_selector(selector, state="attached", timeout=wait_time * 1000)
-            elements = await self.page.query_selector_all(selector)
-
-
-            for element in elements:
-                # Get the innerHTML of the element
-                inner_html = await element.inner_html()
-
-                # Extract data and add to all_data
-                # (You'll need to implement the extract_data method for Playwright)
-                data = await self.extract_data(element)
-                all_data.append(data)
-
-                # Find the expand button
-                expand_button = await element.query_selector('button.toc-item-expand')
-
-                if expand_button:
-                    is_expanded = await expand_button.get_attribute('aria-expanded')
-                    if is_expanded != 'true':
-                        await expand_button.click()
-                        # Wait for expansion
-                        await self.page.wait_for_selector(f"{selector}[aria-expanded='true']", state="attached", timeout=wait_time * 1000)
-
-                        # Add child nodes to the queue
-                        child_selector = f"{selector} > ul > li[ng-repeat='node in node.Children track by node.Id']"
-                        self.queue.append((self.page.url, child_selector))
-
-        return all_data
-
-
-    def extract_heading_and_href_from_toc_node(self, node: ElementHandle) -> dict:
-        """
-        Extract and return the heading and href data from a toc node
-        """
-        pass
-        # select = node.find_element(By.CSS_SELECTOR, 'a')
-        # return {'heading': select.text, 'href': select.get_attribute('href')}
-
-
     def _skip_if_we_have_url_already(self, url: str) -> list[dict]|None:
         """
         Check if we already have a CSV file of the input URL. 
@@ -304,8 +283,10 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
     # Decorator to wait per Municode's robots.txt
     # NOTE Since code URLs are processed successively, we can subtract off the time it took to get all the pages elements
     # from the wait time specified in robots.txt. This should speed things up (?).
-    @try_except(exception=[AsyncPlaywrightError])
+
     #@async_adjust_wait_time_for_execution(wait_in_seconds=LEGAL_WEBSITE_DICT["municode"]["wait_in_seconds"])
+
+    @try_except(exception=[AsyncPlaywrightError])
     async def get_municode_sidebar_elements(self, 
                                       i: int,
                                       row: NamedTuple,
@@ -386,6 +367,7 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
             full_page=True, 
             open_image_after_save=True
         )
+
         # Get the html of the opening page and write it to a file.
         await self.save_page_html_content_to_output_dir(f"{place_id}_{prefix}.html")
 
@@ -408,7 +390,6 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
             self.place_name,
             prefix=f"{prefix}_before",
             full_page=True,
-            open_image_after_save=True
         )
         await self.save_page_html_content_to_output_dir(f"{self.place_name}_{prefix}_before.html")
 
@@ -426,7 +407,6 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
             self.place_name,
             prefix=f"{prefix}_after",
             full_page=True,
-            open_image_after_save=True
         )
 
         await self.save_page_html_content_to_output_dir(f"{self.place_name}_{prefix}_after.html")
@@ -639,7 +619,6 @@ async def get_sidebar_urls_from_municode_with_playwright(sources_df: pd.DataFram
         "headless": False
     }
     domain = "https://municode.com/"
-    from scraper.child_classes.playwright.AsyncPlaywrightScrapper import AsyncPlaywrightScrapper
 
     # Get the sidebar URLs and text for each Municode URL
     async with async_playwright() as pw_instance:

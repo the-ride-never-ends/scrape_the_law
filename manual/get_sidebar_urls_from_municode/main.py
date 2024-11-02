@@ -21,7 +21,7 @@ logger = Logger(logger_name=__name__)
 
 from utils.shared.next_step import next_step
 from utils.shared.get_urls_with_selenium import get_sidebar_urls_from_municode_with_selenium
-from scraper.sites.municode.library.GetMunicodeSidebarElements import get_sidebar_urls_from_municode_with_playwright
+from scraper.sites.municode.library.ScrapeMunicodePage import get_sidebar_urls_from_municode_with_playwright
 
 from utils.shared.make_sha256_hash import make_sha256_hash
 
