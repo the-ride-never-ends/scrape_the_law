@@ -22,11 +22,11 @@ from utils.manual.scrape_legal_websites_utils.fetch_robots_txt import async_fetc
 from utils.manual.scrape_legal_websites_utils.parse_robots_txt import parse_robots_txt 
 from utils.manual.scrape_legal_websites_utils.can_fetch import can_fetch
 
-from config import LEGAL_WEBSITE_DICT, CONCURRENCY_LIMIT, OUTPUT_FOLDER
+from config.config import LEGAL_WEBSITE_DICT, CONCURRENCY_LIMIT, OUTPUT_FOLDER
 
-from database import MySqlDatabase
+from database.database import MySqlDatabase
 
-from logger import Logger
+from logger.logger import Logger
 logger = Logger(logger_name=__name__)
 
 

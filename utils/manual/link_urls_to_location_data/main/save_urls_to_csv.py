@@ -3,7 +3,7 @@ import os
 from ....shared.load_from_csv import load_from_csv
 from ....shared.save_to_csv import save_to_csv
 
-from logger import Logger
+from logger.logger import Logger
 
 logger = Logger(logger_name=__name__)
 

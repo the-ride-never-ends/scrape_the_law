@@ -1,7 +1,7 @@
 
 
-from config import *
-from logger import Logger
+from config.config import *
+from logger.logger import Logger
 logger = Logger(logger_name=__name__)
 
 

@@ -7,9 +7,9 @@ import pandas as pd
 from utils.query.extract_and_process_place_name import extract_and_process_place_name
 from utils.shared.make_sha256_hash import make_sha256_hash
 
-from config import MUNICODE_URL, AMERICAN_LEGAL_URL, GENERAL_CODE_URL, CODE_PUBLISHING_CO_URL, SEARCH_ENGINE
-from database import MySqlDatabase
-from logger import Logger
+from config.config import MUNICODE_URL, AMERICAN_LEGAL_URL, GENERAL_CODE_URL, CODE_PUBLISHING_CO_URL, SEARCH_ENGINE
+from database.database import MySqlDatabase
+from logger.logger import Logger
 log_level = 20
 logger = Logger(logger_name=__name__,log_level=log_level)
 

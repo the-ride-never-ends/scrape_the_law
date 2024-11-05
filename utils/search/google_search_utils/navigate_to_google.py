@@ -1,6 +1,6 @@
 import os
 
-from config import DEBUG_FILEPATH, GOOGLE_DOMAIN_URL
+from config.config import DEBUG_FILEPATH, GOOGLE_DOMAIN_URL
 
 async def navigate_to_google(page, context=None):
     """Navigate to Google domain."""

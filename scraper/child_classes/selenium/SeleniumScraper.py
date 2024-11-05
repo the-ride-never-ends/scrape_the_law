@@ -18,8 +18,8 @@ from selenium.common.exceptions import (
 from utils.shared.decorators.try_except import try_except
 from utils.shared.decorators.get_exec_time import get_exec_time 
 
-from config import LEGAL_WEBSITE_DICT, OUTPUT_FOLDER
-from logger import Logger
+from config.config import LEGAL_WEBSITE_DICT, OUTPUT_FOLDER
+from logger.logger import Logger
 logger = Logger(logger_name=__name__)
 
 

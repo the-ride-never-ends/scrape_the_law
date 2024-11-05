@@ -16,9 +16,9 @@ parent_dir = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(parent_dir))
 
 from Matcher import Matcher
-from database import MySqlDatabase
-from config import OUTPUT_FOLDER
-from logger import Logger
+from database.database import MySqlDatabase
+from config.config import OUTPUT_FOLDER
+from logger.logger import Logger
 logger = Logger(logger_name=__name__)
 
 

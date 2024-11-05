@@ -5,21 +5,24 @@ import sys
 import pandas as pd
 
 
-from input import InputProcessor
-from search import SearchEngine
-from sources import Sources
-from query import SearchQueryGenerator
-from archive import SaveToInternetArchive
-from scrape import ScrapeInternetArchive
-from filter import FilterUrls
-from clean import Cleaner
-from metadata import Meta
+from pipeline_validated.input_step.input import InputProcessor
+from pipeline_validated.sources_step.sources import Sources
+from pipeline_validated.query_step.query import SearchQueryGenerator
+
+from pipeline_development.search_step.search import SearchEngine
+
+
+from pipeline_development.archive_step.archive import SaveToInternetArchive
+from scraper.sites.internet_archive.scrape import ScrapeInternetArchive
+from filter.filter import FilterUrls
+from cleaner_step.clean import Cleaner
+from metadata_step.metadata import Meta
 
 from utils.shared.next_step import next_step
 
-from database import MySqlDatabase
-from config import DATAPOINT, RAND_SEED, SEARCH_ENGINE, HEADLESS, USE_API_FOR_SEARCH, SLOW_MO
-from logger import Logger
+from database.database import MySqlDatabase
+from config.config import DATAPOINT, RAND_SEED, SEARCH_ENGINE, HEADLESS, USE_API_FOR_SEARCH, SLOW_MO
+from logger.logger import Logger
 
 logger = Logger(logger_name=__name__)
 

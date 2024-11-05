@@ -5,9 +5,9 @@ from typing import NamedTuple
 
 import pandas as pd
 
-from config import OUTPUT_FOLDER
+from config.config import OUTPUT_FOLDER
 
-from logger import Logger
+from logger.logger import Logger
 
 logger = Logger(logger_name=__name__, stacklevel=3)
 

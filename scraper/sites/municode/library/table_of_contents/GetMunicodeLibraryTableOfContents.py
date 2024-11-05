@@ -28,9 +28,9 @@ from utils.shared.load_from_csv import load_from_csv
 from utils.shared.save_to_csv import save_to_csv
 from utils.shared.decorators.try_except import try_except, async_try_except
 
-from config import *
+from config.config import *
 
-from logger import Logger
+from logger.logger import Logger
 logger = Logger(logger_name=__name__)
 
 

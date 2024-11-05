@@ -139,8 +139,8 @@ try:
     path = "INTERNET_ARCHIVE"
     INTERNET_ARCHIVE_URL: str = config(path, 'INTERNET_ARCHIVE_URL') or "https://web.archive.org/"
     INTERNET_ARCHIVE_SAVE_URL: str = config(path, 'INTERNET_ARCHIVE_SAVE_URL') or "https://web.archive.org/save/"
-    S3_ACCESS_KEY: str = config(path, "S3_ACCESS_KEY") or ""
-    S3_SECRET_KEY: str = config(path, "S3_SECRET_KEY") or ""
+    INTERNET_ARCHIVE_S3_ACCESS_KEY: str = config(path, "INTERNET_ARCHIVE_S3_ACCESS_KEY") or ""
+    INTERNET_ARCHIVE_S3_SECRET_KEY: str = config(path, "INTERNET_ARCHIVE_S3_SECRET_KEY") or ""
 
     # SEARCH
     path = "SEARCH.PARAMETERS"

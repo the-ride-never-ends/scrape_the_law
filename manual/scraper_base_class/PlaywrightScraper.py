@@ -16,9 +16,9 @@ from utils.manual.scrape_legal_websites_utils.parse_robots_txt import parse_robo
 from utils.manual.scrape_legal_websites_utils.extract_urls_using_javascript import extract_urls_using_javascript
 from utils.manual.scrape_legal_websites_utils.can_fetch import can_fetch
 
-from config import LEGAL_WEBSITE_DICT
+from config.config import LEGAL_WEBSITE_DICT
 
-from logger import Logger
+from logger.logger import Logger
 logger = Logger(logger_name=__name__)
 
 

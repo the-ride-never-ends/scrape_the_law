@@ -12,7 +12,7 @@ from playwright.async_api import (
     TimeoutError as PlaywrightTimeoutError,
 )
 
-from config import GOOGLE_CONCURRENCY_LIMIT, GOOGLE_SEARCH_RESULT_TAG, DEBUG_FILEPATH
+from config.config import GOOGLE_CONCURRENCY_LIMIT, GOOGLE_SEARCH_RESULT_TAG, DEBUG_FILEPATH
 from utils.query.clean_search_query import clean_search_query
 from utils.shared.make_id import make_id
 from utils.shared.sanitize_filename import sanitize_filename
@@ -25,7 +25,7 @@ from .google_search_utils.navigate_to_google import navigate_to_google
 from .google_search_utils.perform_google_search import perform_google_search
 from .google_search_utils.extract_links import extract_links
 
-from logger import Logger
+from logger.logger import Logger
 log_level=10
 logger = Logger(logger_name=__name__,log_level=log_level)
 

@@ -2,7 +2,7 @@
 import os
 
 from utils.config.get_config import get_config as config
-from logger import Logger
+from logger.logger import Logger
 logger = Logger(logger_name=__name__)
 
 
@@ -89,10 +89,6 @@ LEGAL_WEBSITE_DICT = {
 #         current_dir = parent_dir
 
 
-
-
-
-
 # Get YAML config variables
 try:
     # SYSTEM
@@ -151,8 +147,8 @@ try:
     path = "INTERNET_ARCHIVE"
     INTERNET_ARCHIVE_URL: str = config(path, 'INTERNET_ARCHIVE_URL') or "https://web.archive.org/"
     INTERNET_ARCHIVE_SAVE_URL: str = config(path, 'INTERNET_ARCHIVE_SAVE_URL') or "https://web.archive.org/save/"
-    S3_ACCESS_KEY: str = config(path, "S3_ACCESS_KEY") or ""
-    S3_SECRET_KEY: str = config(path, "S3_SECRET_KEY") or ""
+    INTERNET_ARCHIVE_S3_ACCESS_KEY: str = config(path, "INTERNET_ARCHIVE_S3_ACCESS_KEY") or ""
+    INTERNET_ARCHIVE_S3_SECRET_KEY: str = config(path, "INTERNET_ARCHIVE_S3_SECRET_KEY") or ""
 
     # SEARCH
     path = "SEARCH.PARAMETERS"

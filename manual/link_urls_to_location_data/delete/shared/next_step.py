@@ -1,6 +1,6 @@
 import re
 
-from logger import Logger
+from logger.logger import Logger
 
 logger = Logger(logger_name=__name__,log_level=20)
 

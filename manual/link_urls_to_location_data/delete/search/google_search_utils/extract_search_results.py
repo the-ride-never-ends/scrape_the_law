@@ -1,5 +1,5 @@
 
-from config import GOOGLE_SEARCH_RESULT_TAG
+from config.config import GOOGLE_SEARCH_RESULT_TAG
 
 from utils.shared.safe_format import safe_format
 

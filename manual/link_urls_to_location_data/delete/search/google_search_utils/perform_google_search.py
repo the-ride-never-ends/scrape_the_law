@@ -1,6 +1,6 @@
 import os
 
-from config import DEBUG_FILEPATH, GOOGLE_AUTOFILL_SUGGESTIONS_HTML_TAG
+from config.config import DEBUG_FILEPATH, GOOGLE_AUTOFILL_SUGGESTIONS_HTML_TAG
 
 async def _close_autofill_suggestions(page, context=None):
     """Google autofill suggestions often get in way of search button.

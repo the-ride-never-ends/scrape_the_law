@@ -1,5 +1,5 @@
-from config import JINJA_API_KEY, JINJA_URL
-from logger import Logger
+from config.config import JINJA_API_KEY, JINJA_URL
+from logger.logger import Logger
 import aiohttp
 
 logger = Logger(logger_name=__name__)

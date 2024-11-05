@@ -5,8 +5,8 @@ import re
 import pandas as pd
 from datetime import datetime
 
-from config import OUTPUT_FOLDER
-from logger import Logger
+from config.config import OUTPUT_FOLDER
+from logger.logger import Logger
 
 logger = Logger(logger_name=__name__)
 

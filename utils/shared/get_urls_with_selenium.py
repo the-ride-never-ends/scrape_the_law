@@ -27,8 +27,8 @@ from utils.shared.decorators.try_except import try_except
 from utils.shared.decorators.adjust_wait_time_for_execution import adjust_wait_time_for_execution
 from utils.shared.decorators.get_exec_time import get_exec_time
 
-from config import LEGAL_WEBSITE_DICT, OUTPUT_FOLDER
-from logger import Logger
+from config.config import LEGAL_WEBSITE_DICT, OUTPUT_FOLDER
+from logger.logger import Logger
 logger = Logger(logger_name=__name__)
 
 output_folder = os.path.join(OUTPUT_FOLDER, "get_sidebar_urls_from_municode")

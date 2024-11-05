@@ -1,6 +1,6 @@
 
 
-from database import MySqlDatabase
+from database.database import MySqlDatabase
 
 
 class Sources:

@@ -29,11 +29,11 @@ from utils.shared.sanitize_filename import sanitize_filename
 # from utils.shared.raise_value_error_if_absent import raise_value_error_if_absent
 
 
-from config import OUTPUT_FOLDER, PROJECT_ROOT
+from config.config import OUTPUT_FOLDER, PROJECT_ROOT
 SCREENSHOT_SEMAPHORE: int = 10
 CHECK_IF_URL_IS_UP_SEMAPHORE: int = 5
 
-from logger import Logger
+from logger.logger import Logger
 logger = Logger(logger_name=__name__)
 
 

@@ -32,12 +32,12 @@ from utils.manual.scrape_legal_websites_utils.extract_urls_using_javascript impo
 from utils.manual.scrape_legal_websites_utils.can_fetch import can_fetch
 from utils.shared.decorators.try_except import try_except
 
-from config import LEGAL_WEBSITE_DICT, OUTPUT_FOLDER
+from config.config import LEGAL_WEBSITE_DICT, OUTPUT_FOLDER
 
 from utils.shared.safe_format import safe_format
 from utils.shared.sanitize_filename import sanitize_filename
 
-from logger import Logger
+from logger.logger import Logger
 logger = Logger(logger_name=__name__)
 
 pd.DataFrame

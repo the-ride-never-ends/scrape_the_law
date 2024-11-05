@@ -16,11 +16,11 @@ from tqdm.auto import tqdm as async_tqdm
 import pandas as pd
 import waybackpy
 
-from logger import Logger
+from logger.logger import Logger
 logger = Logger(logger_name=__name__)
 
-from config import INPUT_FILENAME, VERBOSITY, START, OUTPUT_FOLDER, DELAY, WAIT_TIME, DATABASE_NAME, ROUTE, INTERNET_ARCHIVE_API_KEY
-from database import MySqlDatabase
+from config.config import INPUT_FILENAME, VERBOSITY, START, OUTPUT_FOLDER, DELAY, WAIT_TIME, DATABASE_NAME, ROUTE
+from database.database import MySqlDatabase
 
 from utils.shared.sanitize_filename import sanitize_filename
 from utils.shared.make_sha256_hash import make_sha256_hash
@@ -201,7 +201,7 @@ class SaveToInternetArchive:
         #     try:
         #         logger.info(f"Saving URL {i} of {total_urls}: {url}")
         #         headers = {
-        #             "api": INTERNET_ARCHIVE_API_KEY
+        #             "api": "NA"
         #         }
         #         # Use aiohttp to send an asynchronous GET request to save the URL.
         #         async with aiohttp.ClientSession() as session:

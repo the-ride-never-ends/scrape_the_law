@@ -21,9 +21,9 @@ from utils.shared.sanitize_filename import sanitize_filename
 from utils.shared.decorators.try_except import try_except, async_try_except
 from utils.shared.make_id import make_id
 
-from config import LEGAL_WEBSITE_DICT, OUTPUT_FOLDER, PROJECT_ROOT
+from config.config import LEGAL_WEBSITE_DICT, OUTPUT_FOLDER, PROJECT_ROOT
 
-from logger import Logger
+from logger.logger import Logger
 logger = Logger(logger_name=__name__)
 
 # These are imported primarilty for typehinting.

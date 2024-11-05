@@ -141,7 +141,7 @@ Outputs: A MySQL database of all local legal codes in the US related to the inpu
    - Saves search result URLs to the Internet Archive
    - Implements ethical scraping practices and respects robots.txt
    - Stores archived url metadata in 'ia_url_metadata' tables
-   - **WIP**
+   - **WIP, but IA is being hacked so I need another way to archive things.**
 
 5. **Web Scraping Module 'Waybackup subproccess'**
    - Retrieves URLs from the Internet Archive based on search results

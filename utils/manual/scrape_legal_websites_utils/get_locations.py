@@ -1,6 +1,6 @@
 import pandas as pd
 
-from database import MySqlDatabase
+from database.database import MySqlDatabase
 
 async def get_locations(db: MySqlDatabase) -> pd.DataFrame:
     """

@@ -2,9 +2,9 @@ from typing import Any
 
 import pandas as pd
 
-from database import MySqlDatabase
-from config import DATAPOINT
-from logger import Logger
+from database.database import MySqlDatabase
+from config.config import DATAPOINT
+from logger.logger import Logger
 logger = Logger(logger_name=__name__)
 
 

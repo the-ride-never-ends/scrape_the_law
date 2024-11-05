@@ -22,8 +22,8 @@ from aiomysql.connection import Connection as AioMySqlConnection
 from aiomysql.cursors import Cursor as AioMySQLCursor
 
 
-from config import HOST, USER, PORT, PASSWORD, MYSQL_SCRIPT_FILE_PATH, DATABASE_NAME, INSERT_BATCH_SIZE
-from logger import Logger
+from config.config import HOST, USER, PORT, PASSWORD, MYSQL_SCRIPT_FILE_PATH, DATABASE_NAME, INSERT_BATCH_SIZE
+from logger.logger import Logger
 log_level = 10
 logger = Logger(logger_name=__name__, log_level=log_level)
 

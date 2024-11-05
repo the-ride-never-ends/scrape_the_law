@@ -16,5 +16,6 @@ tests/
 *.png
 *.gif
 *.jpg
+private/
 SQLSCHEMA.md
 HOMEWORK.md

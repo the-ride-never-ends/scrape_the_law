@@ -2,8 +2,8 @@
 import os
 from typing import Any
 
-from config import GOOGLE_SEARCH_RESULT_TAG, DEBUG_FILEPATH, LEGAL_WEBSITE_DICT
-from logger import Logger
+from config.config import GOOGLE_SEARCH_RESULT_TAG, DEBUG_FILEPATH, LEGAL_WEBSITE_DICT
+from logger.logger import Logger
 
 from utils.shared.safe_format import safe_format
 from utils.shared.sanitize_filename import sanitize_filename

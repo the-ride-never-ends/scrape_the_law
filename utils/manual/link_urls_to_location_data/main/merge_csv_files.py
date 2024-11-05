@@ -5,8 +5,8 @@ from ....shared.save_to_csv import save_to_csv
 from ....shared.load_from_csv import load_from_csv
 
 
-from config import LEGAL_WEBSITE_DICT
-from logger import Logger
+from config.config import LEGAL_WEBSITE_DICT
+from logger.logger import Logger
 logger = Logger(logger_name=__name__)
 
 

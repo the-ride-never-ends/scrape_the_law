@@ -1,4 +1,4 @@
-from config import LEGAL_WEBSITE_DICT
+from config.config import LEGAL_WEBSITE_DICT
 
 def get_robots_txt_url(scraper_name: str) -> str:
     """

@@ -43,8 +43,8 @@ parent_dir = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(parent_dir))
 print(parent_dir)
 
-from config import OUTPUT_FOLDER
-from logger import Logger
+from config.config import OUTPUT_FOLDER
+from logger.logger import Logger
 logger = Logger(logger_name=__name__, stacklevel=2)
 
 

@@ -14,9 +14,9 @@ import sys
 parent_dir = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(parent_dir))
 
-from database import MySqlDatabase
-from config import CUSTOM_MODULES_FOLDER, OUTPUT_FOLDER, LEGAL_WEBSITE_DICT
-from logger import Logger
+from database.database import MySqlDatabase
+from config.config import CUSTOM_MODULES_FOLDER, OUTPUT_FOLDER, LEGAL_WEBSITE_DICT
+from logger.logger import Logger
 logger = Logger(logger_name=__name__)
 
 from utils.shared.next_step import next_step

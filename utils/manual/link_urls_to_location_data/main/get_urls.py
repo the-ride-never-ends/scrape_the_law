@@ -10,8 +10,8 @@ from selenium import webdriver
 from .get_municode_urls_from_state_landing_page import get_municode_urls_from_state_landing_page
 from ....shared.get_urls_with_selenium import get_urls_with_selenium
 
-from config import LEGAL_WEBSITE_DICT
-from logger import Logger
+from config.config import LEGAL_WEBSITE_DICT
+from logger.logger import Logger
 logger = Logger(logger_name=__name__)
 
 

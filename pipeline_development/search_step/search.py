@@ -13,7 +13,7 @@ from playwright.async_api import (
 #from tqdm import asyncio as tqdmasyncio
 
 
-from config import INSERT_BATCH_SIZE, SEARCH_ENGINE
+from config.config import INSERT_BATCH_SIZE, SEARCH_ENGINE
 
 
 from utils.search.google_search import PlaywrightGoogleLinkSearch
@@ -24,8 +24,8 @@ from utils.shared.make_sha256_hash import make_sha256_hash
 #from utils.archive.sanitize_filename import sanitize_filename
 
 
-from database import MySqlDatabase
-from logger import Logger
+from database.database import MySqlDatabase
+from logger.logger import Logger
 log_level = 10
 logger = Logger(logger_name=__name__,log_level=log_level)
 

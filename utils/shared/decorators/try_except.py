@@ -41,7 +41,7 @@ import inspect
 import sys
 from typing import Any, Callable, Coroutine
 
-from logger import Logger
+from logger.logger import Logger
 
 # def try_except(exception: list=[Exception], 
 #             raise_exception: bool=False, 

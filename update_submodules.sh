@@ -3,7 +3,7 @@
 # Script to update a submodule in the scrape_the_law project
 
 # Ensure we're in the correct directory
-cd /path/to/scrape_the_law
+cd "$(dirname "$0")"
 
 # Function to update a submodule
 update_submodule() {

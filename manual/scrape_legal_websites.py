@@ -29,11 +29,11 @@ from playwright.sync_api import (
 insert_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 sys.path.insert(0,insert_path)
 
-from database import MySqlDatabase
+from database.database import MySqlDatabase
 
-from config import OUTPUT_FOLDER, LEGAL_WEBSITE_DICT, HEADLESS, SLOW_MO
+from config.config import OUTPUT_FOLDER, LEGAL_WEBSITE_DICT, HEADLESS, SLOW_MO
 
-from logger import Logger
+from logger.logger import Logger
 logger = Logger(logger_name=__name__)
 
 # TODO Figure out what the hell is up with these imports.
