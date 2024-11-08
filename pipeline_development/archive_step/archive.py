@@ -341,7 +341,7 @@ async def main():
         for i, url in enumerate(urls):
 
             # Build the command for the current URL
-            command = f"waybackup --url {url} " + DEFAULT
+            command = f"waybackup --url {url} " # + DEFAULT
             command_list = command.split()
 
             # Run the waybackup command using subprocess
