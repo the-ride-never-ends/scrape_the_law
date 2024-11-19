@@ -2,7 +2,7 @@
 from logger.logger import Logger
 logger = Logger(logger_name=__name__)
 
-from config.config import INPUT_FILENAME, VERBOSITY, START, OUTPUT_FOLDER, DELAY, WAIT_TIME, DATABASE_NAME, ROUTE, INTERNET_ARCHIVE_API_KEY
+from config.config import INPUT_FILENAME, VERBOSITY, START, OUTPUT_FOLDER, DELAY, WAIT_TIME, DATABASE_NAME, ROUTE
 from database.database import MySqlDatabase
 
 class ScrapeInternetArchive:

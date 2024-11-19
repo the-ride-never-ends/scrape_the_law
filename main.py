@@ -13,10 +13,10 @@ from pipeline_development.search_step.search import SearchEngine
 
 
 from pipeline_development.archive_step.archive import SaveToInternetArchive
-from scraper.sites.internet_archive.scrape import ScrapeInternetArchive
-from filter.filter import FilterUrls
-from cleaner_step.clean import Cleaner
-from metadata_step.metadata import Meta
+from pipeline_development.scraper.sites.internet_archive.scrape import ScrapeInternetArchive
+from pipeline_development.filter_step.filter import FilterUrls
+from pipeline_development.cleaner_step.clean import Cleaner
+from pipeline_development.metadata_step.metadata import Meta
 
 from utils.shared.next_step import next_step
 
@@ -138,7 +138,7 @@ async def main():
         text_df.to_dict('records') # -> list[dict]
         db.async_insert_by_batch(
             """
-            INSERT INTO doc_metatadata
+            INSERT INTO doc_metadata
             """
         )
 

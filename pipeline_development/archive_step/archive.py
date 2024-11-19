@@ -6,15 +6,18 @@ import os
 import subprocess
 import sys
 import time
-from typing import Any
+from typing import Any, NamedTuple
+
 
 from datetime import datetime, timedelta
 from pathlib import Path
 
 import aiohttp
-from tqdm.auto import tqdm as async_tqdm
+import tqdm
+from tqdm import asyncio as tqdm_asyncio
 import pandas as pd
-import waybackpy
+import waybackpy as ia
+
 
 from logger.logger import Logger
 logger = Logger(logger_name=__name__)
@@ -28,7 +31,7 @@ from utils.archive.reconstruct_domain_from_csv_filename import reconstruct_domai
 from utils.archive.read_urls_from_csv import read_urls_from_csv
 from utils.archive.read_domain_csv import read_domain_csv
 
-# https://github.com/bitdruid/python-wayback-machine-downloader
+
 
 
 # Path to the CSV file containing URLs
@@ -74,8 +77,14 @@ get_sources_sql_command = """
 
 
 class SaveToInternetArchive:
-    def __init__(self):
-        self.db: MySqlDatabase = None
+    """
+    https://github.com/bitdruid/python-wayback-machine-downloader
+    """
+
+    USER_AGENT = "Mozilla/5.0 (Linux; Android 5.0; SM-G900P Build/LRX21T) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Mobile Safari/537.36"
+
+    def __init__(self, db: MySqlDatabase,):
+        self.db: MySqlDatabase = db
         self._get_ia_domains_sql: dict[str, str|dict[Any]] = {
             "sql": "SELECT DISTINCT domain FROM ia_url_metadata WHERE time_stamp < {one_year_ago}",
             "args": {"one_year_ago": (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d %H:%M:%S")}
@@ -117,19 +126,24 @@ class SaveToInternetArchive:
 
 
     async def check(self, db: MySqlDatabase, wait_time: int=1) -> tuple[pd.DataFrame, pd.DataFrame]:
-        self.db = db
+        """
+        Check if a URL is on the Internet Archive.
+        """
+        # Load the URLs from the MySQL server.
+        logger.info("Checking if URLs are on the Internet Archive...")
         urls_df = await self._get_links_from_db(source="get_sources")
         total_urls = len(urls_df)
         logger.info(f"{total_urls} URLs loaded. Starting waybackup.py...")
 
+        # Initialize variables.
         counter = 0
         result_list = []
         no_result_list = []
-        result_dict = {}
+
         for i, row in enumerate(urls_df.itertuples(), start=1):
             result_dict = {}
             result_dict['url'] = url = row.url
-            result_dict['gnis'] = gnis = row.gnis
+            result_dict['gnis'] = row.gnis
 
             # Build the waybackup command for the current URL
             command = f"waybackup --url {url} " + self.waybackup_command 
@@ -150,43 +164,53 @@ class SaveToInternetArchive:
                 time.sleep(wait_time)
 
             # If it returns results, save them to result_list. Else, save it to no_result_list
-            if len(result) == 0:
-                no_result_list.append(result_dict)
-            else:
-                result_list.append(result_dict)
+            result_list.append(result_dict) if len(result) > 0 else no_result_list.append(result_dict)
 
         logger.info(f"Done! {counter} out of {total_urls} URLS were parsed successfully.")
         logger.info(f"{len(result_list)} URLS were on IA.\n{len(no_result_list)} URLs were not on IA. Returning dataframes...")
-        on_ia_df = pd.DataFrame.from_dict()
-        not_on_ia_df = pd.DataFrame.from_dict()
+
+        # Save the dictionaries as pandas dataframes.
+        on_ia_df = pd.DataFrame.from_records(result_list)
+        not_on_ia_df = pd.DataFrame.from_records(no_result_list)
         return on_ia_df, not_on_ia_df
 
 
-    async def save(self, db: MySqlDatabase, wait_time: int=1):
+    async def save(self, db: MySqlDatabase, wait_time: int = 1):
+        """
+        Save a dataframe of URLs to the internet archive.
+        """
+        # Initialize variables
+        counter = 0
         self.db = db
         sources_df: pd.DataFrame = await self._get_links_from_db(source="get_sources")
-        ia_url_metadata_df: pd.DataFrame = await self._get_links_from_db(source="get_ia_urls")
 
-        total_urls = len(sources_df)
-        logger.info(f"{total_urls} URLs loaded. Starting to save to Internet Archive...")
-        user_agent = "Mozilla/5.0 (Linux; Android 5.0; SM-G900P Build/LRX21T) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Mobile Safari/537.36"
-        counter = 0
-
-        async_tqdm.pandas(desc="waybackpy URLs")
+        # Apply the _save_url method to the sources dataframe, along with a progress bar.
+        logger.info(f"{len(sources_df)} URLs loaded. Starting to save to Internet Archive...")
+        tqdm.tqdm_pandas(desc='Save URL to Internet Archive.')
         pd.set_option("display.max_colwidth", 300)
-        sources_df.progress_apply(lambda row: self._save_url(row, user_agent=user_agent, wait_time=wait_time, counter=counter))
+        sources_df.progress_apply(
+            lambda row: self._save_url(row, user_agent=self.USER_AGENT, wait_time=wait_time, counter=counter)
+        )
 
-    def _save_url(self, row, user_agent: dict=None, wait_time: int=1, counter: int=0):
+    def _save_url(self, row: NamedTuple, wait_time: int=1, counter: int=0):
+        """
+        Save a URL to the internet archive.
+        """
         url = row.url
         gnis = row.gnis
         logger.info(f"Saving URL associated with GNIS {gnis}: {url}")
+        wayback_save_api = ia.WaybackMachineSaveAPI(url, user_agent=self.USER_AGENT)
         try:
-            wayback = waybackpy.Url(url, user_agent=user_agent)
-            archive = wayback.save()
-            logger.info(f"Successfully saved: {archive.archive_url}")
+            archive_url = wayback_save_api.save()
+            logger.info(f"Successfully saved: {archive_url}")
             counter += 1
         except Exception as e:
             logger.error(f"Error occurred while saving {url}: {e}")
+            csv_path = os.path.join(OUTPUT_FOLDER, "failed_urls.csv")
+            with open(csv_path, "as") as file:
+                line = f"{gnis},{url}\n"
+                file.write(line)
+
         finally:
             logger.info(f"Waiting {wait_time} seconds...")
             time.sleep(wait_time)
