@@ -65,6 +65,26 @@ class AsyncPlaywrightScrapper:
     """
 
     def __init__(self,
+    """
+      init   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        domain (str): Description needed.
+        pw_instance (AsyncPlaywrightContextManager): Description needed.
+        user_agent (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __init__()
+    """
                  domain: str,
                  pw_instance: AsyncPlaywrightContextManager,
                  user_agent: str="*",
@@ -94,6 +114,24 @@ class AsyncPlaywrightScrapper:
     # Define class enter and exit methods.
 
     async def _get_robot_rules(self) -> None:
+    """
+     get robot rules function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _get_robot_rules()
+    """
         """
         Get the site's robots.txt file and read it asynchronously with a timeout.
         TODO Make a database of robots.txt files. This might be a good idea for scraping.
@@ -154,6 +192,24 @@ class AsyncPlaywrightScrapper:
 
     @async_try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError], raise_exception=True)
     async def _load_browser(self) -> None:
+    """
+     load browser function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _load_browser()
+    """
         """
         Launch a chromium browser instance.
         """
@@ -166,6 +222,26 @@ class AsyncPlaywrightScrapper:
     # Define the context manager methods
     @classmethod
     async def start(cls, domain, pw_instance, *args, **kwargs) -> 'AsyncPlaywrightScrapper':
+    """
+    Start function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        cls: Description needed.
+        domain: Description needed.
+        pw_instance: Description needed.
+    
+    Returns:
+        AsyncPlaywrightScrapper: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> start()
+    """
         """
         Factory method to start the scraper.
         """
@@ -178,6 +254,24 @@ class AsyncPlaywrightScrapper:
 
     @try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError], raise_exception=True)
     async def exit(self) -> None:
+    """
+    Exit function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> exit()
+    """
         """
         Close any remaining page, context, and browser instances before exit.
         """
@@ -188,17 +282,73 @@ class AsyncPlaywrightScrapper:
 
 
     async def __aenter__(self) -> 'AsyncPlaywrightScrapper':
+    """
+      aenter   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        AsyncPlaywrightScrapper: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __aenter__()
+    """
         await self._get_robot_rules()
         return await self._load_browser()
 
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+    """
+      aexit   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        exc_type: Description needed.
+        exc_val: Description needed.
+        exc_tb: Description needed.
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __aexit__()
+    """
         return await self.exit()
 
 
     # NOTE We make these individual function's so that we can orchestrate them more granularly
     # in within larger functions within the class. 
     async def open_new_context(self, **kwargs) -> AsyncPlaywrightBroswerContext:
+    """
+    Open new context function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        AsyncPlaywrightBroswerContext: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> open_new_context()
+    """
         """
         Open a new browser context.
         """
@@ -211,6 +361,24 @@ class AsyncPlaywrightScrapper:
 
 
     async def close_browser(self) -> None:
+    """
+    Close browser function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> close_browser()
+    """
         """
         Close a browser instance.
         """
@@ -221,6 +389,24 @@ class AsyncPlaywrightScrapper:
 
 
     async def open_new_page(self, **kwargs: dict) -> AsyncPlaywrightPage:
+    """
+    Open new page function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        AsyncPlaywrightPage: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> open_new_page()
+    """
         """
         Create a new brower page instance.
         """
@@ -236,6 +422,24 @@ class AsyncPlaywrightScrapper:
 
 
     async def close_context(self) -> None:
+    """
+    Close context function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> close_context()
+    """
         """
         Close a browser context.
         """
@@ -245,6 +449,24 @@ class AsyncPlaywrightScrapper:
 
 
     async def close_page(self) -> None:
+    """
+    Close page function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> close_page()
+    """
         """
         Close a browser page instance.
         """
@@ -255,6 +477,24 @@ class AsyncPlaywrightScrapper:
 
     async def close_current_page_and_context(self) -> None:
         if self.page:
+    """
+    Close current page and context function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> close_current_page_and_context()
+    """
             await self.close_page()
         if self.context:
             await self.close_context()
@@ -262,6 +502,24 @@ class AsyncPlaywrightScrapper:
 
     @try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError], raise_exception=True)
     async def wait_till_idle(self) -> Coroutine[Any, Any, None]:
+    """
+    Wait till idle function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> wait_till_idle()
+    """
         """
         Wait for a page to fully finish loading.
         """
@@ -311,6 +569,24 @@ class AsyncPlaywrightScrapper:
 
     @async_try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError], raise_exception=True)
     async def move_mouse_cursor_to_hover_over(self, selector: str, *args, **kwargs) -> Coroutine[Any, Any, None]:
+    """
+    Move mouse cursor to hover over function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        selector (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> move_mouse_cursor_to_hover_over()
+    """
         """
         Move a "mouse" cursor over a specified element.
         """
@@ -319,6 +595,24 @@ class AsyncPlaywrightScrapper:
 
     @async_try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError], raise_exception=True)
     async def click_on(self, selector: str, *args, **kwargs) -> Coroutine[Any, Any, None]:
+    """
+    Click on function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        selector (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> click_on()
+    """
         """
         Click on a specified element.
         """
@@ -327,6 +621,24 @@ class AsyncPlaywrightScrapper:
 
     @async_try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError])
     async def save_page_html_content_to_output_dir(self, filename: str) -> str:
+    """
+    Save page html content to output dir function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        filename (str): Description needed.
+    
+    Returns:
+        str: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> save_page_html_content_to_output_dir()
+    """
         """
         Save a page's current HTML content to the output directory.
         """
@@ -406,6 +718,24 @@ class AsyncPlaywrightScrapper:
 
 
     def _make_filepath_dir_for_domain(self, filename: str=None) -> str:
+    """
+     make filepath dir for domain function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        filename (str): Description needed.
+    
+    Returns:
+        str: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _make_filepath_dir_for_domain()
+    """
         """
         Define and return a filepath for a given domain in the output folder.
         If the directory doesn't exist, make it.
@@ -442,12 +772,63 @@ class AsyncPlaywrightScrapper:
 
 
     def trace_async_playwright_debug(self, context: AsyncPlaywrightBroswerContext):
+    """
+    Trace async playwright debug function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        context (AsyncPlaywrightBroswerContext): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> trace_async_playwright_debug()
+    """
         """
         Decorator to start a trace for a given context and page.
         """
         def decorator(func):
+    """
+    Decorator function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        func: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> decorator()
+    """
             @wraps(func)
             async def wrapper(*args, **kwargs):
+    """
+    Wrapper function.
+    
+    TODO: Add proper description.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> wrapper()
+    """
                 self.open_new_context()
                 await self.context.tracing.start(screenshots=True, snapshots=True, sources=True)
                 await self.context.tracing.start_chunk()

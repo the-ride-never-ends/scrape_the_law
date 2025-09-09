@@ -15,6 +15,26 @@ class Limiter:
     Options for a custom stop condition and progress bar.
     """
     def __init__(self, 
+    """
+      init   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        semaphore (int): Description needed.
+        stop_condition (Any): Description needed.
+        progress_bar (bool): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __init__()
+    """
                  semaphore: int=2, 
                  stop_condition: Any = "stop_condition", # Replace with your specific stop condition
                  progress_bar: bool=True
@@ -26,12 +46,50 @@ class Limiter:
     # Claude insisted that I include these for compatability/future use purposes.
     # It's probably a good idea. 
     async def __aenter__(self):
+    """
+      aenter   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __aenter__()
+    """
         """
         Initialize the Limiter using a context manager.
         """
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
+    """
+      aexit   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        exc_type: Description needed.
+        exc_val: Description needed.
+        exc_tb: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __aexit__()
+    """
         """
         Exit the limiter using a context manager.
         """
@@ -39,6 +97,24 @@ class Limiter:
 
     @classmethod
     def start(cls):
+    """
+    Start function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        cls: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> start()
+    """
         """
         Initialize the Limiter using a factory method.
         """
@@ -46,6 +122,21 @@ class Limiter:
         return instance
 
     def stop():
+    """
+    Stop function.
+    
+    TODO: Add proper description.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> stop()
+    """
         """
         Exit the limiter.
         """
@@ -53,6 +144,24 @@ class Limiter:
 
 
     async def run_task_with_limit(self, task: Coroutine) -> Any:
+    """
+    Run task with limit function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        task (Coroutine): Description needed.
+    
+    Returns:
+        Any: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> run_task_with_limit()
+    """
         """
         Set up rate-limit-conscious functions
         """
@@ -65,6 +174,24 @@ class Limiter:
 
 
     async def run_async_many(self, 
+    """
+    Run async many function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> run_async_many()
+    """
                              *args, 
                              inputs: Any=None, 
                              func: Callable=None,

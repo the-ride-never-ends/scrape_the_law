@@ -33,6 +33,26 @@ logger = Logger(logger_name=__name__)
 class PlaywrightAsyncScraper:
 
     def __init__(self,
+    """
+      init   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        pw_instance (AsyncPlaywright): Description needed.
+        robots_txt_url (str): Description needed.
+        user_agent (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __init__()
+    """
                  pw_instance: AsyncPlaywright,
                  robots_txt_url: str=None,
                  user_agent: str="*",
@@ -59,6 +79,25 @@ class PlaywrightAsyncScraper:
 
 
     def type_check_site_dict(self, child_class_name: str, robots_txt_url: str=None) -> None:
+    """
+    Type check site dict function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        child_class_name (str): Description needed.
+        robots_txt_url (str): Description needed.
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> type_check_site_dict()
+    """
         """
         Check if we have a site dictionary for the child class.
         """
@@ -75,6 +114,24 @@ class PlaywrightAsyncScraper:
 
     #### START CLASS STARTUP AND EXIT METHODS ####
     async def async_get_robot_rules(self, robots_txt_url) -> None:
+    """
+    Async get robot rules function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        robots_txt_url: Description needed.
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> async_get_robot_rules()
+    """
         """
         Asynchronously Get the site's robots.txt file and assign it to the robot_urls attribute
         """
@@ -84,6 +141,24 @@ class PlaywrightAsyncScraper:
 
 
     async def _async_load_browser(self) -> None:
+    """
+     async load browser function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _async_load_browser()
+    """
         """
         Asynchronously launch a chromium instance and load a page
         """
@@ -91,6 +166,24 @@ class PlaywrightAsyncScraper:
 
 
     async def _async_close_browser(self) -> None:
+    """
+     async close browser function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _async_close_browser()
+    """
         """
         Close browser instance and reset internal attributes
         """
@@ -101,6 +194,27 @@ class PlaywrightAsyncScraper:
 
     @classmethod
     async def async_start(cls, pw_instance, robots_txt_url, user_agent, **launch_kwargs) -> 'PlaywrightAsyncScraper':
+    """
+    Async start function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        cls: Description needed.
+        pw_instance: Description needed.
+        robots_txt_url: Description needed.
+        user_agent: Description needed.
+    
+    Returns:
+        PlaywrightAsyncScraper: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> async_start()
+    """
         """
         Factory method for asynchronously starting the class.
         """
@@ -111,16 +225,72 @@ class PlaywrightAsyncScraper:
 
 
     async def async_close(self) -> None:
+    """
+    Async close function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> async_close()
+    """
         await self._async_close_browser()
 
 
     async def __aenter__(self) -> 'PlaywrightAsyncScraper':
+    """
+      aenter   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        PlaywrightAsyncScraper: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __aenter__()
+    """
         await self._async_load_browser()
         await self.async_get_robot_rules(self.robots_txt_url)
         return self
 
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+    """
+      aexit   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        exc_type: Description needed.
+        exc_val: Description needed.
+        exc_tb: Description needed.
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __aexit__()
+    """
         await self.async_close()
 
     #### END CLASS STARTUP AND EXIT METHODS ####
@@ -128,6 +298,24 @@ class PlaywrightAsyncScraper:
 
     #### START PAGE PROCESSING METHODS ####
     async def _async_make_page(self) -> tuple[AsyncPlaywrightPage, AsyncPlaywrightBrowserContext]:
+    """
+     async make page function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _async_make_page()
+    """
         """
         Make an AsyncPlaywrightPage within a browser context.
         """
@@ -137,6 +325,25 @@ class PlaywrightAsyncScraper:
 
 
     async def _async_open_page(self, url: str, page: AsyncPlaywrightPage) -> AsyncPlaywrightPage:
+    """
+     async open page function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        url (str): Description needed.
+        page (AsyncPlaywrightPage): Description needed.
+    
+    Returns:
+        AsyncPlaywrightPage: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _async_open_page()
+    """
         """
         Open a specified webpage and wait for any dynamic elements to load.
         """
@@ -180,6 +387,24 @@ class PlaywrightAsyncScraper:
 
 
     async def _async_respectful_fetch(self, url: str) -> list[dict[str,str]] | list[dict[Never]]:
+    """
+     async respectful fetch function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        url (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _async_respectful_fetch()
+    """
         """
         Limit scraping a URL based on a semaphore and the delay specified in robots.txt
         """
@@ -195,6 +420,24 @@ class PlaywrightAsyncScraper:
 
 
     async def async_scrape(self, url: str) -> list[dict[str,str]] | None:
+    """
+    Async scrape function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        url (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> async_scrape()
+    """
         """
         Scrape a URL asynchronously. Essentially a wrapper for _async_respectful_fetch.
         """
@@ -202,6 +445,24 @@ class PlaywrightAsyncScraper:
 
 
     def _build_url(self, state_code: str) -> str:
+    """
+     build url function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        state_code (str): Description needed.
+    
+    Returns:
+        str: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _build_url()
+    """
         """
         Implicit abstract method for building website specific URLs.
         """
@@ -209,6 +470,24 @@ class PlaywrightAsyncScraper:
 
 
     def check_url_length(self, scrape_url: str):
+    """
+    Check url length function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        scrape_url (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> check_url_length()
+    """
         """
         Type check the length of scrape url for _build_url.
         """
@@ -223,6 +502,24 @@ class PlaywrightAsyncScraper:
 
 
     def build_urls(self, locations_df: pd.DataFrame) -> list[dict[str,str]]:
+    """
+    Build urls function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        locations_df: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> build_urls()
+    """
         """
         Create scrape URLs from the locations dataframe.
         """

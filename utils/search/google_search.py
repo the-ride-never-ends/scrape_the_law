@@ -56,6 +56,24 @@ class PlaywrightGoogleLinkSearch:
     """Number of results displayed per Google page. """
 
     def __init__(self, **launch_kwargs):
+    """
+      init   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __init__()
+    """
         """
         Parameters
         ----------
@@ -70,17 +88,72 @@ class PlaywrightGoogleLinkSearch:
 
 
     async def _load_browser(self, pw_instance: AsyncPlaywright):
+    """
+     load browser function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        pw_instance (AsyncPlaywright): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _load_browser()
+    """
         """Launch a chromium instance and load a page"""
         self._browser = await pw_instance.chromium.launch(**self.launch_kwargs)
 
 
     async def _close_browser(self):
+    """
+     close browser function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _close_browser()
+    """
         """Close browser instance and reset internal attributes"""
         await self._browser.close()
         self._browser = None
 
 
     async def _search(self, query, num_results=10):
+    """
+     search function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        query: Description needed.
+        num_results: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _search()
+    """
         """Search google for links related to a query."""
         logger.debug(f"Searching Google: {query}")
         num_results = min(num_results, self.EXPECTED_RESULTS_PER_PAGE)
@@ -99,6 +172,25 @@ class PlaywrightGoogleLinkSearch:
 
 
     async def _skip_exc_search(self, query, num_results=10):
+    """
+     skip exc search function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        query: Description needed.
+        num_results: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _skip_exc_search()
+    """
         """Perform search while ignoring timeout errors"""
         try:
             start = time.time()
@@ -114,6 +206,25 @@ class PlaywrightGoogleLinkSearch:
 
 
     async def _get_links(self, queries, num_results):
+    """
+     get links function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        queries: Description needed.
+        num_results: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _get_links()
+    """
         """Get links for multiple queries"""
         outer_task_name = asyncio.current_task().get_name()
         async with async_playwright() as pw_instance:
@@ -131,6 +242,25 @@ class PlaywrightGoogleLinkSearch:
 
 
     async def _get_links_with_limit(self, queries, num_results):
+    """
+     get links with limit function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        queries: Description needed.
+        num_results: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _get_links_with_limit()
+    """
         """Get links for multiple queries with a concurrency limiter"""
         outer_task_name = asyncio.current_task().get_name()
         async with async_playwright() as pw_instance:
@@ -151,6 +281,24 @@ class PlaywrightGoogleLinkSearch:
 
 
     async def results(self, *queries, num_results=10, limit=True):
+    """
+    Results function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> results()
+    """
         """Retrieve links for the first `num_results` of each query.
 
         This function executes a google search for each input query and

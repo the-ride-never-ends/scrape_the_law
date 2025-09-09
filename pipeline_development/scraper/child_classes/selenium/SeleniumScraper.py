@@ -26,6 +26,25 @@ logger = Logger(logger_name=__name__)
 class SeleniumScraper:
 
     def __init__(self, driver: webdriver.Chrome=None, wait_in_seconds: int=1, ):
+    """
+      init   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        driver: Description needed.
+        wait_in_seconds (int): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __init__()
+    """
         self.driver = driver
         self.wait_in_seconds = wait_in_seconds
         self.page = None
@@ -36,17 +55,90 @@ class SeleniumScraper:
 
     @try_except(exception=[WebDriverException])
     def close_webpage(self):
+    """
+    Close webpage function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> close_webpage()
+    """
         return self.driver.close()
 
     @try_except(exception=[WebDriverException])
     def _quit_driver(self):
+    """
+     quit driver function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _quit_driver()
+    """
         return self.driver.quit()
 
     def __enter__(self):
+    """
+      enter   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __enter__()
+    """
         return self
 
     @classmethod
     def enter(cls, wait_in_seconds):
+    """
+    Enter function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        cls: Description needed.
+        wait_in_seconds: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> enter()
+    """
         """
         Factory method to start Selenium
         """
@@ -54,10 +146,48 @@ class SeleniumScraper:
         return instance
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+    """
+      exit   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        exc_type: Description needed.
+        exc_val: Description needed.
+        exc_tb: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __exit__()
+    """
         self.exit()
         return False
     
     def try_except_decorator_exit(self):
+    """
+    Try except decorator exit function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> try_except_decorator_exit()
+    """
         """
         Function to be called by the try_except decorator to permit graceful shutdowns.
         """
@@ -65,6 +195,24 @@ class SeleniumScraper:
         return
 
     def exit(self):
+    """
+    Exit function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> exit()
+    """
         """
         Close the webpage and webdriver.
         """
@@ -79,6 +227,24 @@ class SeleniumScraper:
 
     @try_except
     def refresh_page(self) -> None:
+    """
+    Refresh page function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> refresh_page()
+    """
         """
         Refresh the web page currently in the driver.
         """
@@ -87,6 +253,26 @@ class SeleniumScraper:
     @get_exec_time
     @try_except(exception=[WebDriverException, InvalidArgumentException, TimeoutException], raise_exception=True)
     def wait_to_fully_load(self, implicit_wait: int=5, page_load_timeout: int=10, class_name: str=None):
+    """
+    Wait to fully load function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        implicit_wait (int): Description needed.
+        page_load_timeout (int): Description needed.
+        class_name (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> wait_to_fully_load()
+    """
         assert class_name, "class_name must be provided."
         logger.info("Waiting for page to full load...")
 
@@ -266,6 +452,26 @@ class SeleniumScraper:
         return elements
 
     def wait_for_aria_expanded(self, element: WebElement, state: bool='true', timeout: int=10):
+    """
+    Wait for aria expanded function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        element (WebElement): Description needed.
+        state (bool): Description needed.
+        timeout (int): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> wait_for_aria_expanded()
+    """
         """
         Wait for an element's 'aria-expanded' attribute to become 'true' or 'false'.
         """

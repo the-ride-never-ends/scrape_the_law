@@ -87,6 +87,25 @@ class GeneralCodeScraper(AsyncScraper):
     """
 
     def __init__(self, pw_instance, robots_txt_url:str=None, **launch_kwargs):
+    """
+      init   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        pw_instance: Description needed.
+        robots_txt_url (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __init__()
+    """
         # Initialize the child class attributes
         self.scrape_url_length = 52
         self.site_dict = LEGAL_WEBSITE_DICT['general_code_co'] or None
@@ -119,6 +138,25 @@ class AmericanLegalScraper(AsyncScraper):
     """
 
     def __init__(self, pw_instance, robots_txt_url:str=None, **launch_kwargs):
+    """
+      init   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        pw_instance: Description needed.
+        robots_txt_url (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __init__()
+    """
         # Initialize the child class attributes
         self.scrape_url_length = 42
         self.site_dict = LEGAL_WEBSITE_DICT['american_legal'] or None
@@ -151,6 +189,25 @@ class MunicodeScraper(AsyncScraper):
     """
 
     def __init__(self, pw_instance, robots_txt_url:str=None, **launch_kwargs):
+    """
+      init   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        pw_instance: Description needed.
+        robots_txt_url (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __init__()
+    """
         # Initialize the child class attributes
         self.scrape_url_length = 31
         self.site_dict = LEGAL_WEBSITE_DICT['municode'] or None
@@ -176,6 +233,25 @@ class MunicodeScraper(AsyncScraper):
 
 async def insert_into_sources(output_df: pd.DataFrame, db: MySqlDatabase) -> None:
     """
+    Insert into sources function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        output_df: Description needed.
+        db (MySqlDatabase): Description needed.
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> insert_into_sources()
+    """
+    """
     Insert the output of main() into the 'sources' table in the MySQL database.\n
     Insert command is
     ```INSERT INTO sources (gnis, source_municode, source_general_code, source_american_legal, 
@@ -199,6 +275,29 @@ async def insert_into_sources(output_df: pd.DataFrame, db: MySqlDatabase) -> Non
 
 
 async def scrape_site(db: MySqlDatabase, 
+    """
+    Scrape site function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        db (MySqlDatabase): Description needed.
+        scraper (AsyncScraper): Description needed.
+        site_df_list (list): Description needed.
+        locations_df: Description needed.
+        headless (bool): Description needed.
+        slow_mo (int): Description needed.
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> scrape_site()
+    """
                       scraper: AsyncScraper, 
                       site_df_list: list, 
                       locations_df: pd.DataFrame=None, 
@@ -271,6 +370,21 @@ async def scrape_legal_websites(db: MySqlDatabase,
 
 async def main():
 
+    """
+    Main function.
+    
+    TODO: Add proper description.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> main()
+    """
     # Step 1. Define the website-specific scraping classes and output list.
     scraper_list = [
         #MunicodeScraper,

@@ -30,6 +30,25 @@ from utils.database.get_num_placeholders import get_num_placeholders
 
 
 def copy_file_to_current_folder(source_folder, filename):
+    """
+    Copy file to current folder function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        source_folder: Description needed.
+        filename: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> copy_file_to_current_folder()
+    """
     source_path = os.path.join(source_folder, filename)
     destination_path = os.path.join(os.getcwd(), filename)
     shutil.copy2(source_path, destination_path)
@@ -38,6 +57,25 @@ def copy_file_to_current_folder(source_folder, filename):
 
 async def get_urls_with_playwright(df: pd.DataFrame, steps: list[Callable] = None):
 
+    """
+    Get urls with playwright function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        df: Description needed.
+        steps: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> get_urls_with_playwright()
+    """
     wait_in_seconds = LEGAL_WEBSITE_DICT["municode"]['wait_in_seconds']
     sleep_length = 1
     results = []
@@ -87,6 +125,21 @@ DEBUG = True
 async def main():
 
 
+    """
+    Main function.
+    
+    TODO: Add proper description.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> main()
+    """
     next_step("Step 1. Get municode URLs from database")
     async with MySqlDatabase(database="socialtoolkit") as db:
         # Get source_df and url_hashes_df from the database

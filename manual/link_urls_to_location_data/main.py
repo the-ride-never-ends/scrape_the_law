@@ -121,6 +121,24 @@ def get_state_code_from_url(source_dict: dict[str, str]) -> dict[str, str|None]:
 def get_source_from_url_and_href(source_dict: dict[str, str]
                          ) -> dict[str, str]:
     if "amlegal" in source_dict['url']:
+    """
+    Get source from url and href function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        source_dict: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> get_source_from_url_and_href()
+    """
         source_dict["source"] = "american_legal"
     elif "municode" in source_dict['url']:
         source_dict["source"] = "municode"
@@ -135,6 +153,21 @@ def get_source_from_url_and_href(source_dict: dict[str, str]
 
 async def main():
 
+    """
+    Main function.
+    
+    TODO: Add proper description.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> main()
+    """
     logger.info("Step 1. Make American Legal URLs.",f=True)
     source = "american_legal"
     am_legal_urls = make_urls(source)
