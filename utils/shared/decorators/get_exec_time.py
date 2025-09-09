@@ -18,22 +18,26 @@ def get_exec_time(func: Callable) -> Any:
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-
-    """
-    Wrapper function.
-    
-    TODO: Add proper description.
-    
-    Returns:
-        Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> wrapper()
-    """
+        """
+        Wrapper function that measures and logs execution time.
+        
+        Wraps the original function to measure its execution time from start
+        to finish. Logs the total execution time using the configured logger
+        and returns the original function's result.
+        
+        Returns:
+            Any: The result returned by the wrapped function.
+        
+        Raises:
+            Exception: Any exceptions raised by the wrapped function are propagated.
+        
+        Example:
+            >>> @get_exec_time
+            >>> def slow_function():
+            ...     time.sleep(2)
+            ...     return "done"
+            >>> result = slow_function()  # Logs: "Total execution time for 'slow_function': 2.00"
+        """
         # Define the logger.
         logger = Logger(logger_name=func.__module__)
 
