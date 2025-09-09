@@ -16,6 +16,26 @@ logger = Logger(logger_name=__name__)
 
 
 async def get_urls(urls: str, source: str=None, driver: webdriver.Chrome=None) -> list[dict[str,str,str]]:
+    """
+    Get urls function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        urls (str): Description needed.
+        source (str): Description needed.
+        driver: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> get_urls()
+    """
     wait_in_seconds = LEGAL_WEBSITE_DICT[source]['wait_in_seconds']
     class_ = LEGAL_WEBSITE_DICT[source]['target_class']
     results = []

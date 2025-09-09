@@ -257,10 +257,25 @@ class Logger:
 
     def info(self, message, f: bool=False, q: bool=True, t: float=None, off: bool=False):
         """
-        f is for formatting with self.asterisk.\n
-        q is for automatically putting single quotes around f-string curly brackets.\n
-        t is for pausing the program by a specified number of seconds after the message has been printed to console.
-        off turns off the logger for this message.
+        Log an informational message with custom formatting options.
+        
+        Args:
+            message (str): The message to log.
+            f (bool, optional): Apply asterisk formatting around message. Defaults to False.
+            q (bool, optional): Auto-quote f-string curly brackets. Defaults to True.
+            t (float, optional): Sleep duration after logging. Defaults to None.
+            off (bool, optional): Disable logging for this message. Defaults to False.
+        
+        Returns:
+            None: This function performs logging side effects.
+        
+        Raises:
+            None
+        
+        Example:
+            >>> logger.info("Application started")
+            >>> logger.info("Step completed", f=True)  # With asterisk formatting
+            >>> logger.info("Processing...", t=1.0)    # With 1 second pause
         """
         message = _single_quote_fstring_curly_braces(message) if q else message
         if not off:
@@ -273,10 +288,24 @@ class Logger:
 
     def debug(self, message, f: bool=False, q: bool=True, t: float=None, off: bool=False):
         """
-        f is for formatting with self.asterisk.\n
-        q is for automatically putting single quotes around f-string curly brackets.\n
-        t is for pausing the program by a specified number of seconds after the message has been printed to console.
-        off turns off the logger for this message.
+        Log a debug message with custom formatting options.
+        
+        Args:
+            message (str): The debug message to log.
+            f (bool, optional): Apply asterisk formatting around message. Defaults to False.
+            q (bool, optional): Auto-quote f-string curly brackets. Defaults to True.
+            t (float, optional): Sleep duration after logging. Defaults to None.
+            off (bool, optional): Disable logging for this message. Defaults to False.
+        
+        Returns:
+            None: This function performs logging side effects.
+        
+        Raises:
+            None
+        
+        Example:
+            >>> logger.debug("Variable value: {var}")
+            >>> logger.debug("Debug checkpoint", f=True)  # With asterisk formatting
         """
         message = _single_quote_fstring_curly_braces(message) if q else message
         if not off:

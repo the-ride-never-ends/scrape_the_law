@@ -48,6 +48,21 @@ for folder in ouput_folder_list:
 
 def raise_value_error_if_absent(*args) -> Never:
     """
+    Raise value error if absent function.
+    
+    TODO: Add proper description.
+    
+    Returns:
+        Never: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> raise_value_error_if_absent()
+    """
+    """
     Take a list of arguments and raise a Value Error if any of them are absent.
     """
     args = [*args]
@@ -57,6 +72,28 @@ def raise_value_error_if_absent(*args) -> Never:
 
 
 def list_of_dicts_to_csv_via_pandas(list_of_dicts: list[dict], 
+    """
+    List of dicts to csv via pandas function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        list_of_dicts: Description needed.
+        filename (str): Description needed.
+        index (bool): Description needed.
+        logger (Logger): Description needed.
+        output_path (str): Description needed.
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> list_of_dicts_to_csv_via_pandas()
+    """
                                     filename: str, 
                                     index: bool = False,
                                     logger: Logger = None, 
@@ -85,6 +122,27 @@ def list_of_dicts_to_csv_via_pandas(list_of_dicts: list[dict],
 
 
 async def check_if_url_is_up(row: NamedTuple, 
+    """
+    Check if url is up function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        row (NamedTuple): Description needed.
+        timeout (int): Description needed.
+        good_response_list (list): Description needed.
+        bad_response_list (list): Description needed.
+    
+    Returns:
+        dict: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> check_if_url_is_up()
+    """
                             timeout: int = 10,
                             good_response_list: list=None, 
                             bad_response_list: list=None,
@@ -146,6 +204,25 @@ class GetFrontPages(AsyncPlaywrightScrapper):
     Take a screenshot of a domain's front page.
     """
     def __init__(self,
+    """
+      init   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        domain (str): Description needed.
+        pw_instance (AsyncPlaywrightContextManager): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __init__()
+    """
                 domain: str,
                 pw_instance: AsyncPlaywrightContextManager,
                 *args,
@@ -155,6 +232,26 @@ class GetFrontPages(AsyncPlaywrightScrapper):
         self.output_dir = SCREENSHOT_FOLDER
 
     async def get_screenshot_of_front_page(self, 
+    """
+    Get screenshot of front page function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        row (NamedTuple): Description needed.
+        success_list (list): Description needed.
+        failure_list (list): Description needed.
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> get_screenshot_of_front_page()
+    """
                                            row: NamedTuple, 
                                            success_list: list=None, 
                                            failure_list: list=None,
@@ -204,6 +301,27 @@ class GetFrontPages(AsyncPlaywrightScrapper):
 
 
 async def scraper_class_wrapper(row, 
+    """
+    Scraper class wrapper function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        row: Description needed.
+        pw_instance (AsyncPlaywrightContextManager): Description needed.
+        success_list (list): Description needed.
+        failure_list (list): Description needed.
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> scraper_class_wrapper()
+    """
                                 pw_instance: AsyncPlaywrightContextManager=None, 
                                 success_list: list=None, 
                                 failure_list: list=None
@@ -220,6 +338,21 @@ async def scraper_class_wrapper(row,
 
 
 async def main() -> None:
+    """
+    Main function.
+    
+    TODO: Add proper description.
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> main()
+    """
     """
     Program: Get screenshots of front pages
     """
