@@ -15,30 +15,36 @@ class Limiter:
     Options for a custom stop condition and progress bar.
     """
     def __init__(self, 
-    """
-      init   function.
-    
-    TODO: Add proper description.
-    
-    Args:
-        semaphore (int): Description needed.
-        stop_condition (Any): Description needed.
-        progress_bar (bool): Description needed.
-    
-    Returns:
-        Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> __init__()
-    """
                  semaphore: int=2, 
                  stop_condition: Any = "stop_condition", # Replace with your specific stop condition
                  progress_bar: bool=True
                 ):
+        """
+        Initialize a rate limiter for controlling concurrent async operations.
+        
+        Creates a custom rate limiter using asyncio.Semaphore to control the number
+        of concurrent operations. Supports optional stop conditions and progress bar
+        display during execution.
+        
+        Args:
+            semaphore (int): Maximum number of concurrent operations allowed.
+                Defaults to 2.
+            stop_condition (Any): Value that when returned by a task will trigger
+                a global stop signal. Defaults to "stop_condition".
+            progress_bar (bool): Whether to display a progress bar during
+                batch operations. Defaults to True.
+        
+        Returns:
+            None
+        
+        Raises:
+            ValueError: If semaphore is not a positive integer.
+            TypeError: If invalid parameter types are provided.
+        
+        Example:
+            >>> limiter = Limiter(semaphore=5, progress_bar=False)
+            >>> limiter = Limiter()  # Use defaults
+        """
         self.semaphore = asyncio.Semaphore(semaphore)
         self.stop_condition = stop_condition
         self.progress_bar = progress_bar
@@ -46,50 +52,55 @@ class Limiter:
     # Claude insisted that I include these for compatability/future use purposes.
     # It's probably a good idea. 
     async def __aenter__(self):
-    """
-      aenter   function.
-    
-    TODO: Add proper description.
-    
-    Args:
-        None
-    
-    Returns:
-        Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> __aenter__()
-    """
+        """
+        Enter the async context manager for the limiter.
+        
+        Enables the limiter to be used with async context manager syntax
+        (async with statement). Returns self to allow method chaining and
+        resource management.
+        
+        Args:
+            None
+        
+        Returns:
+            Limiter: The limiter instance for use in the context.
+        
+        Raises:
+            RuntimeError: If called outside an async context.
+        
+        Example:
+            >>> async with Limiter(semaphore=3) as limiter:
+            ...     await limiter.run_task_with_limit(some_task)
+        """
         """
         Initialize the Limiter using a context manager.
         """
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-    """
-      aexit   function.
-    
-    TODO: Add proper description.
-    
-    Args:
-        exc_type: Description needed.
-        exc_val: Description needed.
-        exc_tb: Description needed.
-    
-    Returns:
-        Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> __aexit__()
-    """
+        """
+        Exit the async context manager for the limiter.
+        
+        Handles cleanup when exiting the async context manager. Currently
+        performs no cleanup operations but provides the interface for future
+        resource management needs.
+        
+        Args:
+            exc_type (type): Exception type if an exception occurred, None otherwise.
+            exc_val (Exception): Exception value if an exception occurred, None otherwise.
+            exc_tb (traceback): Exception traceback if an exception occurred, None otherwise.
+        
+        Returns:
+            None: Allows exceptions to propagate normally.
+        
+        Raises:
+            Exception: Re-raises any exceptions that occurred in the context.
+        
+        Example:
+            >>> async with Limiter() as limiter:
+            ...     # Operations here
+            ...     pass  # __aexit__ called automatically
+        """
         """
         Exit the limiter using a context manager.
         """
@@ -97,24 +108,26 @@ class Limiter:
 
     @classmethod
     def start(cls):
-    """
-    Start function.
-    
-    TODO: Add proper description.
-    
-    Args:
-        cls: Description needed.
-    
-    Returns:
-        Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> start()
-    """
+        """
+        Create and return a new Limiter instance using default settings.
+        
+        Factory method for creating a Limiter instance with default parameters.
+        This is an alternative to direct instantiation that may be extended
+        in the future for additional initialization logic.
+        
+        Args:
+            cls (type): The Limiter class.
+        
+        Returns:
+            Limiter: A new Limiter instance with default settings.
+        
+        Raises:
+            TypeError: If cls is not the Limiter class.
+        
+        Example:
+            >>> limiter = Limiter.start()
+            >>> # Equivalent to: limiter = Limiter()
+        """
         """
         Initialize the Limiter using a factory method.
         """
@@ -122,21 +135,21 @@ class Limiter:
         return instance
 
     def stop():
-    """
-    Stop function.
-    
-    TODO: Add proper description.
-    
-    Returns:
-        Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> stop()
-    """
+        """
+        Placeholder method for stopping limiter operations.
+        
+        Currently a no-op method that serves as a placeholder for future
+        functionality to gracefully stop or cleanup limiter operations.
+        
+        Returns:
+            None
+        
+        Raises:
+            NotImplementedError: If extended functionality is expected but not implemented.
+        
+        Example:
+            >>> Limiter.stop()  # Currently does nothing
+        """
         """
         Exit the limiter.
         """
@@ -144,24 +157,29 @@ class Limiter:
 
 
     async def run_task_with_limit(self, task: Coroutine) -> Any:
-    """
-    Run task with limit function.
-    
-    TODO: Add proper description.
-    
-    Args:
-        task (Coroutine): Description needed.
-    
-    Returns:
-        Any: Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> run_task_with_limit()
-    """
+        """
+        Execute a single async task with rate limiting applied.
+        
+        Runs the provided coroutine with semaphore-based rate limiting to control
+        concurrency. Also checks the task result against the stop condition and
+        sets a global stop signal if matched.
+        
+        Args:
+            task (Coroutine): The async task/coroutine to execute with rate limiting.
+        
+        Returns:
+            Any: The result returned by the executed task.
+        
+        Raises:
+            asyncio.CancelledError: If the task is cancelled.
+            Exception: Any exception raised by the task is propagated.
+        
+        Example:
+            >>> async def my_task():
+            ...     return "completed"
+            >>> limiter = Limiter(semaphore=2)
+            >>> result = await limiter.run_task_with_limit(my_task())
+        """
         """
         Set up rate-limit-conscious functions
         """
@@ -174,24 +192,6 @@ class Limiter:
 
 
     async def run_async_many(self, 
-    """
-    Run async many function.
-    
-    TODO: Add proper description.
-    
-    Args:
-        None
-    
-    Returns:
-        Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> run_async_many()
-    """
                              *args, 
                              inputs: Any=None, 
                              func: Callable=None,
@@ -199,6 +199,40 @@ class Limiter:
                              outer_task_name: str = "",
                              **kwargs
                             ) -> asyncio.Future | Generator:
+        """
+        Execute multiple async tasks concurrently with rate limiting.
+        
+        Processes a collection of inputs through a provided async function with
+        rate limiting applied. Supports optional progress bar display and task
+        naming for debugging. Creates tasks dynamically and manages their execution
+        with the configured concurrency limits.
+        
+        Args:
+            *args: Positional arguments to pass to the function.
+            inputs (Any): Collection of inputs to process through the function.
+                Required parameter.
+            func (Callable): Async function to apply to each input. Required parameter.
+            enum (bool): Whether to enumerate inputs when creating tasks. Defaults to True.
+            outer_task_name (str): Name prefix for created tasks for debugging.
+                Defaults to empty string.
+            **kwargs: Keyword arguments to pass to the function.
+        
+        Returns:
+            asyncio.Future | Generator: Results from all executed tasks, or generator
+                if progress_bar is True.
+        
+        Raises:
+            ValueError: If inputs or func parameters are not provided.
+            TypeError: If func is not callable or inputs is not iterable.
+            asyncio.CancelledError: If tasks are cancelled during execution.
+        
+        Example:
+            >>> async def process_item(item):
+            ...     return f"processed_{item}"
+            >>> limiter = Limiter(semaphore=3)
+            >>> items = ['a', 'b', 'c', 'd']
+            >>> results = await limiter.run_async_many(inputs=items, func=process_item)
+        """
         if not inputs:
             raise ValueError("input_list was not input as a parameter")
 

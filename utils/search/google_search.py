@@ -56,24 +56,28 @@ class PlaywrightGoogleLinkSearch:
     """Number of results displayed per Google page. """
 
     def __init__(self, **launch_kwargs):
-    """
-      init   function.
-    
-    TODO: Add proper description.
-    
-    Args:
-        None
-    
-    Returns:
-        Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> __init__()
-    """
+        """
+        Initialize the PlaywrightGoogleLinkSearch instance.
+        
+        Sets up a Google search instance using Playwright for web automation.
+        The browser is not launched immediately but will be created when search
+        operations are performed.
+        
+        Args:
+            **launch_kwargs: Keyword arguments to be passed to
+                playwright.chromium.launch(). For example, you can pass
+                headless=False, slow_mo=50 for a visualization of the search.
+        
+        Returns:
+            None
+        
+        Raises:
+            TypeError: If invalid launch_kwargs are provided.
+        
+        Example:
+            >>> searcher = PlaywrightGoogleLinkSearch(headless=False, slow_mo=50)
+            >>> searcher = PlaywrightGoogleLinkSearch()  # Default settings
+        """
         """
         Parameters
         ----------
@@ -88,72 +92,81 @@ class PlaywrightGoogleLinkSearch:
 
 
     async def _load_browser(self, pw_instance: AsyncPlaywright):
-    """
-     load browser function.
-    
-    TODO: Add proper description.
-    
-    Args:
-        pw_instance (AsyncPlaywright): Description needed.
-    
-    Returns:
-        Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> _load_browser()
-    """
+        """
+        Load and initialize a Chromium browser instance.
+        
+        Creates a new browser instance using the provided Playwright instance
+        and the launch arguments specified during initialization.
+        
+        Args:
+            pw_instance (AsyncPlaywright): The Playwright instance to use for
+                launching the browser.
+        
+        Returns:
+            None
+        
+        Raises:
+            playwright.async_api.Error: If browser launch fails.
+            ConnectionError: If unable to connect to browser.
+        
+        Example:
+            >>> async with async_playwright() as pw:
+            ...     await self._load_browser(pw)
+        """
         """Launch a chromium instance and load a page"""
         self._browser = await pw_instance.chromium.launch(**self.launch_kwargs)
 
 
     async def _close_browser(self):
-    """
-     close browser function.
-    
-    TODO: Add proper description.
-    
-    Args:
-        None
-    
-    Returns:
-        Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> _close_browser()
-    """
+        """
+        Close the browser instance and reset internal state.
+        
+        Closes the currently active browser instance and resets the internal
+        browser reference to None for cleanup.
+        
+        Args:
+            None
+        
+        Returns:
+            None
+        
+        Raises:
+            AttributeError: If browser is None or already closed.
+            playwright.async_api.Error: If browser close operation fails.
+        
+        Example:
+            >>> await self._close_browser()
+        """
         """Close browser instance and reset internal attributes"""
         await self._browser.close()
         self._browser = None
 
 
     async def _search(self, query, num_results=10):
-    """
-     search function.
-    
-    TODO: Add proper description.
-    
-    Args:
-        query: Description needed.
-        num_results: Description needed.
-    
-    Returns:
-        Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> _search()
-    """
+        """
+        Perform a single Google search query and extract links.
+        
+        Executes a Google search for the given query and extracts the top search
+        result URLs. The number of results is limited to the maximum results per
+        page (typically 10). Handles debug mode with additional logging and screenshots.
+        
+        Args:
+            query (str): The search query string to execute on Google.
+            num_results (int, optional): Maximum number of results to retrieve.
+                Defaults to 10. Cannot exceed EXPECTED_RESULTS_PER_PAGE.
+        
+        Returns:
+            list[str]: List of URLs from the search results, or empty list if
+                no results found.
+        
+        Raises:
+            PlaywrightTimeoutError: If the search operation times out.
+            AttributeError: If browser is not loaded.
+        
+        Example:
+            >>> results = await self._search("python programming", num_results=5)
+            >>> print(f"Found {len(results)} results")
+        """
         """Search google for links related to a query."""
         logger.debug(f"Searching Google: {query}")
         num_results = min(num_results, self.EXPECTED_RESULTS_PER_PAGE)
@@ -172,25 +185,31 @@ class PlaywrightGoogleLinkSearch:
 
 
     async def _skip_exc_search(self, query, num_results=10):
-    """
-     skip exc search function.
-    
-    TODO: Add proper description.
-    
-    Args:
-        query: Description needed.
-        num_results: Description needed.
-    
-    Returns:
-        Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> _skip_exc_search()
-    """
+        """
+        Perform a Google search with timeout exception handling.
+        
+        Executes a Google search while gracefully handling PlaywrightTimeoutError
+        exceptions. If a timeout occurs, logs the error and returns an empty list
+        instead of raising the exception. Measures and logs execution time.
+        
+        Args:
+            query (str): The search query string to execute on Google.
+            num_results (int, optional): Maximum number of results to retrieve.
+                Defaults to 10.
+        
+        Returns:
+            list[str]: List of URLs from the search results, or empty list if
+                timeout occurs or no results found.
+        
+        Raises:
+            AttributeError: If browser is not loaded.
+            Exception: Any non-timeout related exceptions are re-raised.
+        
+        Example:
+            >>> results = await self._skip_exc_search("legal documents")
+            >>> if not results:
+            ...     print("Search timed out or no results found")
+        """
         """Perform search while ignoring timeout errors"""
         try:
             start = time.time()
@@ -206,25 +225,31 @@ class PlaywrightGoogleLinkSearch:
 
 
     async def _get_links(self, queries, num_results):
-    """
-     get links function.
-    
-    TODO: Add proper description.
-    
-    Args:
-        queries: Description needed.
-        num_results: Description needed.
-    
-    Returns:
-        Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> _get_links()
-    """
+        """
+        Execute multiple Google search queries concurrently without rate limiting.
+        
+        Performs Google searches for multiple queries simultaneously using asyncio
+        tasks. Manages browser lifecycle (load/close) and executes all searches
+        concurrently without concurrency limits.
+        
+        Args:
+            queries (iterable): Collection of search query strings to execute.
+            num_results (int): Maximum number of results to retrieve per query.
+        
+        Returns:
+            list[list[str]]: List where each element is a list of URLs corresponding
+                to the search results for each query in the same order.
+        
+        Raises:
+            playwright.async_api.Error: If browser operations fail.
+            asyncio.TimeoutError: If asyncio.gather times out.
+        
+        Example:
+            >>> queries = ["python programming", "web scraping"]
+            >>> results = await self._get_links(queries, 5)
+            >>> for i, query_results in enumerate(results):
+            ...     print(f"Query {i}: {len(query_results)} results")
+        """
         """Get links for multiple queries"""
         outer_task_name = asyncio.current_task().get_name()
         async with async_playwright() as pw_instance:
@@ -242,25 +267,31 @@ class PlaywrightGoogleLinkSearch:
 
 
     async def _get_links_with_limit(self, queries, num_results):
-    """
-     get links with limit function.
-    
-    TODO: Add proper description.
-    
-    Args:
-        queries: Description needed.
-        num_results: Description needed.
-    
-    Returns:
-        Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> _get_links_with_limit()
-    """
+        """
+        Execute multiple Google search queries with concurrency rate limiting.
+        
+        Performs Google searches for multiple queries using a concurrency limiter
+        to respect rate limits and avoid overwhelming Google's servers. Manages
+        browser lifecycle and applies the configured concurrency limit.
+        
+        Args:
+            queries (iterable): Collection of search query strings to execute.
+            num_results (int): Maximum number of results to retrieve per query.
+        
+        Returns:
+            list[list[str]]: List where each element is a list of URLs corresponding
+                to the search results for each query in the same order.
+        
+        Raises:
+            playwright.async_api.Error: If browser operations fail.
+            asyncio.TimeoutError: If asyncio.gather times out.
+        
+        Example:
+            >>> queries = ["legal documents", "court cases", "legislation"]
+            >>> results = await self._get_links_with_limit(queries, 10)
+            >>> total_links = sum(len(query_results) for query_results in results)
+            >>> print(f"Retrieved {total_links} total links")
+        """
         """Get links for multiple queries with a concurrency limiter"""
         outer_task_name = asyncio.current_task().get_name()
         async with async_playwright() as pw_instance:
@@ -281,23 +312,37 @@ class PlaywrightGoogleLinkSearch:
 
 
     async def results(self, *queries, num_results=10, limit=True):
-    """
-    Results function.
-    
-    TODO: Add proper description.
-    
-    Args:
-        None
-    
-    Returns:
-        Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> results()
+        """
+        Retrieve Google search results for multiple queries.
+        
+        This is the main public method that executes Google searches for the provided
+        queries and returns lists of URLs for each query. Supports both rate-limited
+        and unlimited concurrency modes. Automatically cleans search queries before
+        execution.
+        
+        Args:
+            *queries: Variable number of search query strings to execute.
+            num_results (int, optional): Number of top results to retrieve for each
+                query. Cannot exceed EXPECTED_RESULTS_PER_PAGE (typically 10).
+                Defaults to 10.
+            limit (bool, optional): Whether to apply concurrency rate limiting.
+                Defaults to True for respectful API usage.
+        
+        Returns:
+            list[list[str]]: List equal to the length of input queries, where each
+                entry is another list containing the top num_results links for
+                that query.
+        
+        Raises:
+            ValueError: If no queries are provided.
+            playwright.async_api.Error: If browser operations fail.
+        
+        Example:
+            >>> searcher = PlaywrightGoogleLinkSearch()
+            >>> results = await searcher.results("python", "javascript", num_results=5)
+            >>> for i, links in enumerate(results):
+            ...     print(f"Query {i+1}: {len(links)} links found")
+        """
     """
         """Retrieve links for the first `num_results` of each query.
 

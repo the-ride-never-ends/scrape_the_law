@@ -289,42 +289,46 @@ def async_try_except(exception: list=[Exception],
     Retrying (0/3)...
     """
     def decorator(func: Coroutine) -> Coroutine:
-    """
-    Decorator function.
-    
-    TODO: Add proper description.
-    
-    Args:
-        func (Coroutine): Description needed.
-    
-    Returns:
-        Coroutine: Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> decorator()
-    """
+        """
+        Create the async decorator wrapper for exception handling.
+        
+        This inner decorator function applies the async try-except logic to the
+        provided coroutine, implementing retry behavior and exception handling
+        as configured in the parent decorator.
+        
+        Args:
+            func (Coroutine): The async function to be wrapped with exception handling.
+        
+        Returns:
+            Coroutine: The wrapped async function with try-except logic applied.
+        
+        Raises:
+            Exception: Re-raises the caught exception if raise_exception is True.
+        
+        Example:
+            >>> @async_try_except(retries=2)
+            >>> async def my_func():
+            ...     await some_operation()
+        """
         @wraps(func)
         async def wrapper(*args, **kwargs) -> Any:
-
-    """
-    Wrapper function.
-    
-    TODO: Add proper description.
-    
-    Returns:
-        Any: Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> wrapper()
-    """
+            """
+            Async wrapper that implements retry logic and exception handling.
+            
+            Executes the wrapped async function with configured retry behavior.
+            Handles exceptions according to the decorator parameters, logging
+            errors and managing retry attempts.
+            
+            Returns:
+                Any: The result of the successfully executed function.
+            
+            Raises:
+                Exception: Re-raises caught exceptions if raise_exception is True
+                    and all retries are exhausted.
+            
+            Example:
+                >>> result = await wrapped_function(arg1, arg2)
+            """
             # Initialize Logger and other variables.
             # NOTE See: https://stackoverflow.com/questions/1261875/what-does-nonlocal-do-in-python-3
             nonlocal logger
@@ -431,42 +435,46 @@ def try_except(exception: list=[Exception],
     Retrying (0/3)...
     """
     def decorator(func: Callable) -> Callable:
-    """
-    Decorator function.
-    
-    TODO: Add proper description.
-    
-    Args:
-        func (Callable): Description needed.
-    
-    Returns:
-        Callable: Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> decorator()
-    """
+        """
+        Create the synchronous decorator wrapper for exception handling.
+        
+        This inner decorator function applies the try-except logic to the
+        provided function, implementing retry behavior and exception handling
+        as configured in the parent decorator.
+        
+        Args:
+            func (Callable): The function to be wrapped with exception handling.
+        
+        Returns:
+            Callable: The wrapped function with try-except logic applied.
+        
+        Raises:
+            Exception: Re-raises the caught exception if raise_exception is True.
+        
+        Example:
+            >>> @try_except(retries=2)
+            >>> def my_func():
+            ...     return some_operation()
+        """
         @wraps(func)
         def wrapper(*args, **kwargs) -> Any:
-
-    """
-    Wrapper function.
-    
-    TODO: Add proper description.
-    
-    Returns:
-        Any: Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> wrapper()
-    """
+            """
+            Synchronous wrapper that implements retry logic and exception handling.
+            
+            Executes the wrapped function with configured retry behavior.
+            Handles exceptions according to the decorator parameters, logging
+            errors and managing retry attempts.
+            
+            Returns:
+                Any: The result of the successfully executed function.
+            
+            Raises:
+                Exception: Re-raises caught exceptions if raise_exception is True
+                    and all retries are exhausted.
+            
+            Example:
+                >>> result = wrapped_function(arg1, arg2)
+            """
             # Initialize Logger and other variables.
             # NOTE See: https://stackoverflow.com/questions/1261875/what-does-nonlocal-do-in-python-3
             nonlocal logger
@@ -484,25 +492,28 @@ def try_except(exception: list=[Exception],
 
 
             def get_method_type(cls, method_name):
-    """
-    Get method type function.
-    
-    TODO: Add proper description.
-    
-    Args:
-        cls: Description needed.
-        method_name: Description needed.
-    
-    Returns:
-        Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> get_method_type()
-    """
+                """
+                Determine the type of a method (instance, class, or static).
+                
+                Inspects a method to determine whether it's an instance method,
+                class method, static method, or not a method at all. Used for
+                proper context management in exception handling.
+                
+                Args:
+                    cls: The class object containing the method.
+                    method_name: The name of the method to inspect.
+                
+                Returns:
+                    str: One of "instance method", "class method", "static method",
+                        or "not a method".
+                
+                Raises:
+                    AttributeError: If the method name doesn't exist on the class.
+                
+                Example:
+                    >>> method_type = get_method_type(MyClass, "my_method")
+                    >>> print(method_type)  # "instance method"
+                """
                 method = getattr(cls, method_name)
                 
                 if inspect.ismethod(method):

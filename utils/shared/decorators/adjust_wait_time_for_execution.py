@@ -7,65 +7,75 @@ from logger.logger import Logger
 
 def adjust_wait_time_for_execution(wait_in_seconds: float=5) -> Callable[..., Any]:
     """
-    Adjust wait time for execution function.
+    Decorator to adjust wait time based on actual function execution time.
     
-    TODO: Add proper description.
+    Creates a decorator that measures function execution time and adjusts
+    a predefined wait time accordingly. If a function takes 2 seconds to
+    execute and the wait time is 5 seconds, only 3 seconds of additional
+    waiting will occur. Useful for respecting rate limits while optimizing
+    for execution time.
     
     Args:
-        wait_in_seconds (float): Description needed.
+        wait_in_seconds (float): Initial wait time in seconds that will be
+            adjusted based on execution time. Defaults to 5.
     
     Returns:
-        Description needed.
+        Callable: Decorator function that wraps the target function with
+            execution-adjusted waiting.
     
     Raises:
-        TODO: Document exceptions.
+        ValueError: If wait_in_seconds is negative.
     
     Example:
-        >>> # TODO: Add usage example
-        >>> adjust_wait_time_for_execution()
+        >>> @adjust_wait_time_for_execution(wait_in_seconds=3.0)
+        >>> def api_call():
+        ...     return requests.get("https://api.example.com")
+        >>> # If api_call takes 1 second, will wait additional 2 seconds
     """
     """
     Adjust a sleep waiting period to account for the clock time taken to execute a synchronous function.
     Useful for optimizing waiting periods based on a reference value e.g. a robots.txt delay.
     """
     def decorator(func: Callable) -> Callable:
-
-    """
-    Decorator function.
-    
-    TODO: Add proper description.
-    
-    Args:
-        func (Callable): Description needed.
-    
-    Returns:
-        Callable: Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> decorator()
-    """
+        """
+        Create the synchronous decorator wrapper for execution-adjusted waiting.
+        
+        Wraps the target function to measure its execution time and adjust
+        the waiting period accordingly.
+        
+        Args:
+            func (Callable): The function to be wrapped with execution-adjusted waiting.
+        
+        Returns:
+            Callable: The wrapped function with execution timing and adjusted waiting.
+        
+        Raises:
+            Exception: Any exceptions from the wrapped function are propagated.
+        
+        Example:
+            >>> @adjust_wait_time_for_execution(3.0)
+            >>> def my_function():
+            ...     return "result"
+        """
         @wraps(func)
         def wrapper(*args,**kwargs) -> Any|None:
-
-    """
-    Wrapper function.
-    
-    TODO: Add proper description.
-    
-    Returns:
-        Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> wrapper()
-    """
+            """
+            Synchronous wrapper that executes function and adjusts wait time.
+            
+            Measures the execution time of the wrapped function and sleeps for
+            the remaining time to achieve the target wait period. Logs timing
+            information for debugging and optimization.
+            
+            Returns:
+                Any|None: The result returned by the wrapped function.
+            
+            Raises:
+                Exception: Any exceptions from the wrapped function are propagated.
+            
+            Example:
+                >>> result = wrapped_function(arg1, arg2)
+                >>> # Logs execution time and waits for adjusted duration
+            """
             # Initialize nonlocal and logger
             nonlocal wait_in_seconds
             logger = Logger(logger_name=func.__module__)
@@ -88,65 +98,73 @@ def adjust_wait_time_for_execution(wait_in_seconds: float=5) -> Callable[..., An
 
 def async_adjust_wait_time_for_execution(wait_in_seconds: float=5) -> Coroutine[None, None, Any]:
     """
-    Async adjust wait time for execution function.
+    Async decorator to adjust wait time based on actual function execution time.
     
-    TODO: Add proper description.
+    Creates an async decorator that measures async function execution time and
+    adjusts a predefined wait time accordingly. Provides the same functionality
+    as adjust_wait_time_for_execution but for async functions using asyncio.sleep.
     
     Args:
-        wait_in_seconds (float): Description needed.
+        wait_in_seconds (float): Initial wait time in seconds that will be
+            adjusted based on execution time. Defaults to 5.
     
     Returns:
-        Description needed.
+        Coroutine: Async decorator function that wraps the target coroutine with
+            execution-adjusted waiting.
     
     Raises:
-        TODO: Document exceptions.
+        ValueError: If wait_in_seconds is negative.
     
     Example:
-        >>> # TODO: Add usage example
-        >>> async_adjust_wait_time_for_execution()
+        >>> @async_adjust_wait_time_for_execution(wait_in_seconds=3.0)
+        >>> async def async_api_call():
+        ...     return await aiohttp.get("https://api.example.com")
+        >>> # If api_call takes 1 second, will wait additional 2 seconds
     """
     """
     Adjust a sleep waiting period to account for the clock time taken to execute a synchronous function.
     Useful for optimizing waiting periods based on a reference value e.g. a robots.txt delay.
     """
     def decorator(func: Coroutine) -> Coroutine:
-
-    """
-    Decorator function.
-    
-    TODO: Add proper description.
-    
-    Args:
-        func (Coroutine): Description needed.
-    
-    Returns:
-        Coroutine: Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> decorator()
-    """
+        """
+        Create the async decorator wrapper for execution-adjusted waiting.
+        
+        Wraps the target async function to measure its execution time and
+        adjust the waiting period accordingly using asyncio.sleep.
+        
+        Args:
+            func (Coroutine): The async function to be wrapped with execution-adjusted waiting.
+        
+        Returns:
+            Coroutine: The wrapped async function with execution timing and adjusted waiting.
+        
+        Raises:
+            Exception: Any exceptions from the wrapped function are propagated.
+        
+        Example:
+            >>> @async_adjust_wait_time_for_execution(3.0)
+            >>> async def my_async_function():
+            ...     return await some_operation()
+        """
         @wraps(func)
         async def wrapper(*args,**kwargs) -> Any|None:
-
-    """
-    Wrapper function.
-    
-    TODO: Add proper description.
-    
-    Returns:
-        Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> wrapper()
-    """
+            """
+            Async wrapper that executes function and adjusts wait time.
+            
+            Measures the execution time of the wrapped async function and sleeps
+            for the remaining time using asyncio.sleep to achieve the target wait
+            period. Logs timing information and ensures non-negative wait times.
+            
+            Returns:
+                Any|None: The result returned by the wrapped async function.
+            
+            Raises:
+                Exception: Any exceptions from the wrapped function are propagated.
+            
+            Example:
+                >>> result = await wrapped_function(arg1, arg2)
+                >>> # Logs execution time and waits for adjusted duration
+            """
             # Initialize nonlocal and logger
             nonlocal wait_in_seconds
             logger = Logger(logger_name=func.__module__)

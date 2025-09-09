@@ -30,43 +30,47 @@ def if_not_results(message: str=None) -> Callable:
     >>>     return some_result
     """
     def decorator(func: Callable) -> Callable:
-
-    """
-    Decorator function.
-    
-    TODO: Add proper description.
-    
-    Args:
-        func (Callable): Description needed.
-    
-    Returns:
-        Callable: Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> decorator()
-    """
+        """
+        Create the decorator wrapper for result validation.
+        
+        Creates the actual decorator that wraps the target function to check
+        its return value and log warnings if no results are returned.
+        
+        Args:
+            func (Callable): The function to be wrapped with result validation.
+        
+        Returns:
+            Callable: The wrapped function with result validation logic.
+        
+        Raises:
+            Exception: Any exceptions from the wrapped function are propagated.
+        
+        Example:
+            >>> @if_not_results("Custom no results message")
+            >>> def my_function():
+            ...     return []  # Will log warning and return None
+        """
         @wraps(func)
         def wrapper(*args,**kwargs) -> Any|None:
-
-    """
-    Wrapper function.
-    
-    TODO: Add proper description.
-    
-    Returns:
-        Description needed.
-    
-    Raises:
-        TODO: Document exceptions.
-    
-    Example:
-        >>> # TODO: Add usage example
-        >>> wrapper()
-    """
+            """
+            Wrapper that validates function results and logs warnings.
+            
+            Executes the wrapped function and checks if it returns any results.
+            If the function returns a falsy value (None, empty list, empty string, etc.),
+            logs a warning message and returns None. Otherwise, returns the original result.
+            
+            Returns:
+                Any|None: The original function result if truthy, None if falsy.
+            
+            Raises:
+                Exception: Any exceptions from the wrapped function are propagated.
+            
+            Example:
+                >>> # Function returns empty list - logs warning and returns None
+                >>> result = wrapped_function()  # None
+                >>> # Function returns data - returns data normally  
+                >>> result = wrapped_function()  # [1, 2, 3]
+            """
             nonlocal message
             logger = Logger(logger_name=func.__module__)
 
