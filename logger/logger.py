@@ -40,6 +40,28 @@ import yaml
 from utils.logger.delete_empty_log_files import delete_empty_log_files, delete_zone_identifier_files
 
 def make_id():
+    """
+    Generate a unique identifier string using UUID4.
+    
+    Creates a random UUID (Universally Unique Identifier) and converts it to a string.
+    This is a convenience function for generating unique identifiers within the logger module.
+    
+    Args:
+        None
+    
+    Returns:
+        str: A string representation of a UUID4.
+    
+    Raises:
+        None
+    
+    Example:
+        >>> id_str = make_id()
+        >>> len(id_str)
+        36
+        >>> '-' in id_str
+        True
+    """
     return str(uuid.uuid4())
 
 # Define general folder for log files
@@ -69,8 +91,29 @@ except Exception as e:
 # Get the program's name
 PROGRAM_NAME = os.path.dirname(__file__)
 
-# TODO FIX THIS FUNCTION. IT DOESN'T WORK!!!!
 def _single_quote_fstring_curly_braces(msg: str) -> str:
+    """
+    Process f-string messages to add quotes around curly brace contents.
+    
+    Attempts to automatically quote variables within f-string curly braces for
+    safer logging. Currently has known issues and may not work as intended.
+    TODO: Fix this function implementation.
+    
+    Args:
+        msg (str): Message string that might be an f-string starting with 'f"'.
+    
+    Returns:
+        str: Processed message with quoted curly brace contents, or original
+            message if not an f-string.
+    
+    Raises:
+        None: Function handles errors gracefully.
+    
+    Example:
+        >>> _single_quote_fstring_curly_braces('f"Hello {name}"')
+        # Intended to return something like 'f"Hello {\'name\'}"'
+        # But function currently has issues
+    """
     if isinstance(msg, str) and msg.startswith('f"'):
         def replacer(match):
             full_match = match.group(0)
