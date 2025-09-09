@@ -18,6 +18,26 @@ logger = Logger(logger_name=__name__,log_level=log_level)
 class SearchQueryGenerator:
 
     def __init__(self, 
+    """
+      init   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        datapoint: Description needed.
+        common_terms (list): Description needed.
+        search_engine (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __init__()
+    """
                  datapoint,
                  common_terms:list=None,
                  search_engine: str="google"
@@ -160,6 +180,24 @@ class SearchQueryGenerator:
         return query, source
 
     def make_queries_from_sources(self, db: MySqlDatabase):
+    """
+    Make queries from sources function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        db (MySqlDatabase): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> make_queries_from_sources()
+    """
         pass
 
 

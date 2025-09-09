@@ -11,6 +11,24 @@ log_level=10
 logger = Logger(logger_name=__name__, log_level=log_level)
 
 def _check_for_empty_sublists(urls: list[list[str]]) -> bool:
+    """
+     check for empty sublists function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        urls: Description needed.
+    
+    Returns:
+        bool: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _check_for_empty_sublists()
+    """
     results = [
         not sublist for sublist in urls
     ]

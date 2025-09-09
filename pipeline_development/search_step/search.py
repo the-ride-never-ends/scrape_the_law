@@ -68,6 +68,25 @@ class SearchEngine:
 
     @classmethod
     def start_engine(cls, search_engine:str, **launch_kwargs) -> 'SearchEngine':
+    """
+    Start engine function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        cls: Description needed.
+        search_engine (str): Description needed.
+    
+    Returns:
+        SearchEngine: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> start_engine()
+    """
         """
         Create and return a SearchEngine instance for the specified search engine.
 
@@ -98,6 +117,27 @@ class SearchEngine:
 
 
     async def _process_search_result(self, gnis: int, query_text: str, result: list[str], source_site: str) -> None:
+    """
+     process search result function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        gnis (int): Description needed.
+        query_text (str): Description needed.
+        result: Description needed.
+        source_site (str): Description needed.
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _process_search_result()
+    """
         """
         Build dictionaries of query metadata and returned URLs and add them to their respective lists.
         """
@@ -137,6 +177,25 @@ class SearchEngine:
 
 
     async def _batched_search_results(self, gnis: int, group_df: pd.DataFrame) -> None:
+    """
+     batched search results function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        gnis (int): Description needed.
+        group_df: Description needed.
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _batched_search_results()
+    """
         """
         Run search queries through a pre-specified search engine class, get the results, then process them and add them to a list.
         """
@@ -164,6 +223,24 @@ class SearchEngine:
 
 
     async def _get_urls_without_ia_url(self) -> pd.DataFrame:
+    """
+     get urls without ia url function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _get_urls_without_ia_url()
+    """
         """
         Get all URLs where we don't have an internet archive URL from the database
         """
@@ -172,6 +249,25 @@ class SearchEngine:
 
 
     async def _get_hash_by_gnis(self, query: str, gnis: int) -> set:
+    """
+     get hash by gnis function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        query (str): Description needed.
+        gnis (int): Description needed.
+    
+    Returns:
+        set: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _get_hash_by_gnis()
+    """
         """
         Get hashes based on gnis and return them as a set.
         """
@@ -180,6 +276,24 @@ class SearchEngine:
 
 
     async def _insert_batched_data(self, batch_size: int=20):
+    """
+     insert batched data function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        batch_size (int): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _insert_batched_data()
+    """
         """
         Insert URLs and queries if they go over the batch size, then clear them.
         """

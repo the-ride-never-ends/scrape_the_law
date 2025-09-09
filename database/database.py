@@ -148,8 +148,23 @@ class MySqlDatabase:
 
     def __enter__(self) -> 'MySqlDatabase':
         """
-        Context manager entry method.
-        Equivalent to db = MySqlDatabase().connect_to_server()
+        Context manager entry method for synchronous database operations.
+        
+        Establishes a synchronous connection pool when entering the context.
+        Equivalent to calling MySqlDatabase().connect_to_server() manually.
+        
+        Args:
+            None
+        
+        Returns:
+            MySqlDatabase: The database instance ready for synchronous operations.
+        
+        Raises:
+            Exception: Database connection errors during pool creation.
+        
+        Example:
+            >>> with MySqlDatabase() as db:
+            ...     result = db.execute_sql_command("SELECT 1")
         """
         self.sync = True
         self._create_pool()
@@ -158,16 +173,50 @@ class MySqlDatabase:
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         """
-        Context manager exit method.
-        Equivalent to db.close_connection_to_server()
+        Context manager exit method for cleanup.
+        
+        Closes the database connection pool when exiting the context.
+        Equivalent to calling db.close_connection_to_server() manually.
+        
+        Args:
+            exc_type: Exception type if an exception occurred, None otherwise.
+            exc_value: Exception value if an exception occurred, None otherwise.
+            traceback: Exception traceback if an exception occurred, None otherwise.
+        
+        Returns:
+            None: This method performs cleanup side effects.
+        
+        Raises:
+            None: Handles cleanup gracefully even if exceptions occurred.
+        
+        Example:
+            >>> with MySqlDatabase() as db:
+            ...     # Database operations here
+            ...     pass
+            # Connection automatically closed when exiting with block
         """
         self.close_connection_to_server()
 
 
     async def __aenter__(self) -> 'MySqlDatabase':
         """
-        Asynchronous context manager entry method.
-        Equivalent to db = MySqlDatabase().async_connect_to_server()
+        Asynchronous context manager entry method for async database operations.
+        
+        Establishes an asynchronous connection pool when entering the context.
+        Equivalent to calling MySqlDatabase().async_connect_to_server() manually.
+        
+        Args:
+            None
+        
+        Returns:
+            MySqlDatabase: The database instance ready for asynchronous operations.
+        
+        Raises:
+            Exception: Database connection errors during async pool creation.
+        
+        Example:
+            >>> async with MySqlDatabase() as db:
+            ...     result = await db.async_execute_sql_command("SELECT 1")
         """
         self.sync = False
         await self._async_create_pool()
@@ -176,8 +225,27 @@ class MySqlDatabase:
 
     async def __aexit__(self, exc_type, exc_value, traceback)  -> None: 
         """
-        Asynchronous context manager exit method.
-        Equivalent to db.async_close_connection_to_server()
+        Asynchronous context manager exit method for cleanup.
+        
+        Closes the async database connection pool when exiting the context.
+        Equivalent to calling db.async_close_connection_to_server() manually.
+        
+        Args:
+            exc_type: Exception type if an exception occurred, None otherwise.
+            exc_value: Exception value if an exception occurred, None otherwise.
+            traceback: Exception traceback if an exception occurred, None otherwise.
+        
+        Returns:
+            None: This method performs async cleanup side effects.
+        
+        Raises:
+            None: Handles cleanup gracefully even if exceptions occurred.
+        
+        Example:
+            >>> async with MySqlDatabase() as db:
+            ...     # Async database operations here
+            ...     await db.async_execute_sql_command("SELECT 1")
+            # Connection automatically closed when exiting async with block
         """
         await self.async_close_connection_to_server()
 
