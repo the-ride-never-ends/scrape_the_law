@@ -7,6 +7,41 @@ from .return_s_percent import return_s_percent
 
 
 def make_insert_command_args(names: pd.DataFrame|dict|list, *args, command: str="", table_name: str="", **kwargs) -> dict[str, Any]:
+    """
+    Create arguments dictionary for parameterized SQL INSERT commands.
+    
+    Processes column names from various input types (DataFrame, dict, list) and creates
+    a dictionary with table name, column names, and SQL placeholders. Validates that
+    all placeholders in the command string have corresponding values.
+    
+    Args:
+        names (pd.DataFrame|dict|list): Source of column names - DataFrame columns,
+            dict keys, or list of strings.
+        *args: Variable positional arguments, typically dictionaries to merge.
+        command (str): SQL command string with placeholders like '{table}', '{column_names}'.
+        table_name (str): Name of the database table for the INSERT operation.
+        **kwargs: Additional keyword arguments to include in the result dictionary.
+    
+    Returns:
+        dict[str, Any]: Dictionary containing 'table', 'column_names', 'values' and
+            any additional arguments provided. Ready for use with string formatting.
+    
+    Raises:
+        AssertionError: If command or table_name are missing or not strings.
+        ValueError: If names is empty, unsupported type, or command has no placeholders.
+        KeyError: If command placeholders don't match provided arguments.
+    
+    Example:
+        >>> df = pd.DataFrame({'id': [1], 'name': ['John']})
+        >>> cmd = "INSERT INTO {table} ({column_names}) VALUES ({values})"
+        >>> args = make_insert_command_args(df, command=cmd, table_name="users")
+        >>> args['table']
+        'users'
+        >>> args['column_names']
+        'id, name'
+        >>> args['values']
+        '%s, %s'
+    """
 
     assert command, f"command argument is missing"
     assert table_name, "table_string is missing"
