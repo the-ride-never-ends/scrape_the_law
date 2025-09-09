@@ -40,9 +40,28 @@ class InputProcessor:
 
     def _validate_datapoint(self) -> bool:
         """
-        Validate the datapoint attribute.\n
-        TODO Simple validation at the moment, but will likely need to be expanded in the future.\n
-        Including aliases for datapoints is a must eventually.
+        Validate the datapoint attribute for basic requirements.
+        
+        Performs simple validation to ensure the datapoint is a non-empty string
+        within reasonable length limits. This validation may be expanded in future
+        versions to include aliases and more sophisticated checks.
+        
+        Args:
+            None
+        
+        Returns:
+            bool: True if datapoint is valid, False otherwise.
+        
+        Raises:
+            None
+        
+        Example:
+            >>> processor = InputProcessor(datapoint="sales tax")
+            >>> processor._validate_datapoint()
+            True
+            >>> processor.datapoint = ""
+            >>> processor._validate_datapoint()
+            False
         """
         return (isinstance(self.datapoint, str) and
                 self.datapoint.strip() != '' and
@@ -51,6 +70,29 @@ class InputProcessor:
     async def get_initial_dataframe(self) -> pd.DataFrame:
         """
         Fetch and return a DataFrame of location data based on the datapoint.
+        
+        Queries the database for location records that have domain names but haven't
+        been searched for the current datapoint yet. Returns a randomized selection
+        to ensure varied processing across different runs.
+        
+        Args:
+            None
+        
+        Returns:
+            pd.DataFrame: DataFrame containing columns: id, gnis, place_name, 
+                class_code, state_code, domain_name for qualifying locations.
+        
+        Raises:
+            ValueError: If the datapoint fails validation.
+            Exception: For database connection or query errors.
+        
+        Example:
+            >>> processor = InputProcessor(datapoint="sales tax", limit=5)
+            >>> df = await processor.get_initial_dataframe()
+            >>> list(df.columns)
+            ['id', 'gnis', 'place_name', 'class_code', 'state_code', 'domain_name']
+            >>> len(df) <= 5
+            True
         """
         if not self._validate_datapoint():
             raise ValueError(f"Invalid datapoint: {self.datapoint}")

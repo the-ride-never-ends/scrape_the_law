@@ -7,12 +7,27 @@ def get_config_files() -> dict:
     """
     Load YAML configuration files and return their contents.
     
-    ### Returns
-    - Dictionary with the loaded configuration data.
+    Loads both the main config.yaml and private configuration files, merging them
+    into a single dictionary. Handles both 'private_config.yaml' and '_private_config.yaml'
+    naming conventions.
     
-    ### Raises
-    - FileNotFoundError: If either config file is not found.
-    - yaml.YAMLError: If there's an error parsing the YAML files.
+    Args:
+        None
+    
+    Returns:
+        dict: Dictionary with the loaded configuration data from both config files.
+    
+    Raises:
+        FileNotFoundError: If either config file is not found.
+        yaml.YAMLError: If there's an error parsing the YAML files.
+        Exception: For any other unexpected errors during file loading.
+        
+    Example:
+        >>> config = get_config_files()
+        >>> isinstance(config, dict)
+        True
+        >>> 'SYSTEM' in config  # Typical config section
+        True
     """
     
     # Get the filepaths of all the config files.

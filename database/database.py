@@ -93,6 +93,38 @@ class MySqlDatabase:
                  password: str=PASSWORD,
                  sql_scripts_path: str=MYSQL_SCRIPT_FILE_PATH # Currently not used.
                 ):
+        """
+        Initialize MySqlDatabase with connection parameters.
+        
+        Sets up database configuration for both synchronous and asynchronous connections.
+        Validates all required configuration parameters and creates the foundation
+        for connection pooling.
+        
+        Args:
+            database (str, optional): Name of the MySQL database. Defaults to "socialtoolkit".
+            pool_name (str, optional): Name for the connection pool. Defaults to "connection_pool".
+            pool_size (int, optional): Number of connections in sync pool. Defaults to 5.
+            pool_minsize (int, optional): Minimum connections in async pool. Defaults to 1.
+            pool_maxsize (int, optional): Maximum connections in async pool. Defaults to 64.
+            host (str, optional): Database server hostname. Defaults to config HOST.
+            user (str, optional): Database username. Defaults to config USER.
+            port (int, optional): Database server port. Defaults to config PORT.
+            password (str, optional): Database password. Defaults to config PASSWORD.
+            sql_scripts_path (str, optional): Path to SQL scripts. Currently unused.
+        
+        Returns:
+            None: Constructor method.
+        
+        Raises:
+            ValueError: If any required database configuration value is empty or None.
+        
+        Example:
+            >>> db = MySqlDatabase(database="testdb", pool_size=3)
+            >>> db.db_config['database']
+            'testdb'
+            >>> db.pool_size
+            3
+        """
         self.db_config: dict = {
             'host': host,
             'user': user,
