@@ -7,21 +7,118 @@ logger = Logger(logger_name=__name__)
 class Cleaner:
 
     def __init__(self):
+    """
+      init   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __init__()
+    """
         self.jinja_api_key: str = JINJA_API_KEY
 
     def clean():
+    """
+    Clean function.
+    
+    TODO: Add proper description.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> clean()
+    """
         pass
 
     def clean_html():
+    """
+    Clean html function.
+    
+    TODO: Add proper description.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> clean_html()
+    """
         pass
 
     def  clean_pdf():
+    """
+    Clean pdf function.
+    
+    TODO: Add proper description.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> clean_pdf()
+    """
         pass
 
     def clean_txt():
+    """
+    Clean txt function.
+    
+    TODO: Add proper description.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> clean_txt()
+    """
         pass
 
     async def clean_with_jinja(self, url: str | list[str], session: aiohttp.ClientSession, **kwargs) -> str | list[tuple[int, str, str]]:
+    """
+    Clean with jinja function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        url: Description needed.
+        session: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> clean_with_jinja()
+    """
         """
         Get a url's text and use Jinja to turn it into an LLM-readable format.
         See: https://jina.ai/reader/

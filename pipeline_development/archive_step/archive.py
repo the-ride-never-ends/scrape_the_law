@@ -84,6 +84,24 @@ class SaveToInternetArchive:
     USER_AGENT = "Mozilla/5.0 (Linux; Android 5.0; SM-G900P Build/LRX21T) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Mobile Safari/537.36"
 
     def __init__(self, db: MySqlDatabase,):
+    """
+      init   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        db (MySqlDatabase): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __init__()
+    """
         self.db: MySqlDatabase = db
         self._get_ia_domains_sql: dict[str, str|dict[Any]] = {
             "sql": "SELECT DISTINCT domain FROM ia_url_metadata WHERE time_stamp < {one_year_ago}",
@@ -101,6 +119,24 @@ class SaveToInternetArchive:
 
     async def _get_links_from_db(self, source: str=None) -> pd.DataFrame:
         if not source:
+    """
+     get links from db function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        source (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _get_links_from_db()
+    """
             logger.error("No source selected")
             raise ValueError("No source selected")
         match source:
@@ -126,6 +162,25 @@ class SaveToInternetArchive:
 
 
     async def check(self, db: MySqlDatabase, wait_time: int=1) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Check function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        db (MySqlDatabase): Description needed.
+        wait_time (int): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> check()
+    """
         """
         Check if a URL is on the Internet Archive.
         """
@@ -176,6 +231,25 @@ class SaveToInternetArchive:
 
 
     async def save(self, db: MySqlDatabase, wait_time: int = 1):
+    """
+    Save function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        db (MySqlDatabase): Description needed.
+        wait_time (int): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> save()
+    """
         """
         Save a dataframe of URLs to the internet archive.
         """
@@ -193,6 +267,26 @@ class SaveToInternetArchive:
         )
 
     def _save_url(self, row: NamedTuple, wait_time: int=1, counter: int=0):
+    """
+     save url function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        row (NamedTuple): Description needed.
+        wait_time (int): Description needed.
+        counter (int): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _save_url()
+    """
         """
         Save a URL to the internet archive.
         """
@@ -262,6 +356,24 @@ class SaveToInternetArchive:
 
 
 async def insert_into_mysql(input_method: str="mysql"):
+    """
+    Insert into mysql function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        input_method (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> insert_into_mysql()
+    """
     logger.info("ROUTE: insert_into_mysql selected.")
     folder = Path(OUTPUT_FOLDER)
     counter = 0
@@ -328,12 +440,46 @@ async def insert_into_mysql(input_method: str="mysql"):
 
 
 async def check_internet_archive(input_method="mysql",output_method="mysql"):
+    """
+    Check internet archive function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        input_method: Description needed.
+        output_method: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> check_internet_archive()
+    """
     pass
 
 
 async def main():
 
     if ROUTE == "insert_into_mysql":
+    """
+    Main function.
+    
+    TODO: Add proper description.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> main()
+    """
         await insert_into_mysql(input_method="mysql")
 
     elif ROUTE == "check_internet_archive": # Check internet archive route.

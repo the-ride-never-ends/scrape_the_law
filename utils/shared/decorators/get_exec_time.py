@@ -19,6 +19,21 @@ def get_exec_time(func: Callable) -> Any:
     @wraps(func)
     def wrapper(*args, **kwargs):
 
+    """
+    Wrapper function.
+    
+    TODO: Add proper description.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> wrapper()
+    """
         # Define the logger.
         logger = Logger(logger_name=func.__module__)
 

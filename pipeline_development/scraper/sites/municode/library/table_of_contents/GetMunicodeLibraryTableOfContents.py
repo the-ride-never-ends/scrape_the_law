@@ -43,6 +43,25 @@ if not os.path.exists(output_folder):
 class GetMunicodeLibraryTableOfContents(AsyncPlaywrightScrapper):
 
     def __init__(self,
+    """
+      init   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        domain (str): Description needed.
+        pw_instance: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __init__()
+    """
                 domain: str,
                 pw_instance,
                 *args,
@@ -61,6 +80,24 @@ class GetMunicodeLibraryTableOfContents(AsyncPlaywrightScrapper):
 
 
     async def scrape_toc(self, wait_time: int) -> list[dict]:
+    """
+    Scrape toc function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        wait_time (int): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> scrape_toc()
+    """
         """
         Scrape a Municode URL's Table of Contents.
         """

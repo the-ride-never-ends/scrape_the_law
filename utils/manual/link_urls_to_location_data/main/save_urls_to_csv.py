@@ -8,6 +8,24 @@ from logger.logger import Logger
 logger = Logger(logger_name=__name__)
 
 def save_urls_to_csv(source: str) -> None:
+    """
+    Save urls to csv function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        source (str): Description needed.
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> save_urls_to_csv()
+    """
     csv_files = [
         file for file in os.listdir() if source in file and file.endswith(".csv")
     ]

@@ -28,6 +28,25 @@ logger = Logger(logger_name=__name__)
 class SeleniumScraper:
 
     def __init__(self,
+    """
+      init   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        robots_txt_url (str): Description needed.
+        user_agent (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __init__()
+    """
                  robots_txt_url: str=None,
                  user_agent: str="*",
                  **driver_options):
@@ -50,6 +69,25 @@ class SeleniumScraper:
         if self.site_dict:
             if not self.site_dict['robots_txt']:
                 if not robots_txt_url:
+    """
+    Type check site dict function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        child_class_name (str): Description needed.
+        robots_txt_url (str): Description needed.
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> type_check_site_dict()
+    """
                     logger.error(f"LEGAL_WEBSITE_DICT robots.txt entry missing for {child_class_name}.")
                     raise ValueError(f"LEGAL_WEBSITE_DICT robots.txt entry missing for {child_class_name}.")
                 else:
@@ -58,11 +96,47 @@ class SeleniumScraper:
             raise ValueError(f"LEGAL_WEBSITE_DICT entry missing for {child_class_name}..")
 
     def get_robot_rules(self, robots_txt_url) -> None:
+    """
+    Get robot rules function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        robots_txt_url: Description needed.
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> get_robot_rules()
+    """
         robots_txt = fetch_robots_txt(robots_txt_url)
         rules: dict[str,dict[str|Any]] = parse_robots_txt(robots_txt)
         self.robot_rules = rules
 
     def _load_driver(self) -> None:
+    """
+     load driver function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _load_driver()
+    """
         chrome_options = Options()
         for key, value in self.driver_options.items():
             chrome_options.add_argument(f"--{key}={value}")
@@ -71,34 +145,164 @@ class SeleniumScraper:
 
     def _close_driver(self) -> None:
         if self.driver:
+    """
+     close driver function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _close_driver()
+    """
             self.driver.quit()
             self.driver = None
 
     @classmethod
     def start(cls, robots_txt_url, user_agent, **driver_options) -> 'SeleniumScraper':
+    """
+    Start function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        cls: Description needed.
+        robots_txt_url: Description needed.
+        user_agent: Description needed.
+    
+    Returns:
+        SeleniumScraper: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> start()
+    """
         instance = cls(robots_txt_url, user_agent=user_agent, **driver_options)
         instance._load_driver()
         instance.get_robot_rules(instance.robots_txt_url)
         return instance
 
     def close(self) -> None:
+    """
+    Close function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> close()
+    """
         self._close_driver()
 
     def __enter__(self) -> 'SeleniumScraper':
+    """
+      enter   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        SeleniumScraper: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __enter__()
+    """
         self._load_driver()
         self.get_robot_rules(self.robots_txt_url)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    """
+      exit   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        exc_type: Description needed.
+        exc_val: Description needed.
+        exc_tb: Description needed.
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __exit__()
+    """
         self.close()
 
     def _open_page(self, url: str) -> None:
+    """
+     open page function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        url (str): Description needed.
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _open_page()
+    """
         self.driver.get(url)
         WebDriverWait(self.driver, 30).until(
             EC.presence_of_element_located((By.TAG_NAME, "body"))
         )
 
     def _fetch_urls_from_page(self, url: str) -> list[dict[str,str]] | list[dict[Never]]:
+    """
+     fetch urls from page function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        url (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _fetch_urls_from_page()
+    """
         url_dict_list = [{"href":None, "text": None}]
         try:
             self._open_page(url)
@@ -112,6 +316,24 @@ class SeleniumScraper:
         return url_dict_list
 
     def _respectful_fetch(self, url: str) -> list[dict[str,str]] | list[dict[Never]]:
+    """
+     respectful fetch function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        url (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _respectful_fetch()
+    """
         fetch, delay = can_fetch(url, self.robot_rules)
         if not fetch:
             logger.warning(f"Cannot scrape URL '{url}' as it's disallowed in robots.txt")
@@ -121,13 +343,67 @@ class SeleniumScraper:
             return self._fetch_urls_from_page(url)
 
     def scrape(self, url: str) -> list[dict[str,str]] | None:
+    """
+    Scrape function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        url (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> scrape()
+    """
         return self._respectful_fetch(url)
 
     def _build_url(self, state_code: str) -> str:
+    """
+     build url function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        state_code (str): Description needed.
+    
+    Returns:
+        str: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _build_url()
+    """
         pass
 
     def check_url_length(self, scrape_url: str):
         if len(scrape_url) == self.scrape_url_length:
+    """
+    Check url length function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        scrape_url (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> check_url_length()
+    """
             logger.warning(f"scrape_url is not {self.scrape_url_length} characters, but {len(scrape_url)}")
             logger.debug(f"url : {scrape_url}")
             traceback.print_exc()
@@ -137,6 +413,24 @@ class SeleniumScraper:
             return scrape_url
 
     def build_urls(self, locations_df: pd.DataFrame) -> list[dict[str,str]]:
+    """
+    Build urls function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        locations_df: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> build_urls()
+    """
         state_codes_df = locations_df.drop_duplicates(subset=['state_code'])
         state_url_dict_list = [
             {"state_code": row.state_code, "state_url": self._build_url(row.state_code)}
@@ -146,6 +440,24 @@ class SeleniumScraper:
         return state_url_dict_list
 
     def _save_output_df_to_csv(self, dic: dict) -> dict:
+    """
+     save output df to csv function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        dic (dict): Description needed.
+    
+    Returns:
+        dict: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _save_output_df_to_csv()
+    """
         state_code, state_url, result = tuple(dic.keys())
         output_filename = f"{state_code}_{self.source}.csv"
         output_path = os.path.join(OUTPUT_FOLDER, output_filename)
@@ -168,6 +480,25 @@ class SeleniumScraper:
             return dic
 
     def _filter_urls(self, urls: list[dict[str,str]], db: MySqlDatabase) -> list[dict[str,str]]:
+    """
+     filter urls function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        urls: Description needed.
+        db (MySqlDatabase): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _filter_urls()
+    """
         command = """
         SELECT source_municode, source_general_code, source_american_legal, source_code_publishing_co, source_place_domain
         FROM sources
@@ -182,6 +513,26 @@ class SeleniumScraper:
         return unprocessed_urls
 
     def scrape_all(self, locations_df: pd.DataFrame, urls: list[dict[str,str]], db: MySqlDatabase) -> pd.DataFrame:
+    """
+    Scrape all function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        locations_df: Description needed.
+        urls: Description needed.
+        db (MySqlDatabase): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> scrape_all()
+    """
         results_url_dict_list = []
         unprocessed_urls = self._filter_urls(urls, db)
 

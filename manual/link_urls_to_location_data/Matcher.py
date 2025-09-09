@@ -50,6 +50,25 @@ logger = Logger(logger_name=__name__, stacklevel=2)
 
 class Matcher:
     def __init__(self, sources_df: pd.DataFrame, locations_df: pd.DataFrame):
+    """
+      init   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        sources_df: Description needed.
+        locations_df: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __init__()
+    """
         self._sources_df = sources_df
         self._locations_df = self._make_county_boolean(locations_df)
         self.regex = self._compile_regex()
@@ -59,12 +78,45 @@ class Matcher:
 
     @staticmethod
     def _make_county_boolean(locations_df: pd.DataFrame) -> pd.DataFrame:
+    """
+     make county boolean function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        locations_df: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _make_county_boolean()
+    """
         locations_df = locations_df.rename(columns={'class_code': 'county'})
         locations_df['county'] = locations_df['county'].str.contains('H')
         return locations_df
 
     @staticmethod
     def _compile_regex() -> dict[str, dict[str, Any]]:
+    """
+     compile regex function.
+    
+    TODO: Add proper description.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _compile_regex()
+    """
         return {
             'clean_of_from_name_regex': {
                 'regex': re.compile(r"^.*?of\s+", flags=re.IGNORECASE),
@@ -86,6 +138,21 @@ class Matcher:
 
     @staticmethod
     def _define_not_places() -> list[str]:
+    """
+     define not places function.
+    
+    TODO: Add proper description.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _define_not_places()
+    """
         return [
             "district", "tribe", "code", "commission", "jury", "system", "council",
             "association", "corporation", "authority", "civil service",
@@ -96,6 +163,21 @@ class Matcher:
 
     @staticmethod
     def _define_county_equivalents() -> list[str]:
+    """
+     define county equivalents function.
+    
+    TODO: Add proper description.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _define_county_equivalents()
+    """
         return [
             "county", "county_", "_county", "_county_",
             "borough", "borough_", "_borough", "_borough_",
@@ -110,6 +192,24 @@ class Matcher:
         ]
 
     def _prepare_dataframes(self) -> dict[str, pd.DataFrame]:
+    """
+     prepare dataframes function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _prepare_dataframes()
+    """
         is_place = ~self._sources_df['text'].apply(self._remove_non_places)
         df = {
             "locations": self._locations_df,
@@ -125,14 +225,69 @@ class Matcher:
         return df
 
     def _remove_non_places(self, text: str) -> bool:
+    """
+     remove non places function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        text (str): Description needed.
+    
+    Returns:
+        bool: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _remove_non_places()
+    """
         return any(non_place in text.lower() for non_place in self.not_places)
 
     def _check_if_county(self, row: NamedTuple) -> bool:
+    """
+     check if county function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        row (NamedTuple): Description needed.
+    
+    Returns:
+        bool: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _check_if_county()
+    """
         lower_href = row.href.lower()
         lower_text = row.text.lower()
         return any(county in lower_href or county in lower_text for county in self.county_eqs)
 
     def _is_place_in_text(self, row: NamedTuple, text: str) -> bool:
+    """
+     is place in text function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        row (NamedTuple): Description needed.
+        text (str): Description needed.
+    
+    Returns:
+        bool: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _is_place_in_text()
+    """
         text = text.lower()
         place_name = row.place_name.lower()
 
@@ -146,6 +301,25 @@ class Matcher:
         return match
 
     def _match_urls_to_locations(self, row: NamedTuple, state_places: pd.DataFrame) -> dict[str, Any]:
+    """
+     match urls to locations function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        row (NamedTuple): Description needed.
+        state_places: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _match_urls_to_locations()
+    """
         # logger.debug(f"row: {row}")
         try:
             text_mask = state_places.apply(lambda x: self._is_place_in_text(row, x['text']), axis=1)
@@ -174,6 +348,24 @@ class Matcher:
             raise
 
     def match(self) -> pd.DataFrame:
+    """
+    Match function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> match()
+    """
         start = time.time()
         output_list = []
 
@@ -199,12 +391,48 @@ class Matcher:
 
     def _filter_valid_sources(self, x: Any) -> bool:
         if isinstance(x, str):
+    """
+     filter valid sources function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        x (Any): Description needed.
+    
+    Returns:
+        bool: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _filter_valid_sources()
+    """
             return True
         if isinstance(x, list) and len(x) > 1:
             return len(set(x)) == len(x)
         return False
 
     def _save_results(self, output_df: pd.DataFrame) -> None:
+    """
+     save results function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        output_df: Description needed.
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _save_results()
+    """
         result_dfs = {
             'output_df': output_df,
             'non_places': self.df['non_places'],
@@ -221,6 +449,25 @@ class Matcher:
     def _save_to_csv(df: pd.DataFrame, name: str) -> None:
         try:
             if not name.endswith(".csv"):
+    """
+     save to csv function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        df: Description needed.
+        name (str): Description needed.
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _save_to_csv()
+    """
                 raise ValueError("The specified name does not have a '.csv' extension")
 
             logger.info(f"{len(df)} places were in {name.split('.')[0]}")

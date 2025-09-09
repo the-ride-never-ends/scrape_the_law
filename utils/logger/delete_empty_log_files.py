@@ -12,8 +12,28 @@ import os
 # os.walk('C:\dir1\dir2\startdir').next()[2] # returns all the files in 'C:\dir1\dir2\startdir'
 
 
-# Auto-clean the debug folder of empty text files.
 def delete_empty_log_files(root_folder):
+    """
+    Delete all empty log files recursively from a root folder.
+    
+    Walks through a directory tree starting from root_folder and removes any
+    .log files that are 0 bytes in size. Prints notification for each deleted file.
+    
+    Args:
+        root_folder (str): Path to the root directory to search for empty log files.
+    
+    Returns:
+        None: This function performs file deletion side effects.
+    
+    Raises:
+        OSError: If file deletion fails due to permissions or file system errors.
+        FileNotFoundError: If root_folder doesn't exist.
+    
+    Example:
+        >>> delete_empty_log_files('/path/to/logs')
+        # Deletes any empty .log files and prints:
+        # Deleted empty file: /path/to/logs/empty.log
+    """
     for root, _, filenames in os.walk(root_folder):
         for filename in filenames:
             if filename.endswith('.log'):
@@ -23,8 +43,29 @@ def delete_empty_log_files(root_folder):
                     print(f"Deleted empty file: {file_path}")
 
 
-# Auto-clean the debug folder of empty text files.
 def delete_zone_identifier_files(root_folder):
+    """
+    Delete all empty Zone.Identifier files recursively from a root folder.
+    
+    Walks through a directory tree starting from root_folder and removes any
+    files ending with '.Identifier' that are 0 bytes in size. These are typically
+    Windows security zone identifier files created when downloading files.
+    
+    Args:
+        root_folder (str): Path to the root directory to search for Zone.Identifier files.
+    
+    Returns:
+        None: This function performs file deletion side effects.
+    
+    Raises:
+        OSError: If file deletion fails due to permissions or file system errors.
+        FileNotFoundError: If root_folder doesn't exist.
+    
+    Example:
+        >>> delete_zone_identifier_files('/path/to/files')
+        # Deletes any empty .Identifier files and prints:
+        # Deleted empty file: /path/to/files/file.txt:Zone.Identifier
+    """
     for root, _, filenames in os.walk(root_folder):
         for filename in filenames:
             if filename.endswith('.Identifier'):

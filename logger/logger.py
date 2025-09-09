@@ -40,6 +40,28 @@ import yaml
 from utils.logger.delete_empty_log_files import delete_empty_log_files, delete_zone_identifier_files
 
 def make_id():
+    """
+    Generate a unique identifier string using UUID4.
+    
+    Creates a random UUID (Universally Unique Identifier) and converts it to a string.
+    This is a convenience function for generating unique identifiers within the logger module.
+    
+    Args:
+        None
+    
+    Returns:
+        str: A string representation of a UUID4.
+    
+    Raises:
+        None
+    
+    Example:
+        >>> id_str = make_id()
+        >>> len(id_str)
+        36
+        >>> '-' in id_str
+        True
+    """
     return str(uuid.uuid4())
 
 # Define general folder for log files
@@ -69,8 +91,29 @@ except Exception as e:
 # Get the program's name
 PROGRAM_NAME = os.path.dirname(__file__)
 
-# TODO FIX THIS FUNCTION. IT DOESN'T WORK!!!!
 def _single_quote_fstring_curly_braces(msg: str) -> str:
+    """
+    Process f-string messages to add quotes around curly brace contents.
+    
+    Attempts to automatically quote variables within f-string curly braces for
+    safer logging. Currently has known issues and may not work as intended.
+    TODO: Fix this function implementation.
+    
+    Args:
+        msg (str): Message string that might be an f-string starting with 'f"'.
+    
+    Returns:
+        str: Processed message with quoted curly brace contents, or original
+            message if not an f-string.
+    
+    Raises:
+        None: Function handles errors gracefully.
+    
+    Example:
+        >>> _single_quote_fstring_curly_braces('f"Hello {name}"')
+        # Intended to return something like 'f"Hello {\'name\'}"'
+        # But function currently has issues
+    """
     if isinstance(msg, str) and msg.startswith('f"'):
         def replacer(match):
             full_match = match.group(0)
@@ -214,10 +257,25 @@ class Logger:
 
     def info(self, message, f: bool=False, q: bool=True, t: float=None, off: bool=False):
         """
-        f is for formatting with self.asterisk.\n
-        q is for automatically putting single quotes around f-string curly brackets.\n
-        t is for pausing the program by a specified number of seconds after the message has been printed to console.
-        off turns off the logger for this message.
+        Log an informational message with custom formatting options.
+        
+        Args:
+            message (str): The message to log.
+            f (bool, optional): Apply asterisk formatting around message. Defaults to False.
+            q (bool, optional): Auto-quote f-string curly brackets. Defaults to True.
+            t (float, optional): Sleep duration after logging. Defaults to None.
+            off (bool, optional): Disable logging for this message. Defaults to False.
+        
+        Returns:
+            None: This function performs logging side effects.
+        
+        Raises:
+            None
+        
+        Example:
+            >>> logger.info("Application started")
+            >>> logger.info("Step completed", f=True)  # With asterisk formatting
+            >>> logger.info("Processing...", t=1.0)    # With 1 second pause
         """
         message = _single_quote_fstring_curly_braces(message) if q else message
         if not off:
@@ -230,10 +288,24 @@ class Logger:
 
     def debug(self, message, f: bool=False, q: bool=True, t: float=None, off: bool=False):
         """
-        f is for formatting with self.asterisk.\n
-        q is for automatically putting single quotes around f-string curly brackets.\n
-        t is for pausing the program by a specified number of seconds after the message has been printed to console.
-        off turns off the logger for this message.
+        Log a debug message with custom formatting options.
+        
+        Args:
+            message (str): The debug message to log.
+            f (bool, optional): Apply asterisk formatting around message. Defaults to False.
+            q (bool, optional): Auto-quote f-string curly brackets. Defaults to True.
+            t (float, optional): Sleep duration after logging. Defaults to None.
+            off (bool, optional): Disable logging for this message. Defaults to False.
+        
+        Returns:
+            None: This function performs logging side effects.
+        
+        Raises:
+            None
+        
+        Example:
+            >>> logger.debug("Variable value: {var}")
+            >>> logger.debug("Debug checkpoint", f=True)  # With asterisk formatting
         """
         message = _single_quote_fstring_curly_braces(message) if q else message
         if not off:

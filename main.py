@@ -28,6 +28,37 @@ logger = Logger(logger_name=__name__)
 
 
 async def main():
+    """
+    Main entry point for the scrape_the_law application.
+    
+    Orchestrates the complete pipeline for scraping legal documents from municipal websites:
+    1. Retrieves location data from database based on configured datapoint
+    2. Generates search queries for legal document sources  
+    3. Performs web searches to find relevant URLs
+    4. Filters URLs to remove obviously incorrect results
+    5. Archives URLs to Internet Archive (Wayback Machine)
+    6. Scrapes document text from archived pages
+    7. Extracts metadata from documents
+    8. Cleans and processes text data
+    9. Stores final results in database
+    
+    Uses interactive prompts between steps to allow selective execution and debugging.
+    
+    Args:
+        None
+    
+    Returns:
+        None: Exits with status code 0 on completion.
+    
+    Raises:
+        KeyboardInterrupt: When user chooses to stop execution at interactive prompts.
+        Exception: Various exceptions from database, network, or processing operations.
+    
+    Example:
+        >>> # Run the complete pipeline
+        >>> asyncio.run(main())
+        # Executes full legal document scraping pipeline with interactive prompts
+    """
 
     next_step("Step 1. Get the input data from the database based on our datapoint.")
     processor = InputProcessor(datapoint=DATAPOINT, rand_seed=RAND_SEED)

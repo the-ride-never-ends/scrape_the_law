@@ -289,9 +289,42 @@ def async_try_except(exception: list=[Exception],
     Retrying (0/3)...
     """
     def decorator(func: Coroutine) -> Coroutine:
+    """
+    Decorator function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        func (Coroutine): Description needed.
+    
+    Returns:
+        Coroutine: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> decorator()
+    """
         @wraps(func)
         async def wrapper(*args, **kwargs) -> Any:
 
+    """
+    Wrapper function.
+    
+    TODO: Add proper description.
+    
+    Returns:
+        Any: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> wrapper()
+    """
             # Initialize Logger and other variables.
             # NOTE See: https://stackoverflow.com/questions/1261875/what-does-nonlocal-do-in-python-3
             nonlocal logger
@@ -398,9 +431,42 @@ def try_except(exception: list=[Exception],
     Retrying (0/3)...
     """
     def decorator(func: Callable) -> Callable:
+    """
+    Decorator function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        func (Callable): Description needed.
+    
+    Returns:
+        Callable: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> decorator()
+    """
         @wraps(func)
         def wrapper(*args, **kwargs) -> Any:
 
+    """
+    Wrapper function.
+    
+    TODO: Add proper description.
+    
+    Returns:
+        Any: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> wrapper()
+    """
             # Initialize Logger and other variables.
             # NOTE See: https://stackoverflow.com/questions/1261875/what-does-nonlocal-do-in-python-3
             nonlocal logger
@@ -418,6 +484,25 @@ def try_except(exception: list=[Exception],
 
 
             def get_method_type(cls, method_name):
+    """
+    Get method type function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        cls: Description needed.
+        method_name: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> get_method_type()
+    """
                 method = getattr(cls, method_name)
                 
                 if inspect.ismethod(method):

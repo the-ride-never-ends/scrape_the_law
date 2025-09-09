@@ -46,6 +46,25 @@ class ScrapeMunicodePage(AsyncPlaywrightScrapper):
     Scrape a Municode library page
     """
     def __init__(self,
+    """
+      init   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        domain (str): Description needed.
+        pw_instance: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __init__()
+    """
                 domain: str,
                 pw_instance,
                 *args,
@@ -64,6 +83,24 @@ class ScrapeMunicodePage(AsyncPlaywrightScrapper):
 
 
     async def screen_shot_frontpage(self, page):
+    """
+    Screen shot frontpage function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        page: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> screen_shot_frontpage()
+    """
         """
         Take a screenshot of the frontpage
         """
@@ -71,6 +108,24 @@ class ScrapeMunicodePage(AsyncPlaywrightScrapper):
         await self.page.screenshot(path=os.path.join(self.output_folder, f"{self.place_name}_frontpage.png"))
 
     async def scrape(self):
+    """
+    Scrape function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> scrape()
+    """
         """
         
         """
@@ -86,6 +141,25 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
     """
 
     def __init__(self,
+    """
+      init   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        domain (str): Description needed.
+        pw_instance: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __init__()
+    """
                 domain: str,
                 pw_instance,
                 *args,
@@ -103,9 +177,45 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
         self.place_name:str = None
 
     def test(self):
+    """
+    Test function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> test()
+    """
         self.page.set_content()
 
     async def _get_past_front_page(self) -> bool:
+    """
+     get past front page function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        bool: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _get_past_front_page()
+    """
         """
         Figure out what kind of front page we're on. If it's a regular page, return it.
         """
@@ -121,12 +231,48 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
         # </div>
 
     async def _choose_browse_when_given_choice(self):
+    """
+     choose browse when given choice function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _choose_browse_when_given_choice()
+    """
         """
         Choose to browse the table of contents if given the choice between that and Municode's documents page.
         """
         pass
 
     async def is_regular_municode_page(self) -> bool:
+    """
+    Is regular municode page function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        bool: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> is_regular_municode_page()
+    """
         # Define the selector for the button.
         # As the all 'regular' pages on Municode have a sidebar, 
         # we can use the presence of the sidebar to determine if we're on a 'regular' page.
@@ -148,6 +294,25 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
 
 
     async def get_code_version_button_texts(self, max_retries: int=3, retry_delay: int=1) -> list[str]:
+    """
+    Get code version button texts function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        max_retries (int): Description needed.
+        retry_delay (int): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> get_code_version_button_texts()
+    """
         counter = 0
         for attempt in range(max_retries):
             try:
@@ -205,6 +370,24 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
 
     #@async_try_except(exception=[AsyncPlaywrightTimeoutError, AsyncPlaywrightError])
     async def scrape_code_version_popup_menu(self, place_id: str) -> None:
+    """
+    Scrape code version popup menu function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        place_id (str): Description needed.
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> scrape_code_version_popup_menu()
+    """
         """
         Scrape a code version pop-up menu
         Returns
@@ -264,6 +447,24 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
 
 
     def _skip_if_we_have_url_already(self, url: str) -> list[dict]|None:
+    """
+     skip if we have url already function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        url (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _skip_if_we_have_url_already()
+    """
         """
         Check if we already have a CSV file of the input URL. 
         If we do, load it as a list of dictionaries and return it. Else, return None
@@ -278,6 +479,24 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
 
 
     async def get_page_version(self) -> bool:
+    """
+    Get page version function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        bool: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> get_page_version()
+    """
         return self.is_regular_municode_page()
 
     # Decorator to wait per Municode's robots.txt
@@ -375,6 +594,24 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
 
     #@async_try_except(exception=[AsyncPlaywrightError, AsyncPlaywrightTimeoutError],raise_exception=True)
     async def click_on_version_sidebar_closer(self):
+    """
+    Click on version sidebar closer function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> click_on_version_sidebar_closer()
+    """
         """
         Click on the 'X' button for the version menu
 
@@ -607,6 +844,24 @@ class GetMunicodeSidebarElements(AsyncPlaywrightScrapper):
 
 
 async def get_sidebar_urls_from_municode_with_playwright(sources_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Get sidebar urls from municode with playwright function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        sources_df: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> get_sidebar_urls_from_municode_with_playwright()
+    """
     """
     Get href and text of sidebar elements in a Municode city code URL.
     """

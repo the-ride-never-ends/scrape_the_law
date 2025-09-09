@@ -2,6 +2,24 @@ from config.config import LEGAL_WEBSITE_DICT
 
 def get_robots_txt_url(scraper_name: str) -> str:
     """
+    Get robots txt url function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        scraper_name (str): Description needed.
+    
+    Returns:
+        str: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> get_robots_txt_url()
+    """
+    """
     Get a robots.txt url path based on a scrapers name 
     """
     scraper_to_url = {

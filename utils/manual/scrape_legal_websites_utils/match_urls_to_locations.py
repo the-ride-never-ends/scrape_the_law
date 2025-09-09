@@ -12,6 +12,24 @@ from logger.logger import Logger
 logger = Logger(logger_name=__name__, stacklevel=3)
 
 def _remove_non_places(text: str):
+    """
+     remove non places function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        text (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _remove_non_places()
+    """
     non_places = (
         "district", "codes", "tribe", "code", "comission", "jury", "system",  "council"
     )
@@ -22,6 +40,26 @@ def _remove_non_places(text: str):
 
 
 def _is_place_in_text(place_name: str, class_code:str,  text: str) -> bool:
+    """
+     is place in text function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        place_name (str): Description needed.
+        class_code (str): Description needed.
+        text (str): Description needed.
+    
+    Returns:
+        bool: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _is_place_in_text()
+    """
     """
     A series of Regexes
     NOTE Already narrowed to a single state.
@@ -68,6 +106,25 @@ def _is_place_in_text(place_name: str, class_code:str,  text: str) -> bool:
 
 def _match_urls_to_locations(row: NamedTuple, site_df: pd.DataFrame) -> dict[str,str,str,str]|None:
 
+    """
+     match urls to locations function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        row (NamedTuple): Description needed.
+        site_df: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _match_urls_to_locations()
+    """
     # Filter site_df for the current state
     state_sites_df: pd.DataFrame = site_df[site_df['state_code'] == row.state_code]
 

@@ -4,11 +4,58 @@ from database.database import MySqlDatabase
 
 
 class Sources:
+    """
+    Handler for retrieving legal document source URLs from the database.
+    
+    This class provides methods to fetch legal code source URLs from various
+    providers including Municode, General Code, American Legal, Code Publishing Co,
+    and place-specific domains.
+    """
+    
     def __init__(self):
+        """
+        Initialize the Sources handler.
+        
+        Args:
+            None
+        
+        Returns:
+            None
+        
+        Raises:
+            None
+        
+        Example:
+            >>> sources = Sources()
+        """
         pass
 
     @staticmethod
     async def get_search_urls_from_sources():
+        """
+        Retrieve legal code source URLs from the database.
+        
+        Queries the sources table to collect URLs from various legal code providers
+        including Municode, General Code, American Legal, Code Publishing Co, and
+        place-specific domains. Returns data in a normalized format with source type.
+        
+        Args:
+            None
+        
+        Returns:
+            pd.DataFrame: DataFrame with columns 'gnis', 'source', 'value' containing
+                legal code source URLs for each location and provider.
+        
+        Raises:
+            Exception: Database connection or query errors.
+        
+        Example:
+            >>> sources_df = await Sources.get_search_urls_from_sources()
+            >>> print(sources_df.columns.tolist())
+            ['gnis', 'source', 'value']
+            >>> sources_df['source'].unique()
+            array(['municode', 'general_code', 'american_legal', 'code_publishing_co', 'place_domain'])
+        """
         async with MySqlDatabase(database="socialtoolkit") as db:
             sources_df = db.query_to_dataframe("""
             SELECT gnis, 

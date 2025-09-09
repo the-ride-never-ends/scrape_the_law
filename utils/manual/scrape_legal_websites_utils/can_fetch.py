@@ -4,6 +4,25 @@ from urllib.parse import urlparse
 
 def can_fetch(url: str, robot_rules: dict) -> tuple[bool, int]:
     """
+    Can fetch function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        url (str): Description needed.
+        robot_rules (dict): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> can_fetch()
+    """
+    """
     Compare a URL to a robots.txt dictionary and see if we can scrape it.
     Also return the website's delay
     """

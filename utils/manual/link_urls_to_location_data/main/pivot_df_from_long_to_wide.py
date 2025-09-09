@@ -14,6 +14,24 @@ logger = Logger(logger_name=__name__)
 
 def pivot_df_from_long_to_wide(output_df: pd.DataFrame) -> pd.DataFrame:
     """
+    Pivot df from long to wide function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        output_df: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> pivot_df_from_long_to_wide()
+    """
+    """
     gnis, state_code, href, source
 
     Input:
@@ -64,6 +82,24 @@ def pivot_df_from_long_to_wide(output_df: pd.DataFrame) -> pd.DataFrame:
     amlegal_pattern = r"regions/[a-z]{2}/"
     def clean_amlegal_href(href):
         if isinstance(href, str) and "amlegal" in href:
+    """
+    Clean amlegal href function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        href: Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> clean_amlegal_href()
+    """
             return re.sub(amlegal_pattern, '', href)
         return href
     df['href'] = df['href'].apply(clean_amlegal_href)

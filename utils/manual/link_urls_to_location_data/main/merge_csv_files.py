@@ -12,6 +12,24 @@ logger = Logger(logger_name=__name__)
 
 def merge_csv_files(filename: str) -> None:
     if not os.path.exists(make_csv_file_path_with_cwd(filename)):
+    """
+    Merge csv files function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        filename (str): Description needed.
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> merge_csv_files()
+    """
         result_list = []
         for file in LEGAL_WEBSITE_DICT.keys():
             path = make_csv_file_path_with_cwd(file)

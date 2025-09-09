@@ -49,6 +49,24 @@ class GetMunicodeSidebarElements(SeleniumScraper):
     """
 
     def __init__(self, *args, **kwargs):
+    """
+      init   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __init__()
+    """
         super().__init__(*args, **kwargs)
         self.xpath_dict = {
             "current_version": '//*[@id="codebankToggle"]/button/text()',
@@ -62,6 +80,24 @@ class GetMunicodeSidebarElements(SeleniumScraper):
 
 
     def _get_current_code_version(self, url: str) -> str:
+    """
+     get current code version function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        url (str): Description needed.
+    
+    Returns:
+        str: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _get_current_code_version()
+    """
         """
         Get the date for the current version of the municipal code.
         """
@@ -71,6 +107,24 @@ class GetMunicodeSidebarElements(SeleniumScraper):
 
 
     def _get_all_code_versions(self, url: str) -> list[str]:
+    """
+     get all code versions function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        url (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _get_all_code_versions()
+    """
         """
         Get the dates for current and past versions of the municipal code.
         NOTE: You need to click on each individual button to get the link itself.
@@ -90,6 +144,25 @@ class GetMunicodeSidebarElements(SeleniumScraper):
 
 
     def _scrape_toc(self, base_url: str, wait_time: int) -> list[dict]:
+    """
+     scrape toc function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        base_url (str): Description needed.
+        wait_time (int): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _scrape_toc()
+    """
         """
         Scrape a Municode URL's Table of Contents.
         """
@@ -131,6 +204,24 @@ class GetMunicodeSidebarElements(SeleniumScraper):
 
 
     def extract_data(self, node: WebElement) -> dict:
+    """
+    Extract data function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        node (WebElement): Description needed.
+    
+    Returns:
+        dict: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> extract_data()
+    """
         """
         Extract and return the heading and href data from a toc node
         """
@@ -139,6 +230,24 @@ class GetMunicodeSidebarElements(SeleniumScraper):
 
 
     def _skip_if_we_have_url_already(self, url: str) -> list[dict]|None:
+    """
+     skip if we have url already function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        url (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _skip_if_we_have_url_already()
+    """
         """
         Check if we already have a CSV file of the input URL. 
         If we do, load it as a list of dictionaries and return it. Else, return None
@@ -314,6 +423,25 @@ def save_code_versions_to_csv(output_list: list[dict]) -> None:
 # https://library.municode.com/
 
 def get_sidebar_urls_from_municode_with_selenium(df: pd.DataFrame, wait_in_seconds: int) -> pd.DataFrame:
+    """
+    Get sidebar urls from municode with selenium function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        df: Description needed.
+        wait_in_seconds (int): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> get_sidebar_urls_from_municode_with_selenium()
+    """
     """
     Get href and text of sidebar elements in a Municode city code URL.
     """

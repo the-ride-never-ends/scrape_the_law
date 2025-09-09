@@ -38,6 +38,26 @@ class Scraper(ABC):
             search.
     """
     def __init__(self, 
+    """
+      init   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        pw_instance (Playwright): Description needed.
+        robot_txt_url (str): Description needed.
+        current_agent (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __init__()
+    """
                  pw_instance: Playwright, 
                  robot_txt_url: str, 
                  current_agent: str="*", 
@@ -55,17 +75,76 @@ class Scraper(ABC):
 
 
     def __enter__(self) -> 'Scraper':
+    """
+      enter   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        Scraper: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __enter__()
+    """
         self._load_browser()
         self.get_robot_rules(self.robot_txt_url)
         return self
 
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    """
+      exit   function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        exc_type: Description needed.
+        exc_val: Description needed.
+        exc_tb: Description needed.
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> __exit__()
+    """
         self._close_browser()
 
 
     @classmethod
     def start(cls, pw_instance, current_agent, robot_txt_url, **launch_kwargs) -> 'Scraper':
+    """
+    Start function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        cls: Description needed.
+        pw_instance: Description needed.
+        current_agent: Description needed.
+        robot_txt_url: Description needed.
+    
+    Returns:
+        Scraper: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> start()
+    """
         instance = cls(pw_instance, robot_txt_url, current_agent=current_agent, **launch_kwargs)
         instance._load_browser()
         instance.get_robot_rules(instance.robot_txt_url)
@@ -73,15 +152,69 @@ class Scraper(ABC):
 
 
     def close(self) -> None:
+    """
+    Close function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> close()
+    """
         self._close_browser()
 
 
     def _load_browser(self) -> None:
+    """
+     load browser function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _load_browser()
+    """
         """Launch a chromium instance and load a page"""
         self.browser = self.pw_instance.chromium.launch(**self.launch_kwargs)
 
 
     def _close_browser(self) -> None:
+    """
+     close browser function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _close_browser()
+    """
         """Close browser instance and reset internal attributes"""
         if self.browser:
             self.browser.close()
@@ -91,12 +224,48 @@ class Scraper(ABC):
 
     #### START PAGE PROCESSING METHODS ####
     def create_page(self) -> PlaywrightPage:
+    """
+    Create page function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        PlaywrightPage: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> create_page()
+    """
         context = self.browser.new_context()
         page = context.new_page()
         return page
 
 
     def get_robot_rules(self):
+    """
+    Get robot rules function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        None
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> get_robot_rules()
+    """
         """
         Get the site's robots.txt file and assign it to the self.robot_urls attribute
         """
@@ -106,6 +275,25 @@ class Scraper(ABC):
 
 
     def _open_webpage(self, url: str, page: PlaywrightPage) -> None:
+    """
+     open webpage function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        url (str): Description needed.
+        page (PlaywrightPage): Description needed.
+    
+    Returns:
+        None: Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _open_webpage()
+    """
         """
         Open a specified webpage and wait for any dynamic elements to load.
         """
@@ -122,12 +310,48 @@ class Scraper(ABC):
 
 
     def _fetch_urls_from_page(self, url: str) -> dict[str]|dict[None]:
+    """
+     fetch urls from page function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        url (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _fetch_urls_from_page()
+    """
         page: PlaywrightPage = self._open_webpage(url)
         urls_dict: dict = extract_urls_using_javascript(page, self.source)
         return urls_dict
 
 
     def _respectful_fetch(self, url: str) -> dict[str]|dict[None]:
+    """
+     respectful fetch function.
+    
+    TODO: Add proper description.
+    
+    Args:
+        url (str): Description needed.
+    
+    Returns:
+        Description needed.
+    
+    Raises:
+        TODO: Document exceptions.
+    
+    Example:
+        >>> # TODO: Add usage example
+        >>> _respectful_fetch()
+    """
         """
         Limit getting URLs based on a semaphore and the delay specified in robots.txt
         """
