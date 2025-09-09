@@ -4,23 +4,32 @@ from urllib.parse import urlparse
 
 def can_fetch(url: str, robot_rules: dict) -> tuple[bool, int]:
     """
-    Can fetch function.
+    Check if a URL can be fetched according to robots.txt rules.
     
-    TODO: Add proper description.
+    Compares a URL's path against the allow and disallow rules from a
+    robots.txt file to determine if web scraping is permitted. Also
+    returns the crawl delay specified in the robots.txt.
     
     Args:
-        url (str): Description needed.
-        robot_rules (dict): Description needed.
+        url (str): The URL to check for fetch permission.
+        robot_rules (dict): Dictionary containing parsed robots.txt rules
+            with 'allow', 'disallow', and 'crawl-delay' keys.
     
     Returns:
-        Description needed.
+        tuple[bool, int]: A tuple containing (can_fetch, delay_seconds).
+            can_fetch is True if URL can be scraped, False otherwise.
+            delay_seconds is the crawl delay in seconds (0 if not specified).
     
     Raises:
-        TODO: Document exceptions.
+        ValueError: If URL is malformed and cannot be parsed.
+        KeyError: If robot_rules dict is missing expected keys.
     
     Example:
-        >>> # TODO: Add usage example
-        >>> can_fetch()
+        >>> rules = {'allow': ['/api/*'], 'disallow': ['/admin'], 'crawl-delay': 1}
+        >>> can_fetch("https://example.com/api/data", rules)
+        (True, 1)
+        >>> can_fetch("https://example.com/admin", rules)
+        (False, 1)
     """
     """
     Compare a URL to a robots.txt dictionary and see if we can scrape it.
