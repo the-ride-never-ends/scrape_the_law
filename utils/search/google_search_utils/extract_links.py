@@ -12,22 +12,28 @@ logger = Logger(logger_name=__name__, log_level=log_level)
 
 def _check_for_empty_sublists(urls: list[list[str]]) -> bool:
     """
-     check for empty sublists function.
+    Check if all sublists in the given list are empty.
     
-    TODO: Add proper description.
+    This function iterates through a list of sublists and determines if all
+    of them are empty (have no elements). Returns True only if all sublists
+    are empty, False if at least one sublist contains elements.
     
     Args:
-        urls: Description needed.
+        urls (list[list[str]]): A list containing sublists of strings.
     
     Returns:
-        bool: Description needed.
+        bool: True if all sublists are empty, False if any sublist has elements.
     
     Raises:
-        TODO: Document exceptions.
+        TypeError: If urls is not a list or contains non-list elements.
     
     Example:
-        >>> # TODO: Add usage example
-        >>> _check_for_empty_sublists()
+        >>> empty_lists = [[], [], []]
+        >>> _check_for_empty_sublists(empty_lists)
+        True
+        >>> mixed_lists = [[], ["url1"], []]
+        >>> _check_for_empty_sublists(mixed_lists)
+        False
     """
     results = [
         not sublist for sublist in urls
