@@ -13,6 +13,7 @@ class SafeFormatter(string.Formatter):
     def get_value(self, key, args, kwargs):
         """
         Retrieve a value for a given key from kwargs, or return a placeholder if not found.
+        
         Args:
             key: The key to look up in kwargs.
             args: Positional arguments (not used in this implementation).
@@ -21,6 +22,18 @@ class SafeFormatter(string.Formatter):
         Returns:
             The value associated with the key if found in kwargs, otherwise a placeholder
             string containing the key.
+            
+        Raises:
+            None
+            
+        Example:
+            >>> formatter = SafeFormatter()
+            >>> result = formatter.get_value('name', [], {'name': 'John'})
+            >>> print(result)
+            John
+            >>> result = formatter.get_value('missing', [], {})
+            >>> print(result)
+            {missing}
         """
         if isinstance(key, str):
             return kwargs.get(key, "{" + key + "}")
@@ -32,11 +45,23 @@ class SafeFormatter(string.Formatter):
         Parse the format string, handling potential ValueError exceptions.
 
         Args:
-            format_string: The string to be parsed for formatting.
+            format_string (str): The string to be parsed for formatting.
 
         Returns:
-            A list of tuples representing the parsed format string. If parsing fails,
-            returns a list with a single tuple containing the entire format string.
+            list: A list of tuples representing the parsed format string. If parsing fails,
+                returns a list with a single tuple containing the entire format string.
+                
+        Raises:
+            None: Catches ValueError internally and returns safe fallback.
+            
+        Example:
+            >>> formatter = SafeFormatter()
+            >>> result = formatter.parse("Hello {name}")
+            >>> len(result) > 0
+            True
+            >>> result = formatter.parse("Invalid {format")  # Missing closing brace
+            >>> result
+            [('Invalid {format', None, None, None)]
         """
         try:
             return super().parse(format_string)
@@ -47,32 +72,34 @@ class SafeFormatter(string.Formatter):
 def safe_format(format_string: str, *args, **kwargs) -> str:
     """
     Safely format a string using the SafeFormatter class.
+    
     Allows for Python values and code to be evaluated first, then inserted into strings.
-    Useful for loading in external text and treating that text like an f-string
-
-    Example:
-    >>> kwargs = {
-    >>>     "first": 1
-    >>>     "second": "second"
-    >>>     "third": get_bool("three")
-    >>>     "fourth": 2*2
-    >>> }
-    >>> with open("text.txt", "r") as file:
-    >>>     string = file.read()
-    >>> return string
-    "{first}, {second}, {third}, {fourth}, fifth"
-    >>> string = safe_format(string, **kwargs)
-    >>> return string
-    "1, second, True, 4, fifth"
+    Useful for loading in external text and treating that text like an f-string. Missing
+    keys are preserved as-is rather than raising KeyError.
 
     Args:
-        format_string: The string to be formatted.
+        format_string (str): The string to be formatted.
         *args: Variable length argument list (not used in the current implementation).
         **kwargs: Arbitrary keyword arguments to be used in formatting.
 
     Returns:
-        A formatted string where keys from kwargs are substituted into the format_string.
-        Missing keys are left as is in the resulting string.
+        str: A formatted string where keys from kwargs are substituted into the format_string.
+            Missing keys are left as is in the resulting string.
+            
+    Raises:
+        None: Uses SafeFormatter which handles errors gracefully.
+
+    Example:
+        >>> kwargs = {
+        ...     "first": 1,
+        ...     "second": "second",
+        ...     "third": True,
+        ...     "fourth": 2*2
+        ... }
+        >>> template = "{first}, {second}, {third}, {fourth}, {missing}"
+        >>> result = safe_format(template, **kwargs)
+        >>> print(result)
+        1, second, True, 4, {missing}
     """
     formatter = SafeFormatter()
     return formatter.format(format_string, *args, **kwargs)
